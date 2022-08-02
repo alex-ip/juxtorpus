@@ -4,8 +4,9 @@ The data model for a corpus. Contains basic summary statistics.
 You may ingest and extract data from and to its persisted form. (e.g. csv)
 """
 from datetime import datetime
-from typing import Union, List
+from typing import Union, List, Dict
 import pandas as pd
+import string, re
 
 
 class Corpus:
@@ -18,9 +19,13 @@ class Corpus:
         :param sep: csv separator
         :return:
         """
-        if path.endswith('csv'):
+        # TODO: accept .txt file (likely most typical form of corpus storage)
+        if path.endswith('.txt'):
+            raise NotImplemented(".txt file not implemented yet.")
+
+        if path.endswith('.csv'):
             return Corpus(docs=pd.read_csv(path, sep=sep))
-        raise Exception("Currently only supports .csv formats.")
+        raise Exception("Corpus currently only supports .csv formats.")
 
     @staticmethod
     def to(type_: str) -> 'Corpus':
@@ -31,15 +36,34 @@ class Corpus:
         self._para_split = '\n'
         self._doc_col_name = 'doc'
 
-        self.docs: pd.DataFrame
+        self._docs_df: pd.DataFrame
         if isinstance(docs, List):
-            self.docs = pd.DataFrame(docs, columns=[self._doc_col_name])
+            self._docs_df = pd.DataFrame(docs, columns=[self._doc_col_name])
         elif isinstance(docs, pd.DataFrame):
-            self.docs = docs
-            if self._doc_col_name not in self.docs.columns:
+            self._docs_df = docs
+            if self._doc_col_name not in self._docs_df.columns:
                 raise ValueError(f"Missing {self._doc_col_name} column in dataframe.")
         else:
             raise ValueError("Docs must either be a list of string or a pandas dataframe.")
+
+        try:
+            self._docs_df[self._doc_col_name] = self._docs_df[self._doc_col_name].astype(dtype=str)
+        except Exception:
+            raise TypeError("doc column must be string.")
+
+        self._token_stats_cache: Dict[str, int] = None
+
+    @property
+    def docs(self) -> List[str]:
+        return self._docs_df[self._doc_col_name].tolist()
+
+    @property
+    def num_tokens(self) -> int:
+        return self._tokens_statistics().get("num_tokens")
+
+    @property
+    def num_uniq_tokens(self) -> int:
+        return self._tokens_statistics().get("num_uniques")
 
     # TODO: write the paragraph function
     def paragraphs(self, split=None):
@@ -49,36 +73,84 @@ class Corpus:
             _split = split
             # TODO: regenerate cache if needed.
 
-    def unique_tokens(self):
-        # TODO: cache a set of the unique tokens
-        pass
-
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        # TODO: number of tokens
-        # TODO: number of unique tokens
-        # TODO: number of tokens (after stemming)
-        # TODO: number of unique tokens (after stemming)
-        # TODO: number of tokens (after lemmatisation)
-        # TODO: number of unique tokens (after lemmatisation) - we will need our own lemma dict
-        # TODO: word frequency distribution of top 10 words
-        # TODO: word frequency distribution of top 10 stemmed words
-        # TODO: word frequency distribution of top 10 lemmatised words
+        token_stats: Dict[str, int] = self._tokens_statistics()
+        return pd.Series({
+            "Number of words": token_stats.get("num_tokens"),
+            "Number of unique words": token_stats.get("num_uniques")
+        })
 
-    def freq_of(self, word: str, normalised: bool = False):
+    def freq_of(self, words: List[str], normalised: bool = False):
         """ Returns the frequency of the word. """
-        # TODO: frequency of word in corpus
-        # TODO: frequency of stemmed word in stemmed corpus?
-        # TODO: normalised frequency of word
-        # TODO: normalised frequency of stemmed word in stemmed corpus.
-        pass
+        word_dict = dict()
+        for w in words:
+            word_dict[w] = 0
+        for i in range(len(self._docs_df)):
+            _doc = self._docs_df[self._doc_col_name].iloc[i]
+            _tokens = Corpus._preprocess(_doc).split()
+            for t in _tokens:
+                if word_dict.get(t, None) is not None:
+                    word_dict[t] += 1
 
-    def _num_tokens(self) -> int:
-        # TODO: return the number of tokens in the corpus
-        pass
+    def _tokens_statistics(self) -> Dict[str, int]:
 
-    def _num_unique_tokens(self):
-        pass
+        if self._token_stats_cache is not None:
+            return self._token_stats_cache
+        else:
+            _num_tokens: int = 0
+            _uniqs = set()
+            for i in range(len(self._docs_df)):
+                _doc = self._docs_df[self._doc_col_name].iloc[i]
+                _tokens = Corpus._preprocess(_doc).split()
+                _num_tokens += len(_tokens)
+                for t in _tokens:
+                    _uniqs.add(t)
+            return {
+                "num_tokens": _num_tokens,
+                "num_uniques": len(_uniqs)
+            }
+
+
+
 
     def __len__(self):
-        return len(self.docs) if self.docs is not None else 0
+        return len(self._docs_df) if self._docs_df is not None else 0
+
+    @staticmethod
+    def _preprocess(text: str):
+        text = text.lower()
+        text = Corpus._remove_punctuations(text)
+        return text
+
+    @staticmethod
+    def _remove_punctuations(s: str):
+        to_remove = string.punctuation
+        return re.sub(f"[{to_remove}]", '', s, count=0)
+
+
+class DummyCorpus(Corpus):
+    dummy_texts = [
+        "Hello, this is a dummy text 1.",
+        "Hello, this is another dummy text.",
+        "Hello, this is yet another dummy text."
+    ]
+
+    def __init__(self):
+        super(DummyCorpus, self).__init__(docs=DummyCorpus.dummy_texts)
+
+
+class DummyCorpusB(DummyCorpus):
+    dummy_texts = [
+        "This is a dummy corpus to be compared to.",
+        "This is another dummy corpus to be compared to."
+    ]
+
+    def __init__(self):
+        super(DummyCorpus, self).__init__(docs=DummyCorpusB.dummy_texts)
+
+
+if __name__ == '__main__':
+    trump = Corpus.from_("~/Downloads/2017_01_18_trumptweets.csv")
+    print(trump.docs[0])
+    print(trump.summary())
