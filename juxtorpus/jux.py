@@ -38,27 +38,21 @@ class Jux:
 
     def keywords(self, method: str):
         """ Extract and return the keywords of the two corpus ranked by frequency. """
-        _extractor: Keywords
+        extractor_A: Keywords
+        extractor_B: Keywords
         if method == 'rake':
-            _extractor = RakeKeywords(corpusA=self._A, corpusB=self._B)
-            # kw = _extractor.extracted()
-            # a = pd.DataFrame(kw[0], columns=['A_keyphrase', 'A_freq'])
-            # b = pd.DataFrame(kw[1], columns=['B_keyphrase', 'B_freq'])
+            extractor_A = RakeKeywords(corpus=self._A)
+            extractor_B = RakeKeywords(corpus=self._B)
         elif method == 'freq':
-            _extractor = TFKeywords(corpusA=self._A, corpusB=self._B)
-            # kw = _extractor.extracted()
-            # a = pd.DataFrame(kw[0], columns=['A_keyphrase', 'A_freq_normalised'])
-            # b = pd.DataFrame(kw[1], columns=['B_keyphrase', 'B_freq_normalised'])
-
+            extractor_A = TFKeywords(corpus=self._A)
+            extractor_B = TFKeywords(corpus=self._B)
         elif method == 'tfidf':
-            _extractor = TFIDFKeywords(corpusA=self._A, corpusB=self._B)
-            # kw = _extractor.extracted()
-            # a = pd.DataFrame(kw[0], columns=['A_keyphrase', 'A_tfidf'])
-            # b = pd.DataFrame(kw[1], columns=['B_keyphrase', 'B_tfidf'])
+            extractor_A = TFIDFKeywords(corpus=self._A)
+            extractor_B = TFIDFKeywords(corpus=self._B)
         else:
             raise ValueError("Unsupported keyword extraction method.")
         # use sets to compare
-        return _extractor.extracted()
+        return extractor_A.extracted(), extractor_B.extracted()
 
     def lexical_diversity(self):
         # number of uniq / number of words      of course this will be a problem if the 2 corpus have different sizes. So maybe this is a log relationship.

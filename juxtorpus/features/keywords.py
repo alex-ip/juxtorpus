@@ -1,20 +1,26 @@
 import nltk
 
-from juxtorpus.corpus import Corpus
 from rake_nltk import Rake
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Set, Dict
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.preprocessing import binarize
+from scipy.sparse import csr_matrix
 from collections import Counter
+from spacy.matcher import Matcher
 import string
 import re
 from tqdm import tqdm
+import numpy as np
+
+from juxtorpus import nlp
+from juxtorpus.corpus import Corpus
+from juxtorpus.matchers import no_stopwords, no_puncs
 
 
 class Keywords(metaclass=ABCMeta):
-    def __init__(self, corpusA: Corpus, corpusB: Corpus):
-        self._A = corpusA
-        self._B = corpusB
+    def __init__(self, corpus: Corpus):
+        self.corpus = corpus
 
     @abstractmethod
     def extracted(self) -> List[str]:
@@ -33,10 +39,8 @@ class RakeKeywords(Keywords):
     """
 
     def extracted(self):
-        _kw_A = Counter(RakeKeywords._rake(sentences=self._A.docs))
-        _kw_B = Counter(RakeKeywords._rake(sentences=self._B.docs))
-
-        return _kw_A.most_common(20), _kw_B.most_common(20)
+        _kw_A = Counter(RakeKeywords._rake(sentences=self.corpus.texts))
+        return _kw_A.most_common(20)
 
     @staticmethod
     def _rake(sentences: List[str]):
@@ -52,8 +56,28 @@ class RakeKeywords(Keywords):
 
 
 class TFIDFKeywords(Keywords):
+    def __init__(self, corpus: Corpus):
+        super().__init__(corpus)
+        self.count_vec = CountVectorizer(
+            tokenizer=TFIDFKeywords._do_nothing,
+            preprocessor=TFIDFKeywords._preprocess,
+            ngram_range=(1, 1)  # default = (1,1)
+        )
+
     def extracted(self):
-        return TFIDFKeywords._max_tfidfs(self._A), TFIDFKeywords._max_tfidfs(self._B)
+        corpus_tfidf = self._corpus_tf_idf(smooth=False)
+        keywords = [(word, corpus_tfidf[0][i]) for i, word in enumerate(self.count_vec.get_feature_names_out())]
+        keywords.sort(key=lambda w_tfidf: w_tfidf[1], reverse=True)
+        return keywords
+        # return TFIDFKeywords._max_tfidfs(self.corpus)
+
+    def _corpus_tf_idf(self, smooth: bool = False):
+        """ Term frequency is of the entire corpus. Idfs calculated as per normal. """
+        tfs = self.count_vec.fit_transform(self.corpus.docs)
+        idfs = binarize(tfs, threshold=0.99)
+        if smooth:
+            pass  # TODO: smoothing of idfs using log perhaps.
+        return np.array(csr_matrix.sum(tfs, axis=0) / csr_matrix.sum(idfs, axis=0))
 
     @staticmethod
     def _max_tfidfs(corpus: Corpus):
@@ -66,9 +90,19 @@ class TFIDFKeywords(Keywords):
         max_tfidf_cols.sort(key=lambda t: t[1], reverse=True)
         return max_tfidf_cols
 
+    @staticmethod
+    def _do_nothing(doc):
+        """ Used to override default tokenizer and preprocessors in sklearn transformers."""
+        return doc
+
+    @staticmethod
+    def _preprocess(doc):
+        """ Filters punctuations and normalise case."""
+        return [doc[start:end].text.lower() for _, start, end in no_puncs(nlp.vocab)(doc)]
+
 
 class TFKeywords(Keywords):
-    def __init__(self, corpusA: Corpus, corpusB: Corpus, stopwords: Set[str] = None):
+    def __init__(self, corpus: Corpus, stopwords: Set[str] = None):
         if stopwords is None:
             import nltk
             try:
@@ -77,19 +111,22 @@ class TFKeywords(Keywords):
                 nltk.download('stopwords')
             from nltk.corpus import stopwords
         self._sw = set(stopwords.words('english'))
-        super(TFKeywords, self).__init__(corpusA, corpusB)
+        super(TFKeywords, self).__init__(corpus)
 
     def extracted(self):
-        freqs_dict_A = self._count(self._A, normalise=True)
-        freqs_dict_B = self._count(self._B, normalise=True)
-        return freqs_dict_A, freqs_dict_B
+        word_freqs = self._count(self.corpus, normalise=True)
+        return word_freqs
 
     def _count(self, corpus: Corpus, normalise: bool = True):
         freq_dict = dict()
-        for d in tqdm(corpus.docs):
-            d = TFKeywords._preprocess(d)
-            for t in d.split():
-                if t in self._sw: continue
+        no_puncs_no_stopwords = no_stopwords(nlp.vocab)
+        no_puncs_no_stopwords.add(key="no_punctuations", patterns=[
+            [{"IS_PUNCT": False}]
+        ])
+        for d in corpus.docs:
+            # lower and skip stop words
+            for _, start, end in TFKeywords.no_puncs_no_stopwords()(d):
+                t = d[start:end].text.lower()
                 freq_dict[t] = freq_dict.get(t, 0) + 1
         if normalise:
             for k in freq_dict.keys():
@@ -97,35 +134,35 @@ class TFKeywords(Keywords):
         return sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)
 
     @staticmethod
-    def _preprocess(text: str):
-        text = text.lower()
-        text = TFKeywords._remove_punctuations(text)
-        return text
-
-    @staticmethod
-    def _remove_punctuations(s: str):
-        to_remove = string.punctuation
-        return re.sub(f"[{to_remove}]", '', s, count=0)
+    def no_puncs_no_stopwords() -> Matcher:
+        matcher = Matcher(nlp.vocab)
+        matcher.add(key='no_puncs_no_stopwords', patterns=[
+            [{'IS_PUNCT': False, 'IS_STOP': False}]
+        ])
+        return matcher
 
 
 if __name__ == '__main__':
-    from juxtorpus.corpus import DummyCorpus, DummyCorpusB
-    from pprint import pprint
+    from juxtorpus.corpus import DummyCorpus
 
-    rkw = RakeKeywords(DummyCorpus(), DummyCorpusB())
-    pprint(rkw.extracted())
 
-    tfidf = TFIDFKeywords(DummyCorpus(), DummyCorpusB())
-    pprint(tfidf.extracted())
+    def print_inline(list_: list):
+        for element in list_:
+            print(element, end=', ')
+        print()
 
-    tf = TFKeywords(DummyCorpus(), DummyCorpusB())
-    pprint(tf.extracted())
 
-    text = "Miami-Dade Mayor drops sanctuary policy. Right decision. Strong! https://t.co/MtPvaDC4jM"
-    ngs = nltk.ngrams(text.split(), 2)
-    ng_list = list()
-    for ng in ngs:
-        ng_list.append(' '.join(ng))
+    top = 5
+    corpus = DummyCorpus().preprocess()
 
-    counts = Counter(ng_list)
-    print(counts.most_common(10))
+    rkw = RakeKeywords(corpus)
+    print("RakeKeywords")
+    print_inline(rkw.extracted()[:top])
+
+    tfidf = TFIDFKeywords(corpus)
+    print("TFIDfKeywords")
+    print_inline(tfidf.extracted()[:top])
+
+    tf = TFKeywords(corpus)
+    print("TFKeywords")
+    print_inline(tf.extracted()[:top])
