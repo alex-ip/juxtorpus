@@ -72,10 +72,15 @@ class Corpus:
         else:
             self._df[self._col_doc] = list(nlp.pipe(self._df[self._col_text]))
         if verbose: print(f"++ Done. Elapsed: {time.time() - start}")
+        return self
+
+    @property
+    def texts(self) -> List[str]:
+        return self._df[self._col_text].tolist()
 
     @property
     def docs(self) -> List[str]:
-        return self._df[self._col_text].tolist()
+        return self._df[self._col_doc].tolist()
 
     @property
     def num_tokens(self) -> int:
@@ -128,23 +133,16 @@ class Corpus:
 
 class DummyCorpus(Corpus):
     dummy_texts = [
-        "Hello, this is a dummy text 1.",
-        "Hello, this is another dummy text.",
-        "Hello, this is yet another dummy text."
+        "The cafe is empty aside from an old man reading a book about Aristotle."
+        "In Australia, Burger King is called Hungry Jacks.",
+        "She is poor but quite respectable.",
+        "She was very tired and frustrated.",
+        "What's your address?",
+        "Man it is hot in Australia!"
     ]
 
     def __init__(self):
         super(DummyCorpus, self).__init__(docs=DummyCorpus.dummy_texts)
-
-
-class DummyCorpusB(DummyCorpus):
-    dummy_texts = [
-        "This is a dummy corpus to be compared to.",
-        "This is another dummy corpus to be compared to."
-    ]
-
-    def __init__(self):
-        super(DummyCorpus, self).__init__(docs=DummyCorpusB.dummy_texts)
 
 
 if __name__ == '__main__':
