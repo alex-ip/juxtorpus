@@ -7,6 +7,16 @@ from datetime import datetime
 from typing import Union, List, Dict
 import pandas as pd
 import string, re
+import time
+import spacy
+
+from juxtorpus import nlp
+from juxtorpus.matchers import no_puncs
+
+
+class CorpusMeta:
+    def __init__(self):
+        self.preprocessed_elapsed_time = None
 
 
 class Corpus:
@@ -31,102 +41,89 @@ class Corpus:
     def to(type_: str) -> 'Corpus':
         pass
 
-    def __init__(self, docs: Union[List[str], pd.DataFrame], datetime_: datetime = None):
-        self._datetime = datetime_  # metadata - date and time  TODO: need to rethink how to add these meta data
-        self._para_split = '\n'
-        self._doc_col_name = 'doc'
+    def __init__(self, docs: Union[List[str], pd.DataFrame]):
+        self._col_text = 'text'
+        self._col_doc = 'doc'  # spacy Document
+        self._meta = CorpusMeta()  # corpus meta data
 
-        self._docs_df: pd.DataFrame
-        if isinstance(docs, List):
-            self._docs_df = pd.DataFrame(docs, columns=[self._doc_col_name])
+        self._df: pd.DataFrame
+        if isinstance(docs, list):
+            self._df = pd.DataFrame(docs, columns=[self._col_text])
         elif isinstance(docs, pd.DataFrame):
-            self._docs_df = docs
-            if self._doc_col_name not in self._docs_df.columns:
-                raise ValueError(f"Missing {self._doc_col_name} column in dataframe.")
+            self._df = docs
+            if self._col_text not in self._df.columns:
+                raise ValueError(f"Missing {self._col_text} column in dataframe.")
         else:
             raise ValueError("Docs must either be a list of string or a pandas dataframe.")
 
         try:
-            self._docs_df[self._doc_col_name] = self._docs_df[self._doc_col_name].astype(dtype=str)
+            self._df[self._col_text] = self._df[self._col_text].astype(dtype=str)
         except Exception:
-            raise TypeError("doc column must be string.")
+            raise TypeError(f"{self._col_text} column must be string.")
 
-        self._token_stats_cache: Dict[str, int] = None
+        self._word_stats_cache: Dict[str, int] = None
+
+    def preprocess(self, verbose: bool = False):
+        start = time.time()
+        if verbose: print(f"++ Preprocessing {len(self._df)} documents...")
+
+        if len(self._df) < 100:
+            self._df[self._col_doc] = self._df[self._col_text].apply(lambda x: nlp(x))
+        else:
+            self._df[self._col_doc] = list(nlp.pipe(self._df[self._col_text]))
+        if verbose: print(f"++ Done. Elapsed: {time.time() - start}")
 
     @property
     def docs(self) -> List[str]:
-        return self._docs_df[self._doc_col_name].tolist()
+        return self._df[self._col_text].tolist()
 
     @property
     def num_tokens(self) -> int:
-        return self._tokens_statistics().get("num_tokens")
+        return self._word_statistics().get("num_tokens")
 
     @property
     def num_uniq_tokens(self) -> int:
-        return self._tokens_statistics().get("num_uniques")
-
-    # TODO: write the paragraph function
-    def paragraphs(self, split=None):
-        """ Split the corpus into paragraphs from all documents. """
-        _split = self._para_split
-        if split is not None:
-            _split = split
-            # TODO: regenerate cache if needed.
+        return self._word_statistics().get("num_uniques")
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        token_stats: Dict[str, int] = self._tokens_statistics()
+        token_stats: Dict[str, int] = self._word_statistics()
         return pd.Series({
             "Number of words": token_stats.get("num_tokens"),
             "Number of unique words": token_stats.get("num_uniques")
         })
 
     def freq_of(self, words: List[str], normalised: bool = False):
-        """ Returns the frequency of the word. """
+        """ Returns the frequency of a list of words. """
         word_dict = dict()
         for w in words:
             word_dict[w] = 0
-        for i in range(len(self._docs_df)):
-            _doc = self._docs_df[self._doc_col_name].iloc[i]
-            _tokens = Corpus._preprocess(_doc).split()
-            for t in _tokens:
+        for i in range(len(self._df)):
+            _doc = self._df[self._col_text].iloc[i]
+            for t in _doc:
                 if word_dict.get(t, None) is not None:
                     word_dict[t] += 1
 
-    def _tokens_statistics(self) -> Dict[str, int]:
+    def _word_statistics(self) -> Dict[str, int]:
 
-        if self._token_stats_cache is not None:
-            return self._token_stats_cache
+        if self._word_stats_cache is not None:
+            return self._word_stats_cache
         else:
             _num_tokens: int = 0
             _uniqs = set()
-            for i in range(len(self._docs_df)):
-                _doc = self._docs_df[self._doc_col_name].iloc[i]
-                _tokens = Corpus._preprocess(_doc).split()
-                _num_tokens += len(_tokens)
-                for t in _tokens:
+            for i in range(len(self._df)):
+                _doc = self._df[self._col_doc].iloc[i]
+                _no_puncs_doc = no_puncs(nlp.vocab)(_doc)
+                _num_tokens += len(_no_puncs_doc)
+                for t in _no_puncs_doc:
                     _uniqs.add(t)
             return {
                 "num_tokens": _num_tokens,
                 "num_uniques": len(_uniqs)
             }
 
-
-
-
     def __len__(self):
-        return len(self._docs_df) if self._docs_df is not None else 0
-
-    @staticmethod
-    def _preprocess(text: str):
-        text = text.lower()
-        text = Corpus._remove_punctuations(text)
-        return text
-
-    @staticmethod
-    def _remove_punctuations(s: str):
-        to_remove = string.punctuation
-        return re.sub(f"[{to_remove}]", '', s, count=0)
+        return len(self._df) if self._df is not None else 0
 
 
 class DummyCorpus(Corpus):
@@ -151,6 +148,8 @@ class DummyCorpusB(DummyCorpus):
 
 
 if __name__ == '__main__':
-    trump = Corpus.from_("~/Downloads/2017_01_18_trumptweets.csv")
+    # trump = Corpus.from_("~/Downloads/2017_01_18_trumptweets.csv")
+    trump = Corpus.from_("assets/samples/tweetsA.csv")
     print(trump.docs[0])
+    print(trump.preprocess())
     print(trump.summary())
