@@ -102,15 +102,7 @@ class TFIDFKeywords(Keywords):
 
 
 class TFKeywords(Keywords):
-    def __init__(self, corpus: Corpus, stopwords: Set[str] = None):
-        if stopwords is None:
-            import nltk
-            try:
-                nltk.data.find('corpora/stopwords')
-            except LookupError:
-                nltk.download('stopwords')
-            from nltk.corpus import stopwords
-        self._sw = set(stopwords.words('english'))
+    def __init__(self, corpus: Corpus):
         super(TFKeywords, self).__init__(corpus)
 
     def extracted(self):
@@ -130,7 +122,7 @@ class TFKeywords(Keywords):
                 freq_dict[t] = freq_dict.get(t, 0) + 1
         if normalise:
             for k in freq_dict.keys():
-                freq_dict[k] = freq_dict.get(k) / corpus.num_tokens
+                freq_dict[k] = (freq_dict.get(k) / corpus.num_tokens) * 100
         return sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)
 
     @staticmethod
