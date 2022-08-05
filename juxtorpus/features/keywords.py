@@ -25,6 +25,11 @@ class RakeKeywords(Keywords):
     """ Implementation of Keywords extraction using Rake.
     package: https://pypi.org/project/rake-nltk/
     paper: https://www.researchgate.net/profile/Stuart_Rose/publication/227988510_Automatic_Keyword_Extraction_from_Individual_Documents/links/55071c570cf27e990e04c8bb.pdf
+
+    RAKE begins keyword extraction on a document by parsing its text into a set of candidate keywords.
+    First, the document text is split into an array of words by the specified word delimiters.
+    This array is then split into sequences of contiguous words at phrase delimiters and stop word positions.
+    Words within a sequence are assigned the same position in the text and together are considered a candidate keyword.
     """
 
     def extracted(self):
