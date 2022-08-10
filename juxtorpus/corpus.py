@@ -37,8 +37,9 @@ class Corpus:
             return Corpus(docs=pd.read_csv(path, sep=sep))
         raise Exception("Corpus currently only supports .csv formats.")
 
-    @staticmethod
-    def to(type_: str) -> 'Corpus':
+    def to(self, type_: str):
+        if type_ == 'csv':
+            raise NotImplemented("Exports to csv.")
         pass
 
     def __init__(self, docs: Union[List[str], pd.DataFrame]):
