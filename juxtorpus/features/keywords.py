@@ -8,9 +8,6 @@ from sklearn.preprocessing import binarize
 from scipy.sparse import csr_matrix
 from collections import Counter
 from spacy.matcher import Matcher
-import string
-import re
-from tqdm import tqdm
 import numpy as np
 
 from juxtorpus import nlp
@@ -111,13 +108,9 @@ class TFKeywords(Keywords):
 
     def _count(self, corpus: Corpus, normalise: bool = True):
         freq_dict = dict()
-        no_puncs_no_stopwords = no_stopwords(nlp.vocab)
-        no_puncs_no_stopwords.add(key="no_punctuations", patterns=[
-            [{"IS_PUNCT": False}]
-        ])
+        _no_puncs_no_stopwords = TFKeywords.no_puncs_no_stopwords()
         for d in corpus.docs:
-            # lower and skip stop words
-            for _, start, end in TFKeywords.no_puncs_no_stopwords()(d):
+            for _, start, end in _no_puncs_no_stopwords(d):
                 t = d[start:end].text.lower()
                 freq_dict[t] = freq_dict.get(t, 0) + 1
         if normalise:
