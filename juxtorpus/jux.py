@@ -43,7 +43,7 @@ class Jux:
         if method == 'rake':
             extractor_A = RakeKeywords(corpus=self._A)
             extractor_B = RakeKeywords(corpus=self._B)
-        elif method == 'freq':
+        elif method == 'tf':
             extractor_A = TFKeywords(corpus=self._A)
             extractor_B = TFKeywords(corpus=self._B)
         elif method == 'tfidf':
