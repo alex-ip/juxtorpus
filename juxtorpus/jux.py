@@ -1,13 +1,10 @@
+from juxtorpus import nlp
 from juxtorpus.corpus import Corpus
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
 
 from typing import Tuple, List
 import pandas as pd
-
 import spacy
-
-global nlp
-nlp = spacy.load('en_core_web_sm')
 
 
 class JuxViz:
