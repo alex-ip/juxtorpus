@@ -32,12 +32,6 @@ class PolarityWordCloud(object):
         # for negative scores, we need to move the axis - maybe it'd be easier to use pandas.Series instead.
         df['normalised'] = (df['score'] - df['score'].min()) / (df['score'].max() - df['score'].min()) + 1
 
-    # def __init__(self, wordcloud: WC, word_scores: List[Tuple[str, float]]):
-    #     self.wc = wordcloud
-    #     self.word_scores = word_scores
-    #     self._colour_funcs: List[Tuple[Callable, Set[str]]] = None
-    #     self._default_colour_func = get_single_color_func(HEX_BLACK)
-
     def __init__(self, wordcloud: WC, word_scores_df: pd.DataFrame):
         self.wc = wordcloud
         self.df = word_scores_df
@@ -110,7 +104,6 @@ class PolarityWordCloud(object):
             raise Exception("Did you call set_colour_with or set_colour_for?")  # TODO
         for colour_func, words in self._colour_funcs:
             if word in words:
-                print(f"++ FOUND: {colour_func}")
                 return colour_func
         return self._default_colour_func
 
