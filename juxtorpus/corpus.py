@@ -34,7 +34,7 @@ class Corpus:
             raise NotImplemented(".txt file not implemented yet.")
 
         if path.endswith('.csv'):
-            return Corpus(docs=pd.read_csv(path, sep=sep))
+            return Corpus(texts=pd.read_csv(path, sep=sep))
         raise Exception("Corpus currently only supports .csv formats.")
 
     def to(self, type_: str):
@@ -42,16 +42,16 @@ class Corpus:
             raise NotImplemented("Exports to csv.")
         pass
 
-    def __init__(self, docs: Union[List[str], pd.DataFrame]):
+    def __init__(self, texts: Union[List[str], pd.DataFrame]):
         self._col_text = 'text'
         self._col_doc = 'doc'  # spacy Document
         self._meta = CorpusMeta()  # corpus meta data
 
         self._df: pd.DataFrame
-        if isinstance(docs, list):
-            self._df = pd.DataFrame(docs, columns=[self._col_text])
-        elif isinstance(docs, pd.DataFrame):
-            self._df = docs
+        if isinstance(texts, list):
+            self._df = pd.DataFrame(texts, columns=[self._col_text])
+        elif isinstance(texts, pd.DataFrame):
+            self._df = texts
             if self._col_text not in self._df.columns:
                 raise ValueError(f"Missing {self._col_text} column in dataframe.")
         else:
@@ -144,7 +144,7 @@ class DummyCorpus(Corpus):
     ]
 
     def __init__(self):
-        super(DummyCorpus, self).__init__(docs=DummyCorpus.dummy_texts)
+        super(DummyCorpus, self).__init__(texts=DummyCorpus.dummy_texts)
 
 
 if __name__ == '__main__':
