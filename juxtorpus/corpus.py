@@ -4,7 +4,7 @@ The data model for a corpus. Contains basic summary statistics.
 You may ingest and extract data from and to its persisted form. (e.g. csv)
 """
 from datetime import datetime
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Set
 import pandas as pd
 import string, re
 import time
@@ -99,7 +99,7 @@ class Corpus:
             "Number of unique words": token_stats.get("num_uniques")
         })
 
-    def freq_of(self, words: List[str], normalised: bool = False):
+    def freq_of(self, words: Set[str], normalised: bool = False):
         """ Returns the frequency of a list of words. """
         word_dict = dict()
         for w in words:
@@ -109,6 +109,7 @@ class Corpus:
             for t in _doc:
                 if word_dict.get(t, None) is not None:
                     word_dict[t] += 1
+        return word_dict
 
     def _word_statistics(self) -> Dict[str, int]:
 
@@ -149,6 +150,6 @@ class DummyCorpus(Corpus):
 if __name__ == '__main__':
     # trump = Corpus.from_("~/Downloads/2017_01_18_trumptweets.csv")
     trump = Corpus.from_("assets/samples/tweetsA.csv")
-    print(trump.docs[0])
+    print(trump.texts[0])
     print(trump.preprocess())
     print(trump.summary())
