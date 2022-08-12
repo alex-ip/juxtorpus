@@ -80,7 +80,7 @@ class Corpus:
         return self._df[self._col_text].tolist()
 
     @property
-    def docs(self) -> List[str]:
+    def docs(self) -> List[spacy.tokens.doc.Doc]:
         return self._df[self._col_doc].tolist()
 
     @property
