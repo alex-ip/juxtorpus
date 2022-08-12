@@ -118,12 +118,13 @@ class Corpus:
         else:
             _num_tokens: int = 0
             _uniqs = set()
+            _no_puncs = no_puncs(nlp.vocab)
             for i in range(len(self._df)):
                 _doc = self._df[self._col_doc].iloc[i]
-                _no_puncs_doc = no_puncs(nlp.vocab)(_doc)
+                _no_puncs_doc = _no_puncs(_doc)
                 _num_tokens += len(_no_puncs_doc)
-                for t in _no_puncs_doc:
-                    _uniqs.add(t)
+                for _, start, end in _no_puncs_doc:
+                    _uniqs.add(_doc[start:end].text.lower())
             return {
                 "num_tokens": _num_tokens,
                 "num_uniques": len(_uniqs)
