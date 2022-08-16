@@ -1,3 +1,4 @@
+import wordcloud
 from wordcloud import WordCloud as WC, get_single_color_func
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,6 +11,8 @@ This is a visualisation class.
 
 from typing import List, Tuple, Callable, Set, Dict
 
+from juxtorpus.viz import Viz
+
 
 def tuples_to_dict(tuples: List[Tuple[str, float]]):
     dict_ = dict()
@@ -18,10 +21,17 @@ def tuples_to_dict(tuples: List[Tuple[str, float]]):
     return dict_
 
 
-class PolarityWordCloud(object):
+class PolarityWordCloud(Viz):
+    """ PolarityWordCloud
+
+    """
 
     @staticmethod
     def from_(word_scores: List[Tuple[str, float]]) -> 'PolarityWordCloud':
+        """
+        :param word_scores: List of words and their scores. (Expects both positive and negative scores)
+        :return: PolarityWordCloud
+        """
         wc = WC(background_color='white')
         df = pd.DataFrame(word_scores, columns=['word', 'score'])
         PolarityWordCloud._add_normalise_scores(df)
@@ -33,10 +43,11 @@ class PolarityWordCloud(object):
         df['normalised'] = (df['score'] - df['score'].min()) / (df['score'].max() - df['score'].min()) + 1
 
     def __init__(self, wordcloud: WC, word_scores_df: pd.DataFrame):
+        # TODO: refactor this to accept 2 dataframes instead of relying on positive and negative scores?
         self.wc = wordcloud
         self.df = word_scores_df
         self._colour_funcs: List[Tuple[Callable, Set[str]]] = None
-        self._default_colour_func = get_single_color_func(HEX_BLACK)
+        self._default_colour_func = get_single_color_func(HEX_OFFWHITE)
 
     @property
     def wordcloud(self) -> WC:
@@ -62,7 +73,7 @@ class PolarityWordCloud(object):
         """ Sets colour for particular words """
 
         # builds the colour func map
-        pass
+        raise NotImplemented()
 
     def gradate(self, scheme: str = ''):
         """ Puts the word cloud in gradient in accordance to the score.
@@ -109,6 +120,7 @@ class PolarityWordCloud(object):
 
 
 HEX_BLACK = "#000000"
+HEX_OFFWHITE = "#F8F0E3"
 HEX_GREEN_0 = "#abe098"
 HEX_GREEN_1 = "#83d475"
 HEX_GREEN_2 = "#57c84d"
