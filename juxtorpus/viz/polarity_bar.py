@@ -4,27 +4,49 @@ import matplotlib.pyplot as plt
 
 from juxtorpus.viz import Viz
 
+"""
+PolarityBar is a Viz class that display the polarity of words and their scores given 2 sets.
+
+It does not include shared words.
+
+Stacked view: This does not assume anything but converts 1 set of scores to be negative.
+Relative view: This displays the relative word dominance between the corpora.
+
+
+Question:
+should this visualisation expect positive and negatives?
+OR
+should this visualisation expect 2 sets of positives and do the negatives themselves?
+"""
+
 
 class PolarityBar(Viz):
     @staticmethod
-    def from_(word_scores: List[Tuple[str, float]]) -> 'PolarityBar':
-        df = pd.DataFrame(word_scores, columns=['word', 'score'])
-        return PolarityBar(word_score_df=df)
+    def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]]) -> 'PolarityBar':
+        _df_A = pd.DataFrame(word_scores_A, columns=['word', 'score'])
+        _df_B = pd.DataFrame(word_scores_B, columns=['word', 'score'])
+        _df_A = _df_A[_df_A['word'].isin(_df_B['word'])].sort_values(by='word').reset_index(drop=True)
+        # todo: improve performance here (set check called twice)
+        _df_B = _df_B[_df_B['word'].isin(_df_A['word'])].sort_values(by='word').reset_index(drop=True)
+        _df_cat = pd.concat([_df_A['word'],
+                             _df_A['score'].rename('A_score'),
+                             _df_B['score'].rename('B_score')],
+                            axis=1, copy=False)
+        return PolarityBar(_df_cat)
 
     def __init__(self, word_score_df: pd.DataFrame):
+        """ word_score_df expects a dataframe with a word column and 2 score columns. """
         self._df = word_score_df
         self._stacked_in_subplot: bool = False
         self._relative_in_subplot: bool = False
 
     def stack(self):
         """ Set up the bar visuals as stacked bars """
-
-        _positives = self._df[self._df['score'] >= 0]
-        _negatives = self._df[self._df['score'] < 0]
-
         fig, ax = plt.subplots()
-        b1 = ax.barh(_positives['word'], _positives['score'], color='green')
-        b2 = ax.barh(_negatives['word'], _negatives['score'], color='red')
+        self._add_score_sum_to_df()
+        _df = self._df.sort_values(by='AB_score')
+        b1 = ax.barh(_df['word'], _df['A_score'], color='green')
+        b2 = ax.barh(_df['word'], -_df['B_score'], color='red')
 
         plt.legend([b1, b2], ['CorpusA', 'CorpusB'], loc='upper right')
         plt.title("Stacked Frequency")
@@ -33,12 +55,25 @@ class PolarityBar(Viz):
     def relative(self):
         """ Set up the bar visuals as a relative bar """
         fig, ax = plt.subplots()
-        self._df['__viz__positive'] = self._df['score'] > 0
-        _sorted_df = self._df.sort_values(by='score')
-        b = ax.barh(_sorted_df['word'], _sorted_df['score'],
-                    color=_sorted_df['__viz__positive'].map({True: 'g', False: 'r'}))
+
+        self._add_score_relative_to_df()
+        _df = self._df.sort_values(by='AB_score_relative')
+
+        _df['__viz__positive'] = _df['AB_score_relative'] > 0
+        _ = ax.barh(_df['word'], _df['AB_score_relative'],
+                    color=_df['__viz__positive'].map({True: 'g', False: 'r'}))
         plt.title("Relative Frequency Differences")
         return self
+
+    def _add_score_sum_to_df(self) -> str:
+        if 'AB_score' not in self._df.columns:
+            self._df['AB_score'] = self._df['A_score'] + self._df['B_score']
+        return 'AB_score'
+
+    def _add_score_relative_to_df(self) -> str:
+        if 'AB_score_relative' not in self._df.columns:
+            self._df['AB_score_relative'] = self._df['A_score'] + -self._df['B_score']
+        return 'AB_score_relative'
 
     def render(self):
         # show the subplots
@@ -51,10 +86,16 @@ class PolarityBar(Viz):
 
 
 if __name__ == '__main__':
-    word_scores = [
-        ('hello', -0.25),
+    A = [
+        ('hello', 0.25),
         ('there', 1.0),
     ]
-    pbar = PolarityBar.from_(word_scores)
-    pbar.relative().render()
+
+    B = [
+        ('good', 1.0),
+        ('bye', 2.0),
+        ('hello', 0.1)
+    ]
+    pbar = PolarityBar.from_(A, B)
     pbar.stack().render()
+    pbar.relative().render()
