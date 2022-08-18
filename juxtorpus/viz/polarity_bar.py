@@ -60,8 +60,11 @@ class PolarityBar(Viz):
         _df = self._df.sort_values(by='AB_score_relative')
 
         _df['__viz__positive'] = _df['AB_score_relative'] > 0
-        _ = ax.barh(_df['word'], _df['AB_score_relative'],
+        b = ax.barh(_df['word'], _df['AB_score_relative'],
                     color=_df['__viz__positive'].map({True: 'g', False: 'r'}))
+
+        # todo: legend does not display the correct colour
+        plt.legend([b, b], ['CorpusA', 'CorpusB'], labelcolor=['green', 'red'])
         plt.title("Relative Frequency Differences")
         return self
 
