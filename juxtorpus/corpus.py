@@ -20,9 +20,15 @@ class CorpusMeta:
 
 
 class Corpus:
+    """ Corpus
+    This class wraps around a dataframe of raw str text that represents your corpus.
+    It exposes functions that gather statistics on the corpus such as token frequencies and lexical diversity etc.
+
+    summary() provides a quick summary of your corpus.
+    """
 
     @staticmethod
-    def from_(path: str, sep=',') -> 'Corpus':
+    def from_disk(path: str, sep=',') -> 'Corpus':
         """
         Ingest data and return the Corpus data model.
         :param path: Path to csv
@@ -33,103 +39,105 @@ class Corpus:
         if path.endswith('.txt'):
             raise NotImplemented(".txt file not implemented yet.")
         if path.endswith('.csv'):
-            return Corpus(texts=pd.read_csv(path, sep=sep))
+            return Corpus(df=pd.read_csv(path, sep=sep))
         raise Exception("Corpus currently only supports .csv formats.")
+
+    @staticmethod
+    def from_(any: Union[List[str], Set[str]]) -> 'Corpus':
+        if isinstance(any, list) or isinstance(any, set):
+            return Corpus(df=pd.DataFrame(any, columns=[Corpus.COL_TEXT]))
+        raise Exception("Corpus currently only supports lists and sets.")
 
     def to(self, type_: str):
         if type_ == 'csv':
             raise NotImplemented("Exports to csv.")
-        pass
+        raise NotImplemented()
 
-    def __init__(self, texts: Union[List[str], pd.DataFrame]):
-        self.col_text: str = 'text'
-        self.col_doc: str = 'doc'  # spacy Document
-        self._meta = CorpusMeta()  # corpus meta data
+    COL_TEXT: str = 'text'
+    COL_DOC: str = '__doc__'  # spacy Document
 
-        self._df: pd.DataFrame
-        if isinstance(texts, list):
-            self._df = pd.DataFrame(texts, columns=[self.col_text])
-        elif isinstance(texts, pd.DataFrame):
-            self._df = texts
-            if self.col_text not in self._df.columns:
-                raise ValueError(f"Missing {self.col_text} column in dataframe.")
-        else:
-            raise ValueError("Docs must either be a list of string or a pandas dataframe.")
+    def __init__(self, df: pd.DataFrame):
+
+        self._df: pd.DataFrame = df
+        if self.COL_TEXT not in self._df.columns:
+            raise ValueError(f"Missing {self.COL_TEXT} column in dataframe.")
+        assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
+            f"More than 1 {self.COL_TEXT} column in dataframe."
 
         try:
-            self._df[self.col_text] = self._df[self.col_text].astype(dtype=pd.StringDtype(storage='pyarrow'))
+            self._df[self.COL_TEXT] = self._df[self.COL_TEXT].astype(dtype=pd.StringDtype(storage='pyarrow'))
         except Exception:
-            raise TypeError(f"{self.col_text} column must be string.")
+            raise TypeError(f"{self.COL_TEXT} failed to convert to string dtype.")
 
-        self._word_stats_cache: Dict[str, int] = None
+        self._num_tokens: int = -1
+        self._num_uniqs: int = -1
 
     def preprocess(self, verbose: bool = False):
         start = time.time()
         if verbose: print(f"++ Preprocessing {len(self._df)} documents...")
 
         if len(self._df) < 100:
-            self._df[self.col_doc] = self._df[self.col_text].apply(lambda x: nlp(x))
+            self._df[self.COL_DOC] = self._df[self.COL_TEXT].apply(lambda x: nlp(x))
         else:
-            self._df[self.col_doc] = list(nlp.pipe(self._df[self.col_text]))
+            self._df[self.COL_DOC] = list(nlp.pipe(self._df[self.COL_TEXT]))
         if verbose: print(f"++ Done. Elapsed: {time.time() - start}")
         return self
 
     @property
-    def texts(self) -> List[str]:
-        return self._df[self.col_text].tolist()
-
-    @property
-    def docs(self) -> List[spacy.tokens.doc.Doc]:
-        return self._df[self.col_doc].tolist()
-
-    @property
     def num_tokens(self) -> int:
-        return self._word_statistics().get("num_tokens")
+        self._compute_word_statistics()
+        return self._num_tokens
 
     @property
     def num_uniq_tokens(self) -> int:
-        return self._word_statistics().get("num_uniques")
+        self._compute_word_statistics()
+        return self._num_uniqs
+
+    def texts(self) -> List[str]:
+        return self._df[self.COL_TEXT].tolist()
+
+    def docs(self) -> List[spacy.tokens.doc.Doc]:
+        return self._df[self.COL_DOC].tolist()
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        token_stats: Dict[str, int] = self._word_statistics()
+        self._compute_word_statistics()
         return pd.Series({
-            "Number of words": token_stats.get("num_tokens"),
-            "Number of unique words": token_stats.get("num_uniques")
+            "Number of words": self.num_tokens,
+            "Number of unique words": self.num_uniq_tokens
         })
 
-    def freq_of(self, words: Set[str], normalised: bool = False):
+    def freq_of(self, words: Set[str]):
         """ Returns the frequency of a list of words. """
         word_dict = dict()
         for w in words:
             word_dict[w] = 0
         for i in range(len(self._df)):
-            _doc = self._df[self.col_text].iloc[i]
+            _doc = self._df[self.COL_TEXT].iloc[i]
             for t in _doc:
                 if word_dict.get(t, None) is not None:
                     word_dict[t] += 1
         return word_dict
 
-    def _word_statistics(self) -> Dict[str, int]:
-        if self.col_doc not in self._df.columns:
+    def _compute_word_statistics(self):
+        if Corpus.COL_DOC not in self._df.columns:
             raise RuntimeError("You need to call preprocess() on your corpus object first.")
 
-        if self._word_stats_cache is not None:
-            return self._word_stats_cache
+        if self._num_tokens > -1 or self._num_uniqs > -1:
+            pass
         else:
             _num_tokens: int = 0
             _uniqs = set()
             _no_puncs = no_puncs(nlp.vocab)
             for i in range(len(self._df)):
-                _doc = self._df[self.col_doc].iloc[i]
+                _doc = self._df[self.COL_DOC].iloc[i]
                 _no_puncs_doc = _no_puncs(_doc)
                 _num_tokens += len(_no_puncs_doc)
                 for _, start, end in _no_puncs_doc:
                     _uniqs.add(_doc[start:end].text.lower())
-            return {
-                "num_tokens": _num_tokens,
-                "num_uniques": len(_uniqs)
-            }
+
+            self._num_tokens = _num_tokens
+            self._num_uniqs = len(_uniqs)
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
@@ -146,12 +154,12 @@ class DummyCorpus(Corpus):
     ]
 
     def __init__(self):
-        super(DummyCorpus, self).__init__(texts=DummyCorpus.dummy_texts)
+        super(DummyCorpus, self).__init__(df=pd.DataFrame(self.dummy_texts, columns=[Corpus.COL_TEXT]))
 
 
 if __name__ == '__main__':
-    # trump = Corpus.from_("~/Downloads/2017_01_18_trumptweets.csv")
-    trump = Corpus.from_("assets/samples/tweetsA.csv")
-    print(trump.texts[0])
+    # trump = Corpus.from_disk("~/Downloads/2017_01_18_trumptweets.csv")
+    trump = Corpus.from_disk("../assets/samples/tweetsA.csv")
+    print(trump.texts()[0])
     print(trump.preprocess())
     print(trump.summary())
