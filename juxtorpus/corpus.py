@@ -57,7 +57,7 @@ class Corpus:
             raise ValueError("Docs must either be a list of string or a pandas dataframe.")
 
         try:
-            self._df[self.col_text] = self._df[self.col_text].astype(dtype=str)
+            self._df[self.col_text] = self._df[self.col_text].astype(dtype=pd.StringDtype(storage='pyarrow'))
         except Exception:
             raise TypeError(f"{self.col_text} column must be string.")
 
