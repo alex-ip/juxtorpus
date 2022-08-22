@@ -24,14 +24,14 @@ class PolarityBar(Viz):
     @staticmethod
     def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]]) -> 'PolarityBar':
         _df_A = pd.DataFrame(word_scores_A, columns=['word', 'score'])
-        _df_B = pd.DataFrame(word_scores_B, columns=['word', 'score'])
-        _df_A = _df_A[_df_A['word'].isin(_df_B['word'])].sort_values(by='word').reset_index(drop=True)
-        # todo: improve performance here (set check called twice)
-        _df_B = _df_B[_df_B['word'].isin(_df_A['word'])].sort_values(by='word').reset_index(drop=True)
-        _df_cat = pd.concat([_df_A['word'],
+        df_A = pd.DataFrame(word_scores_A, columns=['word', 'A_score']).set_index('word')
+        df_B = pd.DataFrame(word_scores_B, columns=['word', 'B_score']).set_index('word')
+        df = df_A.join(df_B, on=None, how='inner')  # inner = intersection only
+        df['__summed__'] = df['A_score'] + df['B_score']
+        df = df.sort_values(by='__summed__', ascending=False)
                              _df_A['score'].rename('A_score'),
                              _df_B['score'].rename('B_score')],
-                            axis=1, copy=False)
+        return PolarityBar(df)
         return PolarityBar(_df_cat)
 
     def __init__(self, word_score_df: pd.DataFrame):
@@ -45,8 +45,8 @@ class PolarityBar(Viz):
         fig, ax = plt.subplots()
         self._add_score_sum_to_df()
         _df = self._df.sort_values(by='AB_score')
-        b1 = ax.barh(_df['word'], _df['A_score'], color='green')
-        b2 = ax.barh(_df['word'], -_df['B_score'], color='red')
+        b1 = ax.barh(_df.index, _df['A_score'], color='green')
+        b2 = ax.barh(_df.index, -_df['B_score'], color='red')
 
         plt.legend([b1, b2], ['CorpusA', 'CorpusB'], loc='upper right')
         plt.title("Stacked Frequency")
@@ -60,7 +60,7 @@ class PolarityBar(Viz):
         _df = self._df.sort_values(by='AB_score_relative')
 
         _df['__viz__positive'] = _df['AB_score_relative'] > 0
-        b = ax.barh(_df['word'], _df['AB_score_relative'],
+        b = ax.barh(_df.index, _df['AB_score_relative'],
                     color=_df['__viz__positive'].map({True: 'g', False: 'r'}))
 
         # todo: legend does not display the correct colour
