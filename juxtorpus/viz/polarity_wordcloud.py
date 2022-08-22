@@ -37,16 +37,18 @@ class PolarityWordCloud(Viz):
         # df = pd.DataFrame(word_scores_A, columns=['word', 'score'])
         df_A = pd.DataFrame(word_scores_A, columns=['word', 'score_A']).set_index('word')
         df_B = pd.DataFrame(word_scores_B, columns=['word', 'score_B']).set_index('word')
-        df = pd.concat([df_A, df_B], axis=0, copy=False)
+        df = df_A.join(df_B, on=None, how='outer')
         df.fillna(value={'score_A': 0, 'score_B': 0}, inplace=True)
-        df['summed'] = df['score_A'] - df['score_B']
-        PolarityWordCloud._add_normalise_scores(df, 'summed')
+        df['__relative__'] = df['score_A'] - df['score_B']
+        df['__summed__'] = df['score_A'] + df['score_B']
+        PolarityWordCloud._add_normalise_scores(df, '__relative__')
         return PolarityWordCloud(wc, df)
 
     @staticmethod
     def _add_normalise_scores(df: pd.DataFrame, col_score: str):
         # for negative scores, we need to move the axis - maybe it'd be easier to use pandas.Series instead.
-        df['normalised'] = (df[col_score] - df[col_score].min()) / (df[col_score].max() - df[col_score].min()) + 1
+        _max = max(abs(df[col_score].min()), abs(df[col_score].max()))
+        df['__normalised__'] = ((df[col_score] - -_max) / (2 * _max)) + 1
 
     def __init__(self, wordcloud: WC, word_scores_df: pd.DataFrame):
         # TODO: refactor this to accept 2 dataframes instead of relying on positive and negative scores?
@@ -59,27 +61,26 @@ class PolarityWordCloud(Viz):
     def wordcloud(self) -> WC:
         return self.wc
 
-    def set_colours_with(self, condition_map: Dict[str, Callable[[Tuple[str, float]], bool]]):
+    def set_colours_with(self, condition_map: Dict[str, Callable[[Tuple[str, float]], bool]], col_score: str):
         """ Sets colour for words satisfying the specified condition."""
 
         # build the internal colour_map
-        _colour_map: Dict[str, Set[str]] = dict()
+        _colour_word_map: Dict[str, Set[str]] = dict()
         for i in range(len(self.df)):
             for colour, condition in condition_map.items():
-                if condition(self.df.iloc[i]['normalised']):
-                    word_set = _colour_map.get(colour, set())
+                if condition(self.df.iloc[i][col_score]):
+                    word_set = _colour_word_map.get(colour, set())
                     word_set.add(self.df.iloc[i].name)
-                    _colour_map[colour] = word_set
+                    _colour_word_map[colour] = word_set
                     break
-        self._colour_funcs = list()
-        for colour, words in _colour_map.items():
-            self._colour_funcs.append((get_single_color_func(colour), words))
 
-    def set_colours_for(self, word_map: Dict[str, Set[str]]):
+        self.set_colours_for(_colour_word_map)
+
+    def set_colours_for(self, colour_word_map: Dict[str, Set[str]]):
         """ Sets colour for particular words """
-
-        # builds the colour func map
-        raise NotImplemented()
+        self._colour_funcs = list()
+        for colour, words, in colour_word_map.items():
+            self._colour_funcs.append((get_single_color_func(colour), words))
 
     def gradate(self, scheme: str = ''):
         """ Puts the word cloud in gradient in accordance to the score.
@@ -89,20 +90,11 @@ class PolarityWordCloud(Viz):
         """
 
         self.wc.generate_from_frequencies(
-            {self.df.iloc[i].name: self.df.iloc[i]['normalised'] for i in range(len(self.df))}
+            {self.df.iloc[i].name: self.df.iloc[i]['__summed__'] for i in range(len(self.df))}
         )
 
-        self.set_colours_with({
-            HEX_GREEN_0: lambda score: 1.52 < score <= 1.6,
-            HEX_GREEN_1: lambda score: 1.6 < score <= 1.7,
-            HEX_GREEN_2: lambda score: 1.7 < score <= 1.8,
-            HEX_GREEN_3: lambda score: 1.8 < score <= 2.0,
-            HEX_BROWN: lambda score: 1.48 <= score <= 1.52,
-            HEX_RED_0: lambda score: 1.4 <= score < 1.48,
-            HEX_RED_1: lambda score: 1.3 <= score < 1.4,
-            HEX_RED_2: lambda score: 1.2 <= score < 1.3,
-            HEX_RED_3: lambda score: 1 <= score < 1.2,
-        })
+        # set colour based on words
+        self._set_normalised_default_colour_scheme()
 
         self.wc.recolor(color_func=self._gradate_colour_func)
         return self
@@ -126,6 +118,20 @@ class PolarityWordCloud(Viz):
                 return colour_func
         return self._default_colour_func
 
+    def _set_normalised_default_colour_scheme(self):
+        """ Sets the default colours based on score values. Used with add_normalised_scores static method."""
+        self.set_colours_with({
+            HEX_GREEN_0: lambda norm_score: 1.52 < norm_score <= 1.6,
+            HEX_GREEN_1: lambda norm_score: 1.6 < norm_score <= 1.7,
+            HEX_GREEN_2: lambda norm_score: 1.7 < norm_score <= 1.8,
+            HEX_GREEN_3: lambda norm_score: 1.8 < norm_score <= 2.0,
+            HEX_BROWN: lambda norm_score: 1.48 <= norm_score <= 1.52,
+            HEX_RED_0: lambda norm_score: 1.4 <= norm_score < 1.48,
+            HEX_RED_1: lambda norm_score: 1.3 <= norm_score < 1.4,
+            HEX_RED_2: lambda norm_score: 1.2 <= norm_score < 1.3,
+            HEX_RED_3: lambda norm_score: 1 <= norm_score < 1.2,
+        }, col_score='__normalised__')
+
 
 HEX_BLACK = "#000000"
 HEX_OFFWHITE = "#F8F0E3"
@@ -141,19 +147,17 @@ HEX_BROWN = "#722F37"
 
 if __name__ == '__main__':
     A = [
-        ('hello', 0.25),
+        ('hello', 1.0),
         ('there', 1.0),
         ('orange', 2.0),
     ]
 
     B = [
-        ('hello', 0.25),
+        ('hello', 1.0),
         ('bye', 0.25),
         ('apple', 0.5)
     ]
 
-    wc_ = PolarityWordCloud.from_(A, B)
+    wc_ = PolarityWordCloud.from_(A, B)  # green, red
     print(wc_.df)
     wc_.gradate().render()
-
-    # FIXME: the scores for one corpus will be much smaller than the other! we will need to keep a list instead.
