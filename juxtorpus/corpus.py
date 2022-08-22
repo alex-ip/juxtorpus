@@ -9,14 +9,20 @@ import pandas as pd
 import string, re
 import time
 import spacy
+import weakref
 
 from juxtorpus import nlp
 from juxtorpus.matchers import no_puncs
 
 
 class CorpusMeta:
-    def __init__(self):
-        self.preprocessed_elapsed_time = None
+    """ CorpusMeta
+    stores the metadata of the corpus and loads them lazily when required.
+    But this only works with disk? -- too many responsibilities. Scrap lazy loading?
+    """
+
+    def __init__(self, df_meta: pd.DataFrame):
+        self._df_meta = df_meta
 
 
 class Corpus:
@@ -25,6 +31,9 @@ class Corpus:
     It exposes functions that gather statistics on the corpus such as token frequencies and lexical diversity etc.
 
     summary() provides a quick summary of your corpus.
+
+    Some caveats (mostly involving implicit internal states)
+    + __doc__ column is maintained by this object. Do not try to change data in this column.
     """
 
     @staticmethod
@@ -45,7 +54,7 @@ class Corpus:
     @staticmethod
     def from_(texts: Union[List[str], Set[str]]) -> 'Corpus':
         if isinstance(texts, list) or isinstance(texts, set):
-            return Corpus(df=pd.DataFrame(any, columns=[Corpus.COL_TEXT]))
+            return Corpus(df=pd.DataFrame(texts, columns=[Corpus.COL_TEXT]))
         raise Exception("Corpus currently only supports lists and sets.")
 
     def to(self, type_: str):
@@ -55,6 +64,7 @@ class Corpus:
 
     COL_TEXT: str = 'text'
     COL_DOC: str = '__doc__'  # spacy Document
+    dtype_text = pd.StringDtype(storage='pyarrow')
 
     def __init__(self, df: pd.DataFrame):
 
@@ -64,10 +74,13 @@ class Corpus:
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
+        # 1. sets the default dtype for texts
         try:
-            self._df[self.COL_TEXT] = self._df[self.COL_TEXT].astype(dtype=pd.StringDtype(storage='pyarrow'))
+            self._df[self.COL_TEXT] = self._df[self.COL_TEXT].astype(dtype=self.dtype_text)
         except Exception:
             raise TypeError(f"{self.COL_TEXT} failed to convert to string dtype.")
+
+        # todo: 2. build the meta corpus if exists.
 
         self._num_tokens: int = -1
         self._num_uniqs: int = -1
@@ -75,6 +88,9 @@ class Corpus:
     def preprocess(self, verbose: bool = False):
         start = time.time()
         if verbose: print(f"++ Preprocessing {len(self._df)} documents...")
+
+        if self.COL_DOC in self._df.columns:
+            return self
 
         if len(self._df) < 100:
             self._df[self.COL_DOC] = self._df[self.COL_TEXT].apply(lambda x: nlp(x))
@@ -93,11 +109,16 @@ class Corpus:
         self._compute_word_statistics()
         return self._num_uniqs
 
-    def texts(self) -> List[str]:
-        return self._df[self.COL_TEXT].tolist()
+    @property
+    def df(self):
+        # TODO: join the dataframe with the metadata and return a COPY of the dataframe. Perhaps drop doc?
+        return None
 
-    def docs(self) -> List[spacy.tokens.doc.Doc]:
-        return self._df[self.COL_DOC].tolist()
+    def texts(self) -> 'pd.Series[str]':
+        return self._df.loc[:, self.COL_TEXT]
+
+    def docs(self) -> 'pd.Series[spacy.tokens.doc.Doc]':
+        return self._df.loc[:, self.COL_DOC]
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
@@ -118,6 +139,19 @@ class Corpus:
                 if word_dict.get(t, None) is not None:
                     word_dict[t] += 1
         return word_dict
+
+    def groupby(self, columns: Union[str, List[str]]):
+        """ Returns a dictionary of corpus grouped by the column."""
+        # dev notes: it doesn't support the split, apply and join workflow like in pandas but since we only
+        # expect text data, this workflow is unlikely? to be used.
+
+        # 1. load the appropriate metadata column from the data.
+        groups = self._df.groupby(columns)
+
+        corpus_groups = dict()
+        for cat_name, group_df in groups:
+            corpus_groups[cat_name] = Corpus(df=group_df)
+        return FrozenCorpusGroups(weakref.ref(self), corpus_groups)
 
     def _compute_word_statistics(self):
         if Corpus.COL_DOC not in self._df.columns:
@@ -143,6 +177,34 @@ class Corpus:
         return len(self._df) if self._df is not None else 0
 
 
+class CorpusGroups(dict):
+    def join(self):
+        pass  # do alignment of dict if no original corpus?
+        # todo: join corpus - perhaps expose a .join(corpus) method in the Corpus class.
+
+
+class FrozenCorpusGroups(CorpusGroups):
+    """ Immutable corpus groups
+    This class is used to return the result of a groupby call from a corpus.
+    """
+
+    def __init__(self, orig_corpus: weakref.ReferenceType[Corpus], *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._original_corpus = orig_corpus
+
+    def join(self) -> Union[Corpus, None]:
+        """ This returns the original corpus where they were grouped from.
+        Caveat: if no hard references to the original corpus is kept, this returns None.
+
+        This design was chosen as we expect the user to reference the original corpus themselves
+        instead of calling join().
+        """
+        return self._original_corpus()  # returns the hard reference of the weakref.
+
+    def __setitem__(self, key, value):
+        raise RuntimeError("You may not write to FrozenCorpusGroups.")
+
+
 class DummyCorpus(Corpus):
     dummy_texts = [
         "The cafe is empty aside from an old man reading a book about Aristotle."
@@ -161,5 +223,5 @@ if __name__ == '__main__':
     # trump = Corpus.from_disk("~/Downloads/2017_01_18_trumptweets.csv")
     trump = Corpus.from_disk("../assets/samples/tweetsA.csv")
     print(trump.texts()[0])
-    print(trump.preprocess())
+    trump.preprocess()
     print(trump.summary())
