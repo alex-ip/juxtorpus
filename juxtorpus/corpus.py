@@ -43,8 +43,8 @@ class Corpus:
         raise Exception("Corpus currently only supports .csv formats.")
 
     @staticmethod
-    def from_(any: Union[List[str], Set[str]]) -> 'Corpus':
-        if isinstance(any, list) or isinstance(any, set):
+    def from_(texts: Union[List[str], Set[str]]) -> 'Corpus':
+        if isinstance(texts, list) or isinstance(texts, set):
             return Corpus(df=pd.DataFrame(any, columns=[Corpus.COL_TEXT]))
         raise Exception("Corpus currently only supports lists and sets.")
 
