@@ -22,17 +22,16 @@ should this visualisation expect 2 sets of positives and do the negatives themse
 
 class PolarityBar(Viz):
     @staticmethod
-    def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]]) -> 'PolarityBar':
-        _df_A = pd.DataFrame(word_scores_A, columns=['word', 'score'])
+    def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]],
+              top: int = -1) -> 'PolarityBar':
         df_A = pd.DataFrame(word_scores_A, columns=['word', 'A_score']).set_index('word')
         df_B = pd.DataFrame(word_scores_B, columns=['word', 'B_score']).set_index('word')
         df = df_A.join(df_B, on=None, how='inner')  # inner = intersection only
         df['__summed__'] = df['A_score'] + df['B_score']
         df = df.sort_values(by='__summed__', ascending=False)
-                             _df_A['score'].rename('A_score'),
-                             _df_B['score'].rename('B_score')],
+        if top > 0:
+            df = df.iloc[:top]
         return PolarityBar(df)
-        return PolarityBar(_df_cat)
 
     def __init__(self, word_score_df: pd.DataFrame):
         """ word_score_df expects a dataframe with a word column and 2 score columns. """

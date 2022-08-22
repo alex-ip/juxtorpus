@@ -22,12 +22,11 @@ def tuples_to_dict(tuples: List[Tuple[str, float]]):
 
 
 class PolarityWordCloud(Viz):
-    """ PolarityWordCloud
-
-    """
+    """ PolarityWordCloud """
 
     @staticmethod
-    def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]]) -> 'PolarityWordCloud':
+    def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]],
+              top: int = -1) -> 'PolarityWordCloud':
         """
         :param word_scores: List of words and their scores. (Expects both positive and negative scores)
         :return: PolarityWordCloud
@@ -41,6 +40,9 @@ class PolarityWordCloud(Viz):
         df.fillna(value={'score_A': 0, 'score_B': 0}, inplace=True)
         df['__relative__'] = df['score_A'] - df['score_B']
         df['__summed__'] = df['score_A'] + df['score_B']
+        df = df.sort_values(by='__summed__', ascending=False)
+        if top > 0:
+            df = df.iloc[:top]
         PolarityWordCloud._add_normalise_scores(df, '__relative__')
         return PolarityWordCloud(wc, df)
 
@@ -99,7 +101,7 @@ class PolarityWordCloud(Viz):
         self.wc.recolor(color_func=self._gradate_colour_func)
         return self
 
-    def render(self, height: int = 24, width: int = 24 * 1.5):
+    def render(self, height: int = 16, width: int = 16 * 1.5):
         """ Renders the wordcloud on the screen. """
         fig, ax = plt.subplots(figsize=(height, width))
         ax.imshow(self.wc, interpolation='bilinear')
