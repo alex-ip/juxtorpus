@@ -70,7 +70,7 @@ class PolarityWordCloud(Viz):
         """
         self.wc = wordcloud
         self._colour_funcs: List[Tuple[Callable, Set[str]]] = None
-        self._default_colour_func = get_single_color_func(HEX_OFFWHITE)
+        self._default_colour_func = get_single_color_func(HSV_OFFWHITE)
 
         df_A = word_scores_df_A.rename(columns={PolarityWordCloud.COL_SCORE: 'score_A'})
         df_B = word_scores_df_B.rename(columns={PolarityWordCloud.COL_SCORE: 'score_B'})
@@ -85,7 +85,7 @@ class PolarityWordCloud(Viz):
         df[PolarityWordCloud._COL_SUMMED] = df['score_A'] + df['score_B']
         df = df.sort_values(by=PolarityWordCloud._COL_SUMMED, ascending=False)
         self._full_df = df  # full df
-        self.df = df  # df to generate wordcloud from
+        self._df = df  # df to generate wordcloud from
 
         # normalisation + colouring
         PolarityWordCloud._add_normalise_scores(df, PolarityWordCloud._COL_RELATIVE)
@@ -104,10 +104,10 @@ class PolarityWordCloud(Viz):
         if n < 0:
             raise ValueError("Must be a positive integer.")
         self._top_prev = self._top
-        self._top = n
         if n == self._top:
             return self
-        self.df = self._full_df.iloc[:min(n, len(self._full_df))]
+        self._top = n
+        self._df = self._full_df.iloc[:min(n, len(self._full_df))]
         return self
 
     def set_colours_with(self, condition_map: Dict[str, Callable[[float], bool]]):
@@ -115,11 +115,11 @@ class PolarityWordCloud(Viz):
 
         # build the internal colour_map
         _colour_word_map: Dict[str, Set[str]] = dict()
-        for i in range(len(self.df)):
+        for i in range(len(self._df)):
             for colour, condition in condition_map.items():
-                if condition(self.df.iloc[i][PolarityWordCloud._COL_NORMAL]):
+                if condition(self._df.iloc[i][PolarityWordCloud._COL_NORMAL]):
                     word_set = _colour_word_map.get(colour, set())
-                    word_set.add(self.df.iloc[i].name)
+                    word_set.add(self._df.iloc[i].name)
                     _colour_word_map[colour] = word_set
                     break
 
@@ -130,8 +130,8 @@ class PolarityWordCloud(Viz):
         :param colour_word_map: a dictionary mapping of colour to a set of words.
         """
         self._colour_funcs = list()
-        for colour, words, in colour_word_map.items():
-            self._colour_funcs.append((get_single_color_func(colour), words))
+        for hsv, words, in colour_word_map.items():
+            self._colour_funcs.append((get_single_color_func(hsv), words))
 
     def gradate(self, scheme: str = 'default'):
         """ Puts the word cloud in gradient in accordance to the relative score.
@@ -150,7 +150,7 @@ class PolarityWordCloud(Viz):
         self.set_colours_with(gradient_colour_scheme.get(scheme))
         return self.colour()
 
-    def render(self, height: int = 16, width: int = 16 * 1.5):
+    def render(self, height: int = 16, width: int = 16 * 1.5, title: str = ''):
         """ Renders the wordcloud on the screen. """
         fig, ax = plt.subplots(figsize=(height, width))
         ax.imshow(self.wc, interpolation='bilinear')
@@ -161,10 +161,9 @@ class PolarityWordCloud(Viz):
         if self._top_updated():
             # expensive operation
             self.wc.generate_from_frequencies(
-                {self.df.iloc[i].name: self.df.iloc[i][PolarityWordCloud._COL_SUMMED] for i in range(len(self.df))}
+                {self._df.iloc[i].name: self._df.iloc[i][PolarityWordCloud._COL_SUMMED] for i in range(len(self._df))}
             )
-        else:
-            self.wc.recolor(color_func=self._gradate_colour_func)
+        self.wc.recolor(color_func=self._gradate_colour_func, random_state=42)
         return self
 
     def _top_updated(self):
@@ -199,44 +198,46 @@ class PolarityWordCloud(Viz):
         pass
 
 
-HEX_BLACK = "#000000"
-HEX_OFFWHITE = "#F8F0E3"
-HEX_GREEN_0 = "#abe098"
-HEX_GREEN_1 = "#83d475"
-HEX_GREEN_2 = "#57c84d"
-HEX_GREEN_3 = "#2eb62c"
-HEX_RED_0 = "#f1959b"
-HEX_RED_1 = "#f07470"
-HEX_RED_2 = "#ea4c46"
-HEX_RED_3 = "#dc1c13"
-HEX_BROWN = "#722F37"
+# HSV colours https://colorpicker.me
+HSV_BLACK = "#000000"
+HSV_OFFWHITE = "#F8F0E3"
+# from least to most (e.g. green)
+HSV_GREEN_0 = "#e6ffe9"
+HSV_GREEN_1 = "#99ffa7"
+HSV_GREEN_2 = "#4dff64"
+HSV_GREEN_3 = "#00ff22"
+HSV_RED_0 = "#ffe6e6"
+HSV_RED_1 = "#ff9999"
+HSV_RED_2 = "#ff4d4d"
+HSV_RED_3 = "#ff0000"
+HSV_BROWN = "#722F37"
 
 gradient_colour_scheme = {
     'default': {
-        HEX_GREEN_0: lambda norm_score: 1.52 < norm_score <= 1.6,
-        HEX_GREEN_1: lambda norm_score: 1.6 < norm_score <= 1.7,
-        HEX_GREEN_2: lambda norm_score: 1.7 < norm_score <= 1.8,
-        HEX_GREEN_3: lambda norm_score: 1.8 < norm_score <= 2.0,
-        HEX_BROWN: lambda norm_score: 1.48 <= norm_score <= 1.52,
-        HEX_RED_0: lambda norm_score: 1.4 <= norm_score < 1.48,
-        HEX_RED_1: lambda norm_score: 1.3 <= norm_score < 1.4,
-        HEX_RED_2: lambda norm_score: 1.2 <= norm_score < 1.3,
-        HEX_RED_3: lambda norm_score: 1 <= norm_score < 1.2,
+        HSV_GREEN_0: lambda norm_score: 1.52 < norm_score <= 1.6,
+        HSV_GREEN_1: lambda norm_score: 1.6 < norm_score <= 1.7,
+        HSV_GREEN_2: lambda norm_score: 1.7 < norm_score <= 1.8,
+        HSV_GREEN_3: lambda norm_score: 1.8 < norm_score <= 2.0,
+        HSV_BROWN: lambda norm_score: 1.48 <= norm_score <= 1.52,
+        HSV_RED_0: lambda norm_score: 1.4 <= norm_score < 1.48,
+        HSV_RED_1: lambda norm_score: 1.3 <= norm_score < 1.4,
+        HSV_RED_2: lambda norm_score: 1.2 <= norm_score < 1.3,
+        HSV_RED_3: lambda norm_score: 1 <= norm_score < 1.2,
     },
-    # NOTE: add more schemes here (Must be between 1-2)
+    # NOTE: add more schemes here (Must be between 1-2). Remember keys are unique!
 }
 
 if __name__ == '__main__':
     A = [
-        ('hello', 1.0),
-        ('there', 1.0),
-        ('orange', 2.0),
+        ('AA', 1.0),
+        ('shared', 1.0),
+        ('AAAA', 2.0),
     ]
 
     B = [
-        ('hello', 1.0),
-        ('bye', 0.25),
-        ('apple', 0.5)
+        ('BB', 1.0),
+        ('shared', 0.25),
+        ('B', 0.5)
     ]
 
     wc_ = PolarityWordCloud.from_(A, B)  # green, red
@@ -250,5 +251,7 @@ if __name__ == '__main__':
     wc_.gradate().render()
 
     wc_ = PolarityWordCloud.from_(A, B, top=10)
-    wc_.set_colours_for({'#f1959b': ('apple', 'orange')})
+    wc_.set_colours_for({'#ff00cb': {'aa', 'bb'}})
     wc_.colour().render()
+
+    print()
