@@ -40,9 +40,9 @@ class PolarityWordCloud(Viz):
     COL_SCORE: str = 'score'
 
     # internals
-    _COL_RELATIVE: str = '__relative__'
     _COL_SUMMED: str = '__summed__'
-    _COL_NORMAL: str = '__normalised__'
+    _COL_RELATIVE: str = '__relative__'
+    _COL_NORMAL: str = '__relative_normalised__'
 
     @staticmethod
     def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]],
@@ -84,15 +84,14 @@ class PolarityWordCloud(Viz):
         df[PolarityWordCloud._COL_RELATIVE] = df['score_A'] - df['score_B']
         df[PolarityWordCloud._COL_SUMMED] = df['score_A'] + df['score_B']
         df = df.sort_values(by=PolarityWordCloud._COL_SUMMED, ascending=False)
-        self._full_df = df  # full df
-        self._df = df  # df to generate wordcloud from
+        self._df = df  # full df
+        self._df_top_tmp = df  # df to generate wordcloud from
 
         # normalisation + colouring
         PolarityWordCloud._add_normalise_scores(df, PolarityWordCloud._COL_RELATIVE)
-        self._set_normalised_default_colour_scheme()
 
         # performance caches
-        self._top = len(self._full_df)
+        self._top = len(self._df)
         self._top_prev = -1
 
     @property
@@ -107,7 +106,7 @@ class PolarityWordCloud(Viz):
         if n == self._top:
             return self
         self._top = n
-        self._df = self._full_df.iloc[:min(n, len(self._full_df))]
+        self._df_top_tmp = self._df.iloc[:min(n, len(self._df))]
         return self
 
     def set_colours_with(self, condition_map: Dict[str, Callable[[float], bool]]):
@@ -115,11 +114,11 @@ class PolarityWordCloud(Viz):
 
         # build the internal colour_map
         _colour_word_map: Dict[str, Set[str]] = dict()
-        for i in range(len(self._df)):
+        for i in range(len(self._df_top_tmp)):
             for colour, condition in condition_map.items():
-                if condition(self._df.iloc[i][PolarityWordCloud._COL_NORMAL]):
+                if condition(self._df_top_tmp.iloc[i][PolarityWordCloud._COL_NORMAL]):
                     word_set = _colour_word_map.get(colour, set())
-                    word_set.add(self._df.iloc[i].name)
+                    word_set.add(self._df_top_tmp.iloc[i].name)
                     _colour_word_map[colour] = word_set
                     break
 
@@ -161,7 +160,8 @@ class PolarityWordCloud(Viz):
         if self._top_updated():
             # expensive operation
             self.wc.generate_from_frequencies(
-                {self._df.iloc[i].name: self._df.iloc[i][PolarityWordCloud._COL_SUMMED] for i in range(len(self._df))}
+                {self._df_top_tmp.iloc[i].name: self._df_top_tmp.iloc[i][PolarityWordCloud._COL_SUMMED] for i in
+                 range(len(self._df_top_tmp))}
             )
         self.wc.recolor(color_func=self._gradate_colour_func, random_state=42)
         return self
@@ -187,15 +187,10 @@ class PolarityWordCloud(Viz):
 
         It first normalises the scores between 0 and 1. Then move it to between 1 and 2 by summing with 1.
         The maximum absolute value of the column is taken as the boundaries. This ensures original scores of 0
-        are maintained as the midpoint of the normalised scores i.e. 0 -> 1.
+        are maintained as the midpoint (now 1.5) of the normalised scores i.e. 0 -> 1.5
         """
         _max = max(abs(df[col_score].min()), abs(df[col_score].max()))
         df[PolarityWordCloud._COL_NORMAL] = ((df[col_score] - -_max) / (2 * _max)) + 1
-
-    def _set_normalised_default_colour_scheme(self):
-        """ Sets the default colours based on score values. Used with add_normalised_scores static method."""
-        # self.set_colours_with(, col_score=PolarityWordCloud._COL_NORMAL)
-        pass
 
 
 # HSV colours https://colorpicker.me
@@ -254,4 +249,4 @@ if __name__ == '__main__':
     wc_.set_colours_for({'#ff00cb': {'aa', 'bb'}})
     wc_.colour().render()
 
-    print()
+    print(wc_._df_top_tmp)  # debug purposes
