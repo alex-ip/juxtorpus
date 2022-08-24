@@ -38,8 +38,8 @@ class ATAPConcordance(ConcordanceTable, Concordance):
     """
 
     def __init__(self, corpus: Corpus):
-        corpus_df = corpus._df.rename(columns={'__doc__': 'spacy_doc'})
-        if "__doc__" not in corpus._df.columns:
+        corpus_df = corpus._df.rename(columns={Corpus.COL_DOC: 'spacy_doc'})
+        if Corpus.COL_DOC not in corpus._df.columns:
             raise RuntimeError("Corpus is not preprocessed.")
         super(ATAPConcordance, self).__init__(df=corpus_df)
         self.widget = ConcordanceWidget(corpus_df)
