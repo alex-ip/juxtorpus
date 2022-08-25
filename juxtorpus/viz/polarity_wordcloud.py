@@ -40,9 +40,9 @@ class PolarityWordCloud(Viz):
     COL_SCORE: str = 'score'
 
     # internals
-    _COL_SUMMED: str = '__summed__'
-    _COL_RELATIVE: str = '__relative__'
-    _COL_NORMAL: str = '__relative_normalised__'
+    _COL_SUMMED: str = 'summed_'
+    _COL_RELATIVE: str = 'relative_'
+    _COL_NORMAL: str = 'relative_normalised_'
 
     @staticmethod
     def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]],
@@ -252,3 +252,6 @@ if __name__ == '__main__':
     wc_.colour().render()
 
     print(wc_._df_top_tmp)  # debug purposes
+
+    for row in wc_._df_top_tmp.itertuples():
+        print(row.summed_)
