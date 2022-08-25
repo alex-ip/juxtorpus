@@ -23,6 +23,7 @@ class Component(metaclass=ABCMeta):
 
     @abstractmethod
     def __call__(self, doc: Doc) -> Doc:
+        """ Operations of this component to modify spaCy Doc object is performed here. """
         raise NotImplementedError()
 
 
