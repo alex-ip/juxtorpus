@@ -91,8 +91,8 @@ class PolarityWordCloud(Viz):
         PolarityWordCloud._add_normalise_scores(df, PolarityWordCloud._COL_RELATIVE)
 
         # performance caches
-        self._top = len(self._df)
-        self._top_prev = -1
+        self.__top = len(self._df)
+        self.__top_prev = -1
 
     @property
     def wordcloud(self) -> WC:
@@ -102,10 +102,10 @@ class PolarityWordCloud(Viz):
         """ Sets the number of words to appear on the wordcloud. Capped at maximum number of unique words. """
         if n < 0:
             raise ValueError("Must be a positive integer.")
-        self._top_prev = self._top
-        if n == self._top:
+        self.__top_prev = self.__top
+        if n == self.__top:
             return self
-        self._top = n
+        self.__top = n
         self._df_top_tmp = self._df.iloc[:min(n, len(self._df))]
         return self
 
@@ -167,7 +167,7 @@ class PolarityWordCloud(Viz):
         return self
 
     def _top_updated(self):
-        return self._top_prev != self._top
+        return self.__top_prev != self.__top
 
     def _gradate_colour_func(self, word: str, **kwargs):
         colour_func = self._find_colour_func(word)
