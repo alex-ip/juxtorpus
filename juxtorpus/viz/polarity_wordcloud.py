@@ -185,9 +185,11 @@ class PolarityWordCloud(Viz):
     def _add_normalise_scores(df: pd.DataFrame, col_score: str):
         """ Normalises the values of a column to be between 1 and 2.
 
-        It first normalises the scores between 0 and 1. Then move it to between 1 and 2 by summing with 1.
+        Taking values with a midpoint of 0 (relative scores), it first normalises the scores between 0 and 1.
+        Then move it to between 1 and 2 by summing with 1.
+
         The maximum absolute value of the column is taken as the boundaries. This ensures original scores of 0
-        are maintained as the midpoint (now 1.5) of the normalised scores i.e. 0 -> 1.5
+        are maintained as the midpoint (now 1.5) of the normalised scores i.e. 0 -> 1.5.
         """
         _max = max(abs(df[col_score].min()), abs(df[col_score].max()))
         df[PolarityWordCloud._COL_NORMAL] = ((df[col_score] - -_max) / (2 * _max)) + 1
