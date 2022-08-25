@@ -9,7 +9,7 @@ https://spacy.io/usage/processing-pipelines#custom-components
 https://explosion.ai/blog/spacy-v2-pipelines-extensions
 """
 import abc
-from typing import Dict, Union
+from typing import Dict, Union, Callable
 from abc import ABCMeta, abstractmethod
 
 from spacy.tokens.doc import Doc
@@ -28,26 +28,32 @@ class Component(metaclass=ABCMeta):
 
 class ComponentImpl(Component):
 
-    def __init__(self, nlp: Language, name: str):
+    def __init__(self, nlp: Language, name: str, a_setting: bool):
         super(ComponentImpl, self).__init__(nlp, name)
-        print(name)
+        print(f"{self.__init__}: {name}, {a_setting}")
 
     def __call__(self, doc: Doc):
         print(f"{self.__call__}: Processing doc: {doc}...")
         return doc
 
 
-@Language.component("stateless_custom_component")
-def stateless_custom_component(doc: Doc):
+"""Examples custom components:
+
+stateless: use @Language.component()
+stateful: use @Language.factory()
+"""
+
+
+@Language.component(name="stateless_custom_component")
+def stateless_custom_component(doc: Doc) -> Doc:
     print("I don't do anything but I demonstrate a stateless component implementation.")
     return doc
 
 
-# EACH FACTORY wrapper represents an INSTANCE of the stateful component.
+# EACH FACTORY wrapper represents an INSTANCE of the stateful component. The instance name is given by the name arg.
 @Language.factory(name='stateful_custom_component', default_config={"a_setting": True})
-def stateful_custom_component(nlp: Language, name: str, a_setting):
-    print(name)  # this is the instance name.
-    return ComponentImpl(nlp, name)
+def stateful_custom_component(nlp: Language, name: str, a_setting: bool) -> Callable[[Doc], Doc]:
+    return ComponentImpl(nlp, name, a_setting)
 
 
 # NOTE: Code below will need to be abstracted to factories o allow for different inits. No need for this yet I guess.
@@ -59,5 +65,7 @@ if __name__ == '__main__':
     import spacy
 
     nlp = spacy.blank('en')
+    nlp.add_pipe("stateless_custom_component")
     nlp.add_pipe("stateful_custom_component", config={"a_setting": False})  # Notice default setting is True.
-    nlp("This is a sentence.")
+    print(nlp("This is a sentence."))
+    print(nlp.pipe_names)
