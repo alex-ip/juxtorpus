@@ -56,11 +56,6 @@ def stateful_custom_component(nlp: Language, name: str, a_setting: bool) -> Call
     return ComponentImpl(nlp, name, a_setting)
 
 
-# NOTE: Code below will need to be abstracted to factories o allow for different inits. No need for this yet I guess.
-# caches for pipeline components with expensive (time or memory) initialisation.
-# key = class name (must be a subclass of Component)
-
-
 if __name__ == '__main__':
     import spacy
 
