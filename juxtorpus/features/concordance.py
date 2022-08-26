@@ -23,7 +23,7 @@ class Concordance(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class ATAPConcordance(ConcordanceTable, Concordance):
+class ATAPConcordance(ConcordanceWidget, Concordance):
     """ ATAPConcordance
 
     This implementation integrates with the Concordance tool from atap_widgets package.
@@ -41,34 +41,32 @@ class ATAPConcordance(ConcordanceTable, Concordance):
         corpus_df = corpus._df.rename(columns={Corpus.COL_DOC: 'spacy_doc'})
         if Corpus.COL_DOC not in corpus._df.columns:
             raise RuntimeError("Corpus is not preprocessed.")
-        super(ATAPConcordance, self).__init__(df=corpus_df)
-        self.widget = ConcordanceWidget(corpus_df)
+        super(ATAPConcordance, self).__init__(df=corpus_df)  # builds ConcordanceTable internally.
 
         # perf:
         self._keyword_prev: str = ''
         self._results_cache: Union[pd.DataFrame, None] = None
 
     def set_keyword(self, keyword: str):
-        self._keyword_prev = self.keyword
-        if keyword == self.keyword:
+        self._keyword_prev = self.search_table.keyword
+        if keyword == self.search_table.keyword:
             return self
-        self.keyword = keyword
+        self.search_table.keyword = keyword
         return self
 
     def find(self) -> pd.DataFrame:
-        if len(self.keyword) < 1:
+        if len(self.search_table.keyword) < 1:
             raise ValueError("Did you set the keyword? Call set_keyword()")
 
         if self._keyword_updated():
-            print(f"keyword updated: {self.keyword} {self._keyword_prev}")
-            self._results_cache = self._get_results()
+            self._results_cache = self.search_table._get_results()
         return self._results_cache
 
     def show_widget(self):
-        return self.widget.show()
+        return self.show()
 
     def _keyword_updated(self):
-        return self._keyword_prev != self.keyword
+        return self._keyword_prev != self.search_table.keyword
 
 
 if __name__ == '__main__':
