@@ -5,8 +5,17 @@ https://spacy.io/usage/rule-based-matching
 NOTE: Each dictionary represents 1 token.
 """
 
+from typing import Dict
 from spacy.matcher import Matcher
 from spacy import Vocab
+
+# TODO: rework this into PATTERNS only - not the Matcher, since its global, we can't control its state.
+custom_hashtags_atap = {"_": {
+    "hashtag": "#atap"
+}}
+custom_hashtags_atap_regex = {"_": {
+    "hashtag": {"REGEX": r'^#[Aa][Tt][Aa][Pp]'}
+}}
 
 
 def hashtags(vocab: Vocab):
@@ -41,6 +50,14 @@ def no_puncs(vocab: Vocab):
     return _no_puncs
 
 
+def no_puncs_no_stopwords(vocab: Vocab):
+    m = Matcher(vocab)
+    m.add("no_punc_or_sw", patterns=[
+        [{"IS_PUNCT": False, "IS_STOP": False, "IS_ALPHA": True}]
+    ])
+    return m
+
+
 def no_stopwords(vocab: Vocab):
     _no_stopwords = Matcher(vocab)
     _no_stopwords.add("no_stopwords", patterns=[
@@ -48,4 +65,3 @@ def no_stopwords(vocab: Vocab):
     ])
     return _no_stopwords
 
-# TODO: rework this into PATTERNS only - not the Matcher, since its global, we can't control its state.
