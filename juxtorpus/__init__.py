@@ -1,5 +1,6 @@
 import spacy
 from typing import Union
+from juxtorpus.components import *
 
 model: str = 'en_core_web_sm'
 nlp: Union[spacy.Language, None] = spacy.load(model)
