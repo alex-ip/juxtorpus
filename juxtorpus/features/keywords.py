@@ -12,7 +12,7 @@ import numpy as np
 
 from juxtorpus import nlp
 from juxtorpus.corpus import Corpus
-from juxtorpus.matchers import no_stopwords, no_puncs
+from juxtorpus.matchers import no_stopwords, no_puncs, no_puncs_no_stopwords
 
 
 class Keywords(metaclass=ABCMeta):
@@ -95,7 +95,7 @@ class TFIDFKeywords(Keywords):
     @staticmethod
     def _preprocess(doc):
         """ Filters punctuations and normalise case."""
-        return [doc[start:end].text.lower() for _, start, end in no_puncs(nlp.vocab)(doc)]
+        return [doc[start:end].text.lower() for _, start, end in no_puncs_no_stopwords(nlp.vocab)(doc)]
 
 
 class TFKeywords(Keywords):
@@ -108,7 +108,7 @@ class TFKeywords(Keywords):
 
     def _count(self, corpus: Corpus, normalise: bool = True):
         freq_dict = dict()
-        _no_puncs_no_stopwords = TFKeywords.no_puncs_no_stopwords()
+        _no_puncs_no_stopwords = no_puncs_no_stopwords(nlp.vocab)
         for d in corpus.docs():
             for _, start, end in _no_puncs_no_stopwords(d):
                 t = d[start:end].text.lower()
@@ -117,14 +117,6 @@ class TFKeywords(Keywords):
             for k in freq_dict.keys():
                 freq_dict[k] = (freq_dict.get(k) / corpus.num_tokens) * 100
         return sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)
-
-    @staticmethod
-    def no_puncs_no_stopwords() -> Matcher:
-        matcher = Matcher(nlp.vocab)
-        matcher.add(key='no_puncs_no_stopwords', patterns=[
-            [{'IS_PUNCT': False, 'IS_STOP': False}]
-        ])
-        return matcher
 
 
 if __name__ == '__main__':
