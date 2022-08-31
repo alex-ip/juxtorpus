@@ -1,12 +1,8 @@
 from spacy import Language
 from spacy.tokens import Doc
+from spacy.matcher import Matcher
 
 from juxtorpus.components import Component
-
-
-@Language.factory("extract_hashtags")
-def create_hashtag_component(nlp: Language, name: str):
-    return HashtagComponent(nlp, name)
 
 
 class HashtagComponent(Component):
@@ -24,14 +20,13 @@ class HashtagComponent(Component):
         for _, start, end in self.matcher(doc):
             span = doc[start: end]
             doc._.hashtags.append(span)
-            return doc
+        return doc
 
 
 if __name__ == '__main__':
     from juxtorpus import nlp
-    from spacy.matcher import Matcher
 
-    # doing it manually
+    # doing it manually...
     doc = nlp("The #MarchForLife is so very extremely important. To all of you marching --- you have my full support!")
     patterns = [
         [{"TEXT": "#"}, {"IS_ASCII": True}]
@@ -45,7 +40,13 @@ if __name__ == '__main__':
         span = doc[s: e]
         print(span)
 
-    # using the custom component.
+
+    # using the custom component...
+    @Language.factory('extract_hashtags')
+    def create_hashtag_component(nlp: Language, name: str):
+        return HashtagComponent(nlp, name)
+
+
     nlp.add_pipe('extract_hashtags')
     doc = nlp("The #MarchForLife is so very extremely important. To all of you marching --- you have my full support!")
     print(f"doc._.hashtags: {doc._.hashtags}")
