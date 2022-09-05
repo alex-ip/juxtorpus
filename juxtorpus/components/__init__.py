@@ -7,6 +7,7 @@ can be added to the nlp pipeline.
 Documentations:
 https://spacy.io/usage/processing-pipelines#custom-components
 https://explosion.ai/blog/spacy-v2-pipelines-extensions
+https://spacy.io/api/language
 """
 import abc
 from typing import Dict, Union, Callable
@@ -21,6 +22,7 @@ class Component(metaclass=ABCMeta):
         self._nlp = nlp
         self._name = name
 
+    # todo: see spaCy Language doc, nlp.pipe(as_tuples=True) - this allow context to be passed down i believe.
     @abstractmethod
     def __call__(self, doc: Doc) -> Doc:
         """ Operations of this component to modify spaCy Doc object is performed here. """
