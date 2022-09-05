@@ -39,16 +39,11 @@ Trainable components need to override from_disk() method to load the models.
 
 Other resources:
 https://spacy.io/models#design
+https://spacy.io/api/language#select_pipes
 
 Notes:
     + use 'senter' instead of 'parser' when dependency parsing is not required. Inference is ~10x faster.
 """
-
-# Default included pipelines
-spacy_default = ['tok2vec', 'tagger', 'parser', 'attribute_ruler', 'lemmatizer', 'ner']
-
-# Inference pipelines ONLY. Place this array in the 'disable' parameter in nlp.pipe(,disable=)
-disable_basic = spacy_default  # used if you only require frequencies from the docs.
 
 from typing import List
 from spacy import Language
@@ -60,18 +55,18 @@ def create_hashtag_component(nlp: Language, name: str):
     return HashtagComponent(nlp, name)
 
 
-# todo: ordering of components not handled here
-# todo: trainable components + modelling not entirely thought through here.
+# todo: ordering of all components not handled here
+# todo: trainable components + modelling not entirely thought through here. (as these will use .cfg s)
 
 
 def adjust_pipeline_with(nlp: Language, components: List[str]):
     """ add pipes if not exist. """
-    from juxtorpus import out_of_the_box_components  # hacky
-    for name in out_of_the_box_components:
+    for name in nlp.pipe_names:
         nlp.disable_pipe(name)
 
-    for c in components:
-        if c not in out_of_the_box_components and c in nlp.component_names:
+    from juxtorpus import out_of_the_box_components  # hacky
+    for c in nlp.component_names:
+        if c not in out_of_the_box_components:
             nlp.remove_pipe(c)
 
     for c in components:
@@ -84,11 +79,15 @@ def adjust_pipeline_with(nlp: Language, components: List[str]):
 if __name__ == '__main__':
     from juxtorpus import nlp
 
-    print(nlp.pipe_names)
-    print(nlp("hello"))
+    print(f"Currently enabled: {nlp.pipe_names}\tdisabled: {nlp.disabled}")
+
     new_pipe_names = ['tok2vec', 'ner', 'extract_hashtags']
+    print(f"Adjust pipeline with: {new_pipe_names}")
     adjust_pipeline_with(nlp, new_pipe_names)
-    print(nlp.pipe_names)
-    print(nlp("hello #atap")._.hashtags)
-    adjust_pipeline_with(nlp, ['ner'])
-    print(nlp("hello"))
+    print(f"Currently enabled: {nlp.pipe_names}\tdisabled: {nlp.disabled}")
+    print(f"nlp('hello #atap')._.hashtags: {nlp('hello #atap')._.hashtags}")
+
+    new_pipe_names = ['ner']
+    print(f"Adjust pipeline with: {new_pipe_names}")
+    adjust_pipeline_with(nlp, new_pipe_names)
+    print(f"Currently enabled: {nlp.pipe_names}\tdisabled: {nlp.disabled}")
