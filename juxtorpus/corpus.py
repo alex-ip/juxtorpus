@@ -76,7 +76,7 @@ class Corpus:
 
         # 1. sets the default dtype for texts
         try:
-            self._df[self.COL_TEXT] = self._df[self.COL_TEXT].astype(dtype=self.__dtype_text)
+            self._df = self._df.astype(dtype={self.COL_TEXT: self.__dtype_text})
         except Exception:
             raise TypeError(f"{self.COL_TEXT} failed to convert to string dtype.")
 
