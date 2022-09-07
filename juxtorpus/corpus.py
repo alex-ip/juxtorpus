@@ -89,7 +89,7 @@ class Corpus:
         start = time.time()
         if verbose: print(f"++ Preprocessing {len(self._df)} documents...")
 
-        if self.COL_DOC in self._df.columns:
+        if self.is_processed:
             return self
 
         if len(self._df) < 100:
@@ -98,6 +98,10 @@ class Corpus:
             self._df[self.COL_DOC] = list(nlp.pipe(self._df[self.COL_TEXT]))
         if verbose: print(f"++ Done. Elapsed: {time.time() - start}")
         return self
+
+    @property
+    def is_processed(self):
+        return self.COL_DOC in self._df.columns
 
     @property
     def num_tokens(self) -> int:
