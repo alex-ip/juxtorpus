@@ -64,7 +64,7 @@ class Corpus:
 
     COL_TEXT: str = 'text'
     COL_DOC: str = '__doc__'  # spacy Document
-    dtype_text = pd.StringDtype(storage='pyarrow')
+    __dtype_text = pd.StringDtype(storage='pyarrow')
 
     def __init__(self, df: pd.DataFrame):
 
@@ -76,14 +76,14 @@ class Corpus:
 
         # 1. sets the default dtype for texts
         try:
-            self._df[self.COL_TEXT] = self._df[self.COL_TEXT].astype(dtype=self.dtype_text)
+            self._df[self.COL_TEXT] = self._df[self.COL_TEXT].astype(dtype=self.__dtype_text)
         except Exception:
             raise TypeError(f"{self.COL_TEXT} failed to convert to string dtype.")
 
         # todo: 2. build the meta corpus if exists.
 
-        self._num_tokens: int = -1
-        self._num_uniqs: int = -1
+        self.__num_tokens: int = -1
+        self.__num_uniqs: int = -1
 
     def preprocess(self, verbose: bool = False):
         start = time.time()
@@ -106,12 +106,12 @@ class Corpus:
     @property
     def num_tokens(self) -> int:
         self._compute_word_statistics()
-        return self._num_tokens
+        return self.__num_tokens
 
     @property
     def num_uniq_tokens(self) -> int:
         self._compute_word_statistics()
-        return self._num_uniqs
+        return self.__num_uniqs
 
     @property
     def df(self):
@@ -161,7 +161,7 @@ class Corpus:
         if Corpus.COL_DOC not in self._df.columns:
             raise RuntimeError("You need to call preprocess() on your corpus object first.")
 
-        if self._num_tokens > -1 or self._num_uniqs > -1:
+        if self.__num_tokens > -1 or self.__num_uniqs > -1:
             pass
         else:
             _num_tokens: int = 0
@@ -174,8 +174,8 @@ class Corpus:
                 for _, start, end in _no_puncs_doc:
                     _uniqs.add(_doc[start:end].text.lower())
 
-            self._num_tokens = _num_tokens
-            self._num_uniqs = len(_uniqs)
+            self.__num_tokens = _num_tokens
+            self.__num_uniqs = len(_uniqs)
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
