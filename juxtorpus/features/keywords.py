@@ -115,7 +115,7 @@ class TFKeywords(Keywords):
                 freq_dict[t] = freq_dict.get(t, 0) + 1
         if normalise:
             for k in freq_dict.keys():
-                freq_dict[k] = (freq_dict.get(k) / corpus.num_tokens) * 100
+                freq_dict[k] = (freq_dict.get(k) / corpus.num_words) * 100
         return sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)
 
     @staticmethod
