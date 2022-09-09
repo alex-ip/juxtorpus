@@ -14,6 +14,9 @@ class Meta(metaclass=ABCMeta):
     def id(self):
         return self._id
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} [Id: {self.id}]>"
+
 
 class DocMeta(Meta):
     """ This class represents the metadata stored within the spacy Docs """
@@ -26,3 +29,4 @@ class DocMeta(Meta):
 if __name__ == '__main__':
     meta = Meta('0')
     print(meta.id)
+    print(meta)
