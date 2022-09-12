@@ -93,7 +93,7 @@ class Corpus:
         del self._meta_registry[id_]
 
     def get_meta(self, id_: str):
-        return self._meta_registry.get(id_)
+        return self._meta_registry.get(id_, None)
 
     def _init_meta_registry(self, metas: List[Meta]):
         self._meta_registry = dict()
