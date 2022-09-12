@@ -1,10 +1,24 @@
 from abc import ABCMeta, abstractmethod
-from typing import List, Callable, Any, Set, Union
+from typing import List, Callable, Any, Set, Union, Iterator
 import pandas as pd
+from spacy.tokens import Doc
 
 """ 
 A Collection of data classes representing Corpus Metadata.
 """
+
+
+class LazyLoad(object):
+    def __init__(self, path: str, col: str, dtype: str):
+        self.path = path
+        self.col = col
+        self.dtype = dtype
+
+    def load(self) -> pd.Series:
+        x = pd.read_csv(self.path, usecols=lambda x: x == self.col).squeeze("columns")
+        if self.dtype is not None: x = x.astype(self.dtype)
+        return x
+        # squeeze returns series if len(cols = 1)
 
 
 class Meta(metaclass=ABCMeta):
@@ -17,7 +31,7 @@ class Meta(metaclass=ABCMeta):
         return self._id
 
     @abstractmethod
-    def mask_on_condition(self, cond: Callable[[Any], bool]) -> pd.Series[bool]:
+    def mask_on_condition(self, cond: Callable[[Any], bool]) -> 'pd.Series[bool]':
         raise NotImplementedError()
 
     def __repr__(self) -> str:
@@ -46,26 +60,16 @@ class ItemMasker(metaclass=ABCMeta):
 
     @abstractmethod
     def _or_mask(self, items: Set[str]):
+        """ Return the boolean mask where True means 'any' item in the set matches. """
         raise NotImplementedError()
 
     @abstractmethod
     def _and_mask(self, items: Set[str]):
+        """ Return the boolean mask where True means 'all' item in the set matches. """
         raise NotImplementedError()
 
 
 """ Metadata of pandas series may be given OR derived. """
-
-
-class LazyLoad(object):
-    def __init__(self, path: str, col: str):
-        self.path = path
-        self.col = col
-
-    def load(self):
-        def load_csv() -> pd.Series:
-            return pd.read_csv(self.path, usecols=lambda x: x == self.col)
-
-        return load_csv
 
 
 class SeriesMeta(Meta, metaclass=ABCMeta):
@@ -80,7 +84,7 @@ class SeriesMeta(Meta, metaclass=ABCMeta):
             self._series = self._series.load()
         return self._series
 
-    def mask_on_condition(self, cond: Callable[[Any], bool]) -> pd.Series[bool]:
+    def mask_on_condition(self, cond: Callable[[Any], bool]) -> 'pd.Series[bool]':
         return self.series.apply(lambda x: cond(x))
 
     def __repr__(self):
@@ -88,6 +92,9 @@ class SeriesMeta(Meta, metaclass=ABCMeta):
 
 
 class CategoricalSeriesMeta(SeriesMeta, ItemMasker):
+    def mask_on_items(self, items: Set[str], op: str) -> 'pd.Series[bool]':
+        return super(CategoricalSeriesMeta, self).mask_on_items(items, op)
+
     def _series_to_filter_on(self) -> pd.Series:
         return self.series
 
@@ -121,18 +128,97 @@ class DelimitedStrSeriesMeta(CategoricalSeriesMeta):
 class DocMeta(Meta):
     """ This class represents the metadata stored within the spacy Docs """
 
-    def __init__(self, id_: str, df_col: str, attr: str):
+    def __init__(self, id_: str, df_col: str, attr: str, doc_generator: Iterator[Doc]):
         super(DocMeta, self).__init__(id_, df_col)
-        self.__attr = attr
+        self._attr = attr
+        self._doc_generator = doc_generator
 
     @property
     def attribute(self):
-        return self.__attr
+        return self._attr
+
+    def mask_on_condition(self, cond: Callable[[Any], bool]) -> 'pd.Series[bool]':
+        """ Return a boolean mask based on condition applied to the metadata in the doc."""
+        return pd.Series((cond(doc.get_extension(self._attr)) for doc in self._doc_generator))
+
+    def _get_doc_attr(self, doc: Doc) -> Any:
+        """ Returns a built-in spacy entity OR a custom entity. """
+        return doc.get_extension(self._attr) if doc.has_extension(self._attr) else getattr(doc, self._attr)
 
     def __repr__(self):
-        return f"{super(DocMeta, self).__repr__()[-2]}, Attr: {self.__attr}]"
+        return f"{super(DocMeta, self).__repr__()[-2]}, Attr: {self._attr}]"
+
+
+class DocItemMeta(DocMeta, ItemMasker):
+
+    def __init__(self, *args, **kwargs):
+        super(DocItemMeta, self).__init__(*args, **kwargs)
+
+    def mask_on_items(self, items: Set[str], op: str) -> 'pd.Series[bool]':
+        return super(DocItemMeta, self).mask_on_items(items, op)
+
+    def _or_mask(self, items: Set[str]):
+        return pd.Series((doc.get_extension(self._attr) in items for doc in self._doc_generator))
+
+    def _and_mask(self, items: Set[str]):
+        _mask = list()
+        for doc in self._doc_generator:
+            doc_item = doc.get_extension(self._attr)
+            _mask.append(doc_item in items)
+        return pd.Series(_mask)
+
+
+class DocItemsMeta(DocItemMeta, ItemMasker):
+
+    def __init__(self, *args, **kwargs):
+        super(DocItemMeta, self).__init__(*args, **kwargs)
+
+    def _or_mask(self, items: Set[str]):
+        _mask = list()
+        for doc in self._doc_generator:
+            doc_items = self._get_doc_attr(doc)
+            if not isinstance(doc_items, set): doc_items = set((doc_item.text for doc_item in doc_items))
+            _mask.append(len(doc_items.intersection(items)) > 0)  # items must be a set.
+        return pd.Series(_mask)
+
+    def _and_mask(self, items: Set[str]):
+        _mask = list()
+        for doc in self._doc_generator:
+            doc_items = self._get_doc_attr(doc)
+            if not isinstance(doc_items, set): doc_items = set((doc_item.text for doc_item in doc_items))
+            _mask.append(doc_items.intersection(items) == len(doc_items))
+        return pd.Series(_mask)
 
 
 if __name__ == '__main__':
-    meta = Meta('0', 'dummy_col')
-    print(meta.id)
+    # series
+    meta_series = SeriesMeta('random_id', LazyLoad(
+        path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
+        dtype=None))
+    s = meta_series.series
+
+    meta_cat_series = CategoricalSeriesMeta('random_id', LazyLoad(
+        path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
+        dtype='category'), )
+    mask = meta_cat_series.mask_on_items({'Adelaide (C)'}, op='OR')
+
+    df = pd.read_csv('~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
+    subset = df[mask]
+    print()
+
+    # doc
+    from juxtorpus import nlp
+
+    texts = ["I am at New York City!",
+             "hello there",
+             "Australia is in the southern hemisphere",
+             "Sydney is 16,200 km from New York City"
+             ]
+    docs = nlp.pipe(texts)
+    items = {'New York City', 'Sydney'}
+    doc_items_meta = DocItemsMeta('random_id', 'col', 'ents', docs)
+    mask = doc_items_meta.mask_on_items(items, 'OR')
+
+    df = pd.DataFrame(texts)
+    subset = df[mask]
+    print()
