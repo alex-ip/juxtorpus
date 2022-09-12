@@ -146,7 +146,7 @@ class DocMeta(Meta):
         return doc.get_extension(self._attr) if doc.has_extension(self._attr) else getattr(doc, self._attr)
 
     def __repr__(self):
-        return f"{super(DocMeta, self).__repr__()[-2]}, Attr: {self._attr}]"
+        return f"{super(DocMeta, self).__repr__()[:-2]}, Attr: {self._attr}]"
 
 
 class DocItemMeta(DocMeta, ItemMasker):
@@ -217,6 +217,7 @@ if __name__ == '__main__':
     docs = nlp.pipe(texts)
     items = {'New York City', 'Sydney'}
     doc_items_meta = DocItemsMeta('random_id', 'col', 'ents', docs)
+    print(doc_items_meta)
     mask = doc_items_meta.mask_on_items(items, 'OR')
 
     df = pd.DataFrame(texts)
