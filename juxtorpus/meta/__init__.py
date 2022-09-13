@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import List, Callable, Any, Set, Union, Iterator
+from typing import List, Callable, Any, Set, Union, Iterable
 import pandas as pd
 from spacy.tokens import Doc
 
@@ -8,17 +8,33 @@ A Collection of data classes representing Corpus Metadata.
 """
 
 
-class LazyLoad(object):
-    def __init__(self, path: str, col: str, dtype: str):
+class LazyLoader(metaclass=ABCMeta):
+    @abstractmethod
+    def load(self) -> Iterable:
+        """"""
+        raise NotImplementedError()
+
+
+class LazySeries(LazyLoader):
+    def __init__(self, path: str, col: str, nrows: int = None, dtype: str = None):
         self.path = path
         self.col = col
+        self.nrows = nrows
         self.dtype = dtype
 
     def load(self) -> pd.Series:
-        x = pd.read_csv(self.path, usecols=lambda x: x == self.col).squeeze("columns")
+        x = pd.read_csv(self.path, usecols=lambda x: x == self.col, nrows=self.nrows).squeeze("columns")
         if self.dtype is not None: x = x.astype(self.dtype)
         return x
         # squeeze returns series if len(cols = 1)
+
+
+class LazySpacyPipe(LazyLoader):
+    def __init__(self, texts: Iterable):
+        self.texts = texts
+
+    def load(self) -> Iterable[Doc]:
+        return nlp.pipe(self.texts)
 
 
 class Meta(metaclass=ABCMeta):
@@ -73,14 +89,14 @@ class ItemMasker(metaclass=ABCMeta):
 
 
 class SeriesMeta(Meta, metaclass=ABCMeta):
-    def __init__(self, id_: str, series: Union[LazyLoad, pd.Series]):
+    def __init__(self, id_: str, series: Union[LazySeries, pd.Series]):
         super(SeriesMeta, self).__init__(id_, id_)
         self._dtype = None
         self._series = series
 
     @property
     def series(self) -> pd.Series:
-        if isinstance(self._series, LazyLoad):
+        if isinstance(self._series, LazySeries):
             self._series = self._series.load()
         return self._series
 
@@ -128,7 +144,7 @@ class DelimitedStrSeriesMeta(CategoricalSeriesMeta):
 class DocMeta(Meta):
     """ This class represents the metadata stored within the spacy Docs """
 
-    def __init__(self, id_: str, df_col: str, attr: str, doc_generator: Iterator[Doc]):
+    def __init__(self, id_: str, df_col: str, attr: str, doc_generator: Iterable[Doc]):
         super(DocMeta, self).__init__(id_, df_col)
         self._attr = attr
         self._doc_generator = doc_generator
@@ -192,12 +208,12 @@ class DocItemsMeta(DocItemMeta, ItemMasker):
 
 if __name__ == '__main__':
     # series
-    meta_series = SeriesMeta('random_id', LazyLoad(
+    meta_series = SeriesMeta('random_id', LazySeries(
         path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
         dtype=None))
     s = meta_series.series
 
-    meta_cat_series = CategoricalSeriesMeta('random_id', LazyLoad(
+    meta_cat_series = CategoricalSeriesMeta('random_id', LazySeries(
         path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
         dtype='category'), )
     mask = meta_cat_series.mask_on_items({'Adelaide (C)'}, op='OR')
@@ -216,7 +232,7 @@ if __name__ == '__main__':
              ]
     docs = nlp.pipe(texts)
     items = {'New York City', 'Sydney'}
-    doc_items_meta = DocItemsMeta('random_id', 'col', 'ents', docs)
+    doc_items_meta = DocItemsMeta('random_id', 'col', attr='ents', doc_generator=docs)
     print(doc_items_meta)
     mask = doc_items_meta.mask_on_items(items, 'OR')
 
