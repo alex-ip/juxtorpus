@@ -15,7 +15,15 @@ class LazyLoader(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class LazySeries(LazyLoader):
+class LazyDataFrame(LazyLoader):
+    def __init__(self, func: Callable[[Any], pd.DataFrame]):
+        self._func: Callable[[Any], pd.DataFrame] = func
+
+    def load(self) -> pd.DataFrame:
+        return self._func()
+
+
+class LazyCSVSeries(LazyLoader):
     def __init__(self, path: str, col: str, nrows: int = None, dtype: str = None):
         self.path = path
         self.col = col
@@ -208,12 +216,12 @@ class DocItemsMeta(DocItemMeta, ItemMasker):
 
 if __name__ == '__main__':
     # series
-    meta_series = SeriesMeta('random_id', LazySeries(
+    meta_series = SeriesMeta('random_id', LazyCSVSeries(
         path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
         dtype=None))
     s = meta_series.series
 
-    meta_cat_series = CategoricalSeriesMeta('random_id', LazySeries(
+    meta_cat_series = CategoricalSeriesMeta('random_id', LazyCSVSeries(
         path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
         dtype='category'), )
     mask = meta_cat_series.mask_on_items({'Adelaide (C)'}, op='OR')
