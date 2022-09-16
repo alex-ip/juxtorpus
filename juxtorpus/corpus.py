@@ -73,7 +73,9 @@ class Corpus:
             pass
 
         # meta data
-        self._meta_registry = self._init_meta_registry(metas)
+        self._meta_registry = None
+        if metas is not None:
+            self._meta_registry = self._init_meta_registry(metas)
 
         # internals properties
         self.__num_tokens: int = -1
