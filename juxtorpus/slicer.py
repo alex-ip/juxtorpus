@@ -113,7 +113,7 @@ if __name__ == '__main__':
         ]
     }
 
-    from juxtorpus.meta import SeriesMeta, LazySeries, CategoricalSeriesMeta
+    from juxtorpus.meta import SeriesMeta, LazyCSVSeries, CategoricalSeriesMeta
     from juxtorpus.corpus import TweetCorpus
 
     # Corpus Builder
@@ -124,11 +124,11 @@ if __name__ == '__main__':
     for meta_col in df_meta_.columns:
         # extract metadata from column
         if meta_col == 'tweet_lga':
-            meta = CategoricalSeriesMeta(id_=meta_col, series=LazySeries(
+            meta = CategoricalSeriesMeta(id_=meta_col, series=LazyCSVSeries(
                 path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col=meta_col,
                 dtype=None, nrows=500))
         else:
-            meta = SeriesMeta(id_=meta_col, series=LazySeries(
+            meta = SeriesMeta(id_=meta_col, series=LazyCSVSeries(
                 path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col=meta_col,
                 dtype=None, nrows=500))
         metas.append(meta)
