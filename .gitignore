@@ -133,4 +133,4 @@ dmypy.json
 .idea/
 
 # dev
-.scrap/
+_scrap/
