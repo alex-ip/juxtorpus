@@ -125,7 +125,8 @@ class Corpus:
         self._compute_word_statistics()
         return pd.Series({
             "Number of words": self.num_tokens,
-            "Number of unique words": self.num_uniq_tokens
+            "Number of unique words": self.num_uniq_tokens,
+            "Number of documents": len(self)
         })
 
     def freq_of(self, words: Set[str]):
