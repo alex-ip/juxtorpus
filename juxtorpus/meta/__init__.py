@@ -53,14 +53,6 @@ class LazySeries(LazyLoader):
                     yield series
 
 
-class LazySpacyPipe(LazyLoader):
-    def __init__(self, texts: Iterable):
-        self.texts = texts
-
-    def load(self) -> Iterable[Doc]:
-        return nlp.pipe(self.texts)
-
-
 class Meta(metaclass=ABCMeta):
     def __init__(self, id_: str, df_col: str):
         self._id = id_
