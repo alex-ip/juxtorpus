@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import List, Callable, Any, Set, Union, Iterable
 import pandas as pd
 from spacy.tokens import Doc
+import pathlib
 
 """ 
 A Collection of data classes representing Corpus Metadata.
@@ -15,26 +16,41 @@ class LazyLoader(metaclass=ABCMeta):
         raise NotImplementedError()
 
 
-class LazyDataFrame(LazyLoader):
-    def __init__(self, func: Callable[[Any], pd.DataFrame]):
-        self._func: Callable[[Any], pd.DataFrame] = func
+class LazySeries(LazyLoader):
+    def __init__(self, paths: list[pathlib.Path], nrows: int, pd_read_func):
+        """
+        :param paths: paths of the csv
+        :param nrows: max number of rows
+        :param pd_read_func: One of pandas read functions (i.e. dataframe constructors)
+        """
+        self._paths = paths if isinstance(paths, list) else list(paths)
+        self._nrows = nrows
+        self._read_func = pd_read_func
 
-    def load(self) -> pd.DataFrame:
-        return self._func()
+    @property
+    def nrows(self):
+        return self._nrows
 
+    @property
+    def paths(self):
+        return self._paths
 
-class LazyCSVSeries(LazyLoader):
-    def __init__(self, path: str, col: str, nrows: int = None, dtype: str = None):
-        self.path = path
-        self.col = col
-        self.nrows = nrows
-        self.dtype = dtype
+    def load(self):
+        return pd.concat(self._yield_series(), axis=0)
 
-    def load(self) -> pd.Series:
-        x = pd.read_csv(self.path, usecols=lambda x: x == self.col, nrows=self.nrows).squeeze("columns")
-        if self.dtype is not None: x = x.astype(self.dtype)
-        return x
-        # squeeze returns series if len(cols = 1)
+    def _yield_series(self) -> pd.Series:
+        # load all
+        if self._nrows is None:
+            for path in self._paths:
+                yield self._read_func(path).squeeze("columns")
+        # load up to nrows
+        else:
+            current = 0
+            for path in self.paths:
+                series: pd.Series = self._read_func(path, nrows=self._nrows - current).squeeze("columns")
+                current += len(series)
+                if current <= self._nrows:
+                    yield series
 
 
 class LazySpacyPipe(LazyLoader):
@@ -212,38 +228,3 @@ class DocItemsMeta(DocItemMeta, ItemMasker):
             if not isinstance(doc_items, set): doc_items = set((doc_item.text for doc_item in doc_items))
             _mask.append(doc_items.intersection(items) == len(doc_items))
         return pd.Series(_mask)
-
-
-if __name__ == '__main__':
-    # series
-    meta_series = SeriesMeta('random_id', LazyCSVSeries(
-        path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
-        dtype=None))
-    s = meta_series.series
-
-    meta_cat_series = CategoricalSeriesMeta('random_id', LazyCSVSeries(
-        path='~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv', col='tweet_lga',
-        dtype='category'), )
-    mask = meta_cat_series.mask_on_items({'Adelaide (C)'}, op='OR')
-
-    df = pd.read_csv('~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
-    subset = df[mask]
-    print()
-
-    # doc
-    from juxtorpus import nlp
-
-    texts = ["I am at New York City!",
-             "hello there",
-             "Australia is in the southern hemisphere",
-             "Sydney is 16,200 km from New York City"
-             ]
-    docs = nlp.pipe(texts)
-    items = {'New York City', 'Sydney'}
-    doc_items_meta = DocItemsMeta('random_id', 'col', attr='ents', doc_generator=docs)
-    print(doc_items_meta)
-    mask = doc_items_meta.mask_on_items(items, 'OR')
-
-    df = pd.DataFrame(texts)
-    subset = df[mask]
-    print()
