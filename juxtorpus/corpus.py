@@ -3,7 +3,7 @@ The data model for a corpus. Contains basic summary statistics.
 
 You may ingest and extract data from and to its persisted form. (e.g. csv)
 """
-from typing import Union, List, Set
+from typing import Union, List, Set, Dict
 import pandas as pd
 import time
 from spacy.tokens import Doc
@@ -25,42 +25,14 @@ class Corpus:
     + __doc__ column is maintained by this object. Do not try to change data in this column.
     """
 
-    @staticmethod
-    def from_disk(path: str, sep=',') -> 'Corpus':
-        """
-        Ingest data and return the Corpus data model.
-        :param path: Path to csv
-        :param sep: csv separator
-        :return:
-        """
-        # TODO: accept .txt file (likely most typical form of corpus storage)
-        if path.endswith('.txt'):
-            raise NotImplemented(".txt file not implemented yet.")
-        if path.endswith('.csv'):
-            return Corpus(df=pd.read_csv(path, sep=sep))
-        raise Exception("Corpus currently only supports .csv formats.")
-
-    @staticmethod
-    def from_(texts: Union[List[str], Set[str]]) -> 'Corpus':
-        if isinstance(texts, list) or isinstance(texts, set):
-            return Corpus(df=pd.DataFrame(texts, columns=[Corpus.COL_TEXT]))
-        raise Exception("Corpus currently only supports lists and sets.")
-
-    def to(self, type_: str):
-        if type_ == 'csv':
-            raise NotImplemented("Exports to csv.")
-        raise NotImplemented()
-
     COL_TEXT: str = 'text'
     COL_DOC: str = '__doc__'  # spacy Document
     __dtype_text = pd.StringDtype(storage='pyarrow')
 
-    def __init__(self, df: pd.DataFrame, metas: List[Meta] = None):
+    def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
 
-        self._df: pd.DataFrame = df
+        self._df: pd.DataFrame = pd.DataFrame(text)
         # ensure initiated object is well constructed.
-        if self.COL_TEXT not in self._df.columns:
-            raise ValueError(f"Missing {self.COL_TEXT} column in dataframe.")
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
@@ -73,9 +45,9 @@ class Corpus:
             pass
 
         # meta data
-        self._meta_registry = None
-        if metas is not None:
-            self._meta_registry = self._init_meta_registry(metas)
+        self._meta_registry = metas
+        if self._meta_registry is None:
+            self._meta_registry = dict()
 
         # internals properties
         self.__num_tokens: int = -1
@@ -96,12 +68,6 @@ class Corpus:
 
     def get_meta(self, id_: str):
         return self._meta_registry.get(id_, None)
-
-    def _init_meta_registry(self, metas: List[Meta]):
-        self._meta_registry = dict()
-        for meta in metas:
-            self.add_meta(meta)
-        return self._meta_registry
 
     ### Preprocessing ###
 
@@ -199,12 +165,8 @@ class DummyCorpus(Corpus):
     ]
 
     def __init__(self):
-        super(DummyCorpus, self).__init__(df=pd.DataFrame(self.dummy_texts, columns=[Corpus.COL_TEXT]))
+        super(DummyCorpus, self).__init__(df=pd.DataFrame(self.dummy_texts, columns=[Corpus.COL_TEXT]), metas=None)
 
 
 if __name__ == '__main__':
-    # trump = Corpus.from_disk("~/Downloads/2017_01_18_trumptweets.csv")
-    trump = Corpus.from_disk("../assets/samples/tweetsA.csv")
-    print(trump.texts()[0])
-    trump.preprocess()
-    print(trump.summary())
+    pass
