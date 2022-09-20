@@ -5,4 +5,4 @@ class Viz(metaclass=ABCMeta):
     @abstractmethod
     def render(self):
         """ Renders the visualisation. """
-        pass
+        raise NotImplementedError()

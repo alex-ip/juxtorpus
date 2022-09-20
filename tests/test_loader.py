@@ -48,6 +48,8 @@ class TestLoader(unittest.TestCase):
             if meta_col in ('tweets_lga'):
                 dtype = 'categorical'
                 meta_cls = CategoricalSeriesMeta
+
+            #
             series = LazyCSVSeries(path=path, col=meta_col, nrows=nrows, dtype=dtype)
             ## meta factory?
             metas.append(meta_cls(meta_col, series))
@@ -101,6 +103,9 @@ class TestLoader(unittest.TestCase):
         from typing import Generator
         import os
         paths: Generator[pathlib.PosixPath, None, None] = Path(f"{os.getenv('HOME')}/Downloads").glob('Geo_texts*.txt')
+        # paths: Generator[pathlib.PosixPath, None, None] = Path(f"{os.getenv('HOME')}/Downloads/Data/Top100_Text_1").glob('*.txt')
+        paths: Generator[pathlib.PosixPath, None, None] = Path(
+            f"{os.getenv('HOME')}/Downloads/Data/Top100_Text_1").glob('Top_100_user_tweets_1_2020_6_16.txt')
         nrows: int = 1000
         corpus_cls = Corpus
 
@@ -126,7 +131,7 @@ class TestLoader(unittest.TestCase):
             else:
                 rows_to_load = nrows - rows_loaded
 
-        # todo: keep as lazy dfs?
+        # todo: keep as lazy dfs? -> not for now, since else we can just use dask.
         # lazy_dfs = list()
         # for p in paths:
         #     read_func = lambda: pd.read_table(p)
@@ -138,3 +143,21 @@ class TestLoader(unittest.TestCase):
 
         c = corpus_cls(df=df)
         print(c.preprocess().summary())
+
+    def test_loader_upload_widget_and_file_check(self):
+        # 1. upload widget -> .value vs .content; .content is a memory_view of a file. .value is a list of files.
+        # 2. zip extraction -> file_uploader.value[0].content -> BytesIO -> ZipFile.open() -> zip.extractall('path')
+        # 3. language check -> this is actually metadata, so we should reuse the corpus slicer.
+        # 4. file size check -> file_uploader.value
+        from ipywidgets import widgets
+        file_uploader = widgets.FileUpload(
+            description='Upload your files (txt, csv, xlsx or zip)',
+            accept='.txt, .xlsx, .csv, .zip',  # accepted file extension
+            multiple=True,  # True to accept multiple files
+            error='File upload unsuccessful. Please try again!',
+            layout=widgets.Layout(width='320px')
+        )
+
+        files = file_uploader.value
+
+
