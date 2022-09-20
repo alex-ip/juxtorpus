@@ -30,29 +30,38 @@ class Meta(metaclass=ABCMeta):
     def cloned(self, mask):
         raise NotImplementedError()
 
+    @abstractmethod
+    def preview(self, n: int):
+        raise NotImplementedError()
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [Id: {self.id}]>"
 
 
 class SeriesMeta(Meta):
 
-    def __init__(self, id_, series: pd.Series):
+    def __init__(self, id_, series: Union[pd.Series, LazySeries]):
         super(SeriesMeta, self).__init__(id_)
         self._series = series
+        # print(self._series)
 
-    @property
     def series(self):
+        if isinstance(self._series, LazySeries):
+            self._series = self._series.load()
         return self._series
 
     def apply(self, func):
-        return self.series.apply(func)
+        return self.series().apply(func)
 
     def __iter__(self):
         for x in iter(self.series.__iter__()):
             yield x
 
     def cloned(self, mask):
-        return SeriesMeta(self._id, self.series[mask])
+        return SeriesMeta(self._id, self.series()[mask])
+
+    def preview(self, n):
+        return self.series().head(n)
 
 
 class DelimitedStrSeriesMeta(SeriesMeta):
@@ -88,6 +97,9 @@ class DocMeta(Meta):
     def cloned(self, mask):
         doc_generator = mask
         return DocMeta(self._id, self._attr, doc_generator)
+
+    def preview(self, n: int):
+        return [doc for i, doc in enumerate(self._doc_generator()) if i < n]
 
     def __iter__(self):
         for doc in self._doc_generator():
