@@ -20,7 +20,7 @@ class Check(object):
 
 
 class FileSizeCheck(Check):
-    REASON: str = "Exceeded the maximum size of {}."
+    REASON: str = "Exceeded the maximum size of {} bytes."
 
     def __init__(self, max_bytes: int):
         self.max_size = max_bytes
