@@ -26,30 +26,24 @@ class Corpus:
     """
 
     COL_TEXT: str = 'text'
-    COL_DOC: str = '__doc__'  # spacy Document
     __dtype_text = pd.StringDtype(storage='pyarrow')
 
     def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
 
-        self._df: pd.DataFrame = pd.DataFrame(text)
+        self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
         # sets the default dtype for texts
-        try:
-            if self._df.loc[:, self.COL_TEXT].dtype != self.__dtype_text:
-                self._df = self._df.astype(dtype={self.COL_TEXT: self.__dtype_text})
-        except Exception:
-            print(f"[Warn] {self.COL_TEXT} column failed to convert to pyarrow dtype. You may ignore this.")
-            pass
+        self.__try_text_dtype_conversion(Corpus.__dtype_text)
 
         # meta data
         self._meta_registry = metas
         if self._meta_registry is None:
             self._meta_registry = dict()
 
-        # internals properties
+        # internals
         self.__num_tokens: int = -1
         self.__num_uniqs: int = -1
 
@@ -69,45 +63,21 @@ class Corpus:
     def get_meta(self, id_: str):
         return self._meta_registry.get(id_, None)
 
-    ### Preprocessing ###
-
-    def preprocess(self, verbose: bool = False):
-        start = time.time()
-        if verbose: print(f"++ Preprocessing {len(self._df)} documents...")
-
-        if self.is_processed:
-            return self
-
-        if len(self._df) < 100:
-            self._df[self.COL_DOC] = self._df[self.COL_TEXT].apply(lambda x: nlp(x))
-        else:
-            self._df[self.COL_DOC] = list(nlp.pipe(self._df[self.COL_TEXT]))
-        if verbose: print(f"++ Done. Elapsed: {time.time() - start}")
-        return self
-
-    @property
-    def is_processed(self):
-        return self.COL_DOC in self._df.columns
+    ### Statistics ###
 
     @property
     def num_words(self) -> int:
-        self._compute_word_statistics()
         return self.__num_tokens
 
     @property
     def num_unique_words(self) -> int:
-        self._compute_word_statistics()
         return self.__num_uniqs
 
     def texts(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT]
 
-    def docs(self) -> 'pd.Series[Doc]':
-        return self._df.loc[:, self.COL_DOC]
-
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        self._compute_word_statistics()
         return pd.Series({
             "Number of words": self.num_words,
             "Number of unique words": self.num_unique_words
@@ -125,28 +95,18 @@ class Corpus:
                     word_dict[t] += 1
         return word_dict
 
-    def _compute_word_statistics(self):
-        if Corpus.COL_DOC not in self._df.columns:
-            raise RuntimeError("You need to call preprocess() on your corpus object first.")
-
-        if self.__num_tokens > -1 or self.__num_uniqs > -1:
-            pass
-        else:
-            _num_tokens: int = 0
-            _uniqs = set()
-            _no_puncs = no_puncs(nlp.vocab)
-            for i in range(len(self._df)):
-                _doc = self._df[self.COL_DOC].iloc[i]
-                _no_puncs_doc = _no_puncs(_doc)
-                _num_tokens += len(_no_puncs_doc)
-                for _, start, end in _no_puncs_doc:
-                    _uniqs.add(_doc[start:end].text.lower())
-
-            self.__num_tokens = _num_tokens
-            self.__num_uniqs = len(_uniqs)
-
     def __len__(self):
         return len(self._df) if self._df is not None else 0
+
+    def __try_text_dtype_conversion(self, dtype):
+        try:
+            if self._df.loc[:, self.COL_TEXT].dtype != self.__dtype_text:
+                self._df = self._df.astype(dtype={self.COL_TEXT: dtype})
+        except TypeError:
+            print(
+                f"[Warn] {self.COL_TEXT} column failed to convert to {dtype} dtype. \
+                There will possibly be higher memory consumption however you  may safely ignore this."
+            )
 
 
 class TweetCorpus(Corpus):
@@ -165,7 +125,7 @@ class DummyCorpus(Corpus):
     ]
 
     def __init__(self):
-        super(DummyCorpus, self).__init__(df=pd.DataFrame(self.dummy_texts, columns=[Corpus.COL_TEXT]), metas=None)
+        super(DummyCorpus, self).__init__(pd.Series(self.dummy_texts), metas=None)
 
 
 if __name__ == '__main__':
