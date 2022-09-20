@@ -19,7 +19,7 @@ class Corpus:
     __dtype_text = pd.StringDtype(storage='pyarrow')
 
     def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
-
+        text.name = self.COL_TEXT
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
@@ -128,6 +128,9 @@ class DummyCorpus(Corpus):
     def __init__(self):
         super(DummyCorpus, self).__init__(pd.Series(self.dummy_texts), metas=None)
 
+
+# aliases
+from .builder import CorpusBuilder
 
 if __name__ == '__main__':
     pass
