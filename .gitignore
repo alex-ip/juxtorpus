@@ -134,3 +134,5 @@ dmypy.json
 
 # dev
 _scrap/
+juxtorpus_metaslicing_oop_design.png
+tests/
