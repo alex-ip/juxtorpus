@@ -21,7 +21,10 @@ class CorpusBuilder(object):
 
     def show_columns(self):
         header = pd.read_csv(self._paths[0], nrows=0)
-        return pd.Series(header.columns, name='column')
+        all = pd.Series(header.columns, name='All Columns')
+        added = pd.Series((added for added_cols in self._metas_configs.values() for added in added_cols), name='Added')
+        df = pd.concat([all, added], axis=1).fillna('')
+        return df
 
     def add_meta(self, column: str, lazy=False):
         key: str = 'series'
@@ -53,19 +56,21 @@ class CorpusBuilder(object):
         metas = dict()
         # 1. lazy metas
         for col in self._metas_configs.get('lazy', []):
-            series = LazySeries(self._paths, self._nrows,
-                                partial(pd.read_csv, usecols=lambda x: x == col, sep=self._sep))
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please use a different column name.")
-            metas[col] = SeriesMeta(col, series)
+
+            read_func = partial(pd.read_csv, usecols=[col], sep=self._sep)
+            lazy_series = LazySeries(self._paths, self._nrows, read_func)
+            meta = SeriesMeta(col, lazy_series)
+            metas[col] = meta
 
         # 2. update the rest of the meta dictionary - build df
         cols_set = set(self._metas_configs.get('series', [])).union({self._col_text})
         current = 0
         dfs = list()
         for path in self._paths:
-            df = pd.read_csv(path, nrows=self._nrows - current, usecols=lambda x: x in cols_set, sep=self._sep)
-            current += (len(df))
+            df = pd.read_csv(path, nrows=self._nrows - current, usecols=cols_set, sep=self._sep)
+            current += len(df)
             if current <= self._nrows:
                 dfs.append(df)
         df = pd.concat(dfs, axis=0)
@@ -93,10 +98,16 @@ if __name__ == '__main__':
     cb.set_sep(',')
     cb.set_text_column('processed_text')
 
-    print(cb.show_columns())
-    for col in ['year', 'month', 'day', 'tweet_lga']:
-        cb.add_meta(col, lazy=True)
-
     corpus = cb.build()
     print(corpus.metas())
-    print(len(corpus))
+
+    # add some meta data now using the same builder - state is kept from above.
+    for col in ['year', 'day', 'tweet_lga', 'lga_code_2020']:
+        cb.add_meta(col, lazy=True)
+    cb.add_meta('month', lazy=False)
+    print(cb.show_columns())
+
+    corpus_with_meta = cb.build()
+    print(corpus_with_meta.get_meta('tweet_lga'))
+    print("+++++")
+    print(corpus_with_meta.get_meta('tweet_lga').preview(5))
