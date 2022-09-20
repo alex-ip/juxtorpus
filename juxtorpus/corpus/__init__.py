@@ -1,17 +1,10 @@
-""" Corpus
-The data model for a corpus. Contains basic summary statistics.
-
-You may ingest and extract data from and to its persisted form. (e.g. csv)
-"""
 from typing import Union, List, Set, Dict
 import pandas as pd
-import time
-from spacy.tokens import Doc
 from frozendict import frozendict
+from functools import partial
 
 from juxtorpus import nlp
-from juxtorpus.matchers import no_puncs
-from juxtorpus.meta import Meta
+from juxtorpus.meta import Meta, DocMeta
 
 
 class Corpus:
@@ -20,9 +13,6 @@ class Corpus:
     It exposes functions that gather statistics on the corpus such as token frequencies and lexical diversity etc.
 
     summary() provides a quick summary of your corpus.
-
-    Some caveats (mostly involving implicit internal states)
-    + __doc__ column is maintained by this object. Do not try to change data in this column.
     """
 
     COL_TEXT: str = 'text'
@@ -94,6 +84,17 @@ class Corpus:
                 if word_dict.get(t, None) is not None:
                     word_dict[t] += 1
         return word_dict
+
+    def cloned(self, mask: 'pd.Series[bool]'):
+        """ Returns a clone of itself with the boolean mask applied. """
+        text_series = self._df.loc[:, self.COL_TEXT][mask]
+        cloned_meta_registry = dict()
+        for id_, meta in self._meta_registry.items():
+            # TODO: tight coupling here - DocMeta, spacy nlp
+            if isinstance(meta, DocMeta):
+                mask = partial(nlp.pipe, text_series)
+            cloned_meta_registry[id_] = meta.cloned(mask)
+        return Corpus(text_series, cloned_meta_registry)
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
