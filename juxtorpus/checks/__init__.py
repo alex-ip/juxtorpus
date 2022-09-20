@@ -50,6 +50,7 @@ class FileChecks(object):
         paths = self._to_paths(paths)
         flagged = dict()
         passed = list()
+        path: pathlib.Path
         for path in paths:
             for check in self.checks:
                 passed = check(path)
@@ -58,10 +59,12 @@ class FileChecks(object):
                         reason = check.reason()
                     else:
                         reason = str(check)
-                    reasons = flagged.get(path, list())
+
+                    key: str = str(path)
+                    reasons = flagged.get(key, list())
                     reasons.append(reason)
-                    flagged[path] = reasons
-        self._passed = [p for p in paths if p not in flagged.keys()]
+                    flagged[key] = reasons
+        self._passed = [str(p) for p in paths if str(p) not in flagged.keys()]
         self._flagged = flagged
         return flagged
 
