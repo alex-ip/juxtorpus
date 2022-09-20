@@ -22,8 +22,8 @@ class Check(object):
 class FileSizeCheck(Check):
     REASON: str = "Exceeded the maximum size of {}."
 
-    def __init__(self, max_size: int):
-        self.max_size = max_size
+    def __init__(self, max_bytes: int):
+        self.max_size = max_bytes
 
     def __call__(self, path: pathlib.Path) -> bool:
         # print(f"File: {path} Size: {path.stat().st_size} bytes")
@@ -92,7 +92,7 @@ class FileChecks(object):
 if __name__ == '__main__':
     checks = [
         check_file_lang,
-        FileSizeCheck(max_size=1_000_000)  # 1Mb
+        FileSizeCheck(max_bytes=1_000_000)  # 1Mb
     ]
     file_checks = FileChecks(checks)
 
