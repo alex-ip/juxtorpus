@@ -20,11 +20,11 @@ class Meta(metaclass=ABCMeta):
 
     @abstractmethod
     def apply(self, func) -> pd.Series:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def __iter__(self):
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def cloned(self, mask):
