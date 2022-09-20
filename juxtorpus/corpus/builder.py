@@ -8,6 +8,10 @@ from juxtorpus.meta import LazySeries, SeriesMeta
 
 class CorpusBuilder(object):
     def __init__(self, paths: list[pathlib.Path]):
+        if isinstance(paths, str):
+            paths = pathlib.Path(paths)
+        if isinstance(paths, pathlib.Path):
+            paths = [paths]
         self._paths = paths
         self._corpus_type: str = 'corpus'
         self._nrows = None
@@ -17,7 +21,7 @@ class CorpusBuilder(object):
 
     def show_columns(self):
         header = pd.read_csv(self._paths[0], nrows=0)
-        return pd.Series(header.columns)
+        return pd.Series(header.columns, name='column')
 
     def add_meta(self, column: str, lazy=False):
         key: str = 'series'
@@ -82,16 +86,17 @@ class CorpusBuilder(object):
 
 if __name__ == '__main__':
     cb = CorpusBuilder(
-        paths=['/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv']
+        paths=['/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv']
     )
     cb.set_nrows(100)
     cb.set_corpus_type('corpus')
     cb.set_sep(',')
+    cb.set_text_column('processed_text')
 
     print(cb.show_columns())
     for col in ['year', 'month', 'day', 'tweet_lga']:
         cb.add_meta(col, lazy=True)
 
     corpus = cb.build()
-    print(corpus.preprocess(verbose=True).summary())
     print(corpus.metas())
+    print(len(corpus))
