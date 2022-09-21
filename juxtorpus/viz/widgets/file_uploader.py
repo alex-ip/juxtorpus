@@ -13,17 +13,17 @@ class FileUploadWidget(Viz):
 
     default_accepted_extensions = ['.txt', '.csv', '.xlsx', '.zip']
 
-    def __init__(self, upload_dir: Union[str, pathlib.Path], accepts_extensions: list[str] = None):
-        if accepts_extensions is None:
-            accepts_extensions = self.default_accepted_extensions
+    def __init__(self, upload_dir: Union[str, pathlib.Path], accept_extensions: list[str] = None):
+        if accept_extensions is None:
+            accept_extensions = self.default_accepted_extensions
 
         # TODO: probably better to use a temp directory here. (tmp will take care of deleting files)
         self.upload_dir = upload_dir if isinstance(upload_dir, pathlib.Path) else pathlib.Path(upload_dir)
         self._init_upload_dir()
 
         self._uploader = FileUpload(
-            description=self.DESCRIPTION.format(' '.join(accepts_extensions)),
-            accept=', '.join(accepts_extensions),
+            description=self.DESCRIPTION.format(' '.join(accept_extensions)),
+            accept=', '.join(accept_extensions),
             multiple=True,  # True to accept multiple files
             error=self.ERR_FAILED_UPLOAD,
             layout=widgets.Layout(width='320px')
@@ -42,11 +42,6 @@ class FileUploadWidget(Viz):
 
     def _on_upload(self, change):
         with self._output:
-            print(f"Old files: {change.get('old').keys()}")
-            print(f"New files: {change.get('new').keys()}")
-            print(f"Current files: {self._uploader.value.keys()}")
-
-            # TODO: I think separate uploads overrides the old content, so it may be best to write them to disk here.
             new_files = change.get('new').keys()
             for fname in new_files:
                 try:
