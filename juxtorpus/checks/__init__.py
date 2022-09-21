@@ -38,7 +38,7 @@ def check_file_lang(file: pathlib.Path):
     return True
 
 
-class FileChecks(object):
+class FileCheckers(object):
     def __init__(self, checks: list[Callable]):
         self._checks = checks
         self._flagged = dict()
@@ -97,7 +97,7 @@ if __name__ == '__main__':
         check_file_lang,
         FileSizeCheck(max_bytes=1_000_000)  # 1Mb
     ]
-    file_checks = FileChecks(checks)
+    file_checks = FileCheckers(checks)
 
     HOME = os.getenv("HOME")
     paths = pathlib.Path(f"{HOME}/Downloads/Data/Top100_Text_1/").rglob("*.txt")
