@@ -3,6 +3,8 @@ import pathlib
 from typing import Iterable, Callable, Generator
 import pandas as pd
 import os
+import codecs
+from chardet.universaldetector import UniversalDetector
 
 
 class FlaggedPath(object):
@@ -36,6 +38,48 @@ class FileSizeCheck(Check):
 def check_file_lang(file: pathlib.Path):
     # print(f"file_lang: checking file - {file}")
     return True
+
+
+class EncodingCheck(Check):
+    REASON: str = "File encoding inferred to be {} with confidence {}. Expected {}."
+
+    expected_but_got_still_fine = {
+        'UTF-8': {'ASCII'}
+    }
+
+    def __init__(self, expected: str):
+        try:
+            codecs.lookup(expected)
+        except LookupError:
+            raise LookupError(f"Encoding {expected} is not supported.")
+
+        self._detector = UniversalDetector()
+        self._expected = expected.upper()
+
+        self._current_inferred = ''
+        self._current_inferred_conf = -1
+
+    @property
+    def expected(self):
+        return self._expected
+
+    def __call__(self, path: pathlib.Path) -> bool:
+        detector = self._detector
+        with open(path, 'rb') as h:
+            for i, line in enumerate(h):
+                detector.feed(line)
+                if detector.done:
+                    break
+        detector.close()
+        self._current_inferred = detector.result.get('encoding')
+        self._current_inferred_conf = detector.result.get('confidence')
+        if self.expected.upper() == self._current_inferred.upper():
+            return True
+        else:
+            return self._current_inferred.upper() in self.expected_but_got_still_fine.get(self.expected.upper())
+
+    def reason(self):
+        return self.REASON.format(self._current_inferred, self._current_inferred_conf, self.expected)
 
 
 class FileCheckers(object):
