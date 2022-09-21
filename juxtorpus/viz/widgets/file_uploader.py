@@ -1,12 +1,13 @@
-import io
 from ipywidgets import FileUpload, Output, VBox, widgets
 from IPython.display import display
 from typing import Union
 import pathlib
 import os
 
+from juxtorpus.viz import Viz
 
-class FileUploadWidget(object):
+
+class FileUploadWidget(Viz):
     DESCRIPTION = "Upload your files here.\n({})"
     ERR_FAILED_UPLOAD = "File upload unsuccessful. Please try again!."
 
