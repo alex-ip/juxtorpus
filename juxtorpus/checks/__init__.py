@@ -15,7 +15,7 @@ class FlaggedPath(object):
 
 
 class Check(object):
-    def __call__(self, path, flagged):
+    def __call__(self, path):
         raise NotImplementedError()
 
 
