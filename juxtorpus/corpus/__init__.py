@@ -131,6 +131,7 @@ class DummyCorpus(Corpus):
 
 # aliases
 from .builder import CorpusBuilder
+from .slicer import CorpusSlicer
 
 if __name__ == '__main__':
     pass
