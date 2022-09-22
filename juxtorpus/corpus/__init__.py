@@ -4,7 +4,7 @@ from frozendict import frozendict
 from functools import partial
 
 from juxtorpus import nlp
-from juxtorpus.meta import Meta, DocMeta
+from juxtorpus.meta import Meta, SeriesMeta, DocMeta
 
 
 class Corpus:
@@ -14,6 +14,17 @@ class Corpus:
 
     summary() provides a quick summary of your corpus.
     """
+
+    @classmethod
+    def from_dataframe(cls, df: pd.DataFrame, col_text: str = 'text'):
+        meta_df: pd.DataFrame = df.drop(col_text)
+        metas: dict[str, SeriesMeta] = dict()
+        for col in meta_df.columns:
+            # create series meta
+            if metas.get(col, None) is None:
+                raise KeyError(f"{col} already exists. Please rename the column.")
+            metas[col] = SeriesMeta(col, meta_df.loc[:, col])
+        return cls(df[col_text], metas)
 
     COL_TEXT: str = 'text'
     __dtype_text = pd.StringDtype(storage='pyarrow')
@@ -71,7 +82,7 @@ class Corpus:
         return pd.Series({
             "Number of words": self.num_words,
             "Number of unique words": self.num_unique_words
-        }, name='frequency')
+        }, name='frequency')  # todo: use uint32 dtype.
 
     def freq_of(self, words: Set[str]):
         """ Returns the frequency of a list of words. """
