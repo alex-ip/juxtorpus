@@ -16,7 +16,8 @@ class FlaggedPath(object):
         return f"Path: {self.path}\t [REASON: {self.reason}]"
 
 
-class Check(object):
+class Check(metaclass=ABCMeta):
+    @abstractmethod
     def __call__(self, path):
         raise NotImplementedError()
 
@@ -102,7 +103,6 @@ class FileCheckers(object):
             paths = list(paths)
         paths = self._to_paths(paths)
         flagged = dict()
-        passed = list()
         path: pathlib.Path
         for path in paths:
             for check in self.checks:
