@@ -136,7 +136,8 @@ class FileCheckers(object):
         num_passed = len(self._passed)
         return pd.Series([num_flagged, num_passed, num_flagged + num_passed],
                          index=['Flagged', 'Passed', 'Total'],
-                         name='File Check Summary')
+                         name='File Check Summary',
+                         dtype='UInt16')  # up to ~65k files
 
     def _to_paths(self, paths):
         for i, p in enumerate(paths):
