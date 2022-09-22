@@ -111,7 +111,7 @@ class FileCheckers(object):
                     if isinstance(check, Check):
                         reason = check.reason()
                     else:
-                        reason = str(check)
+                        reason = check.__name__
 
                     key: str = str(path)
                     reasons = flagged.get(key, list())
