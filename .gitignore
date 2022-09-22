@@ -132,6 +132,9 @@ dmypy.json
 # Jetbrains IDE
 .idea/
 
+# MACOSX
+**/.DS_STORE
+
 # dev
 _scrap/
 juxtorpus_metaslicing_oop_design.png
