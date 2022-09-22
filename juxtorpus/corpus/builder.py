@@ -69,10 +69,14 @@ class CorpusBuilder(object):
         current = 0
         dfs = list()
         for path in self._paths:
-            df = pd.read_csv(path, nrows=self._nrows - current, usecols=cols_set, sep=self._sep)
-            current += len(df)
-            if current <= self._nrows:
-                dfs.append(df)
+            if self._nrows is None:
+                df = pd.read_csv(path, nrows=self._nrows, usecols=cols_set, sep=self._sep)
+            else:
+                if current >= self._nrows:
+                    break
+                df = pd.read_csv(path, nrows=self._nrows - current, usecols=cols_set, sep=self._sep)
+                current += len(df)
+            dfs.append(df)
         df = pd.concat(dfs, axis=0)
 
         if self._col_text not in df.columns:
