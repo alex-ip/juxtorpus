@@ -2,6 +2,7 @@ from typing import Union
 import pathlib, os, shutil, tempfile
 import hashlib
 import filecmp
+import zipfile
 
 
 class DeduplicatedDirectory(object):
@@ -53,7 +54,17 @@ class DeduplicatedDirectory(object):
         with open(self._dir_path.joinpath(fname), 'wb') as fh: fh.write(content)
         self._build_index()
 
+    def add_zip(self, path: pathlib.Path):
+        if not zipfile.is_zipfile(path):
+            raise ValueError(f"{path} is not a zipfile.")
+        with zipfile.ZipFile(path, 'r') as z:
+            temp_dir = pathlib.Path(tempfile.mkdtemp())
+            temp_dir = temp_dir.joinpath(z.filename)
+            z.extractall(temp_dir)
+            self.add_directory(temp_dir)
+
     def add_directory(self, path: pathlib.Path):
+        """ Adds a directory and its files. Raises error if directory name already exists. """
         if not path.is_dir():
             raise ValueError(f"{path} is not a directory.")
         if self._filename_exists(path.name, root_only=True):

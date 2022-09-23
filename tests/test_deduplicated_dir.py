@@ -1,3 +1,4 @@
+import zipfile
 from unittest import TestCase
 import pathlib
 from juxtorpus.utils import DeduplicatedDirectory
@@ -27,6 +28,7 @@ class TestDeduplicatedDirectory(TestCase):
         print(f"[TEST] DeduplicatedDirectory created at {self.dd.path}.")
         self.dir_ = pathlib.Path('./assets')
         self.file = pathlib.Path('./assets/content.txt')
+        self.zip_ = pathlib.Path('./assets/nested.zip')
         self.content = b'some content'
         self.fname = 'filename'
 
@@ -99,3 +101,12 @@ class TestDeduplicatedDirectory(TestCase):
         files = [f.name for f in self.dir_.glob("**/*") if f.is_file()]
         for f in files:
             assert f in self.dd.list(), f"{f} should exist in the directory."
+
+    def test_add_zip(self):
+        print()
+        self.dd.add_zip(self.zip_)
+        with zipfile.ZipFile(self.zip_) as z:
+            for zipinfo in z.infolist():
+                if zipinfo.filename.endswith('/'): continue
+                assert pathlib.Path(zipinfo.filename).name in self.dd.list(), \
+                    f"{zipinfo.filename} should exist in directory."
