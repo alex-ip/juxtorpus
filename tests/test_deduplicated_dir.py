@@ -25,6 +25,7 @@ class TestDeduplicatedDirectory(TestCase):
         print()
         self.dd = DeduplicatedDirectory()
         print(f"[TEST] DeduplicatedDirectory created at {self.dd.path}.")
+        self.dir_ = pathlib.Path('./assets')
         self.file = pathlib.Path('./assets/content.txt')
         self.content = b'some content'
         self.fname = 'filename'
@@ -91,3 +92,10 @@ class TestDeduplicatedDirectory(TestCase):
         self.dd.add_content(content, fname)
         self.dd.remove(fname)
         assert fname not in self.dd.list(), "File was not removed from directory."
+
+    def test_add_directory(self):
+        print()
+        self.dd.add_directory(self.dir_)
+        files = [f.name for f in self.dir_.glob("**/*") if f.is_file()]
+        for f in files:
+            assert f in self.dd.list(), f"{f} should exist in the directory."

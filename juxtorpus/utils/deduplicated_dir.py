@@ -24,7 +24,7 @@ class DeduplicatedDirectory(object):
 
     def files(self) -> list[pathlib.Path]:
         """ Lists all the absolute paths of the files in the directory """
-        return list(pathlib.Path(self._dir_path).glob('**/*'))
+        return list((f for f in pathlib.Path(self._dir_path).glob('**/*') if f.is_file()))
 
     def list(self) -> list[str]:
         """ Lists all the name of the files in the directory. """
@@ -34,10 +34,15 @@ class DeduplicatedDirectory(object):
         """ Adds a file to the directory. Raises error if file already exists. """
         if not file.is_file():
             raise ValueError(f"{file.name} is not a file.")
+        self._add_from(file, self._dir_path)
+        self._build_index()
+
+    def _add_from(self, file: pathlib.Path, start_at: pathlib.Path):
+        if not start_at.exists():
+            os.mkdir(start_at)
         if self.exists(file):
             raise ValueError(f"{file.name} already exists.")
-        shutil.copy(file, self._dir_path.joinpath(file.name))
-        self._build_index()
+        shutil.copy(file, start_at.joinpath(file.name))
 
     def add_content(self, content: bytes, fname: str):
         """ Add the content to the directory. Raises error if both file name and content are duplicated."""
@@ -47,6 +52,27 @@ class DeduplicatedDirectory(object):
             raise ValueError(f"File name: {fname} and its content are duplicated.")
         with open(self._dir_path.joinpath(fname), 'wb') as fh: fh.write(content)
         self._build_index()
+
+    def add_directory(self, path: pathlib.Path):
+        if not path.is_dir():
+            raise ValueError(f"{path} is not a directory.")
+        if self._filename_exists(path.name, root_only=True):
+            raise ValueError(f"{path} already exists.")
+        self._add_directory_from(path, self._dir_path)
+        self._build_index()
+
+    def _add_directory_from(self, path: pathlib.Path, start_at: pathlib.Path):
+        if not start_at.is_dir():
+            raise ValueError(f"{start_at} must be a directory.")
+        for file in path.glob('./*'):
+            if file.is_file():
+                self._add_from(file, start_at)
+            elif file.is_dir():
+                _next_dir = start_at.joinpath(file.name)
+                if not _next_dir.exists(): os.mkdir(_next_dir)
+                self._add_directory_from(file, _next_dir)
+            else:
+                print(f"[WARN] -- {file} is neither a file or directory. Skipped.")
 
     def remove(self, fname: str):
         """ Removes the file from the directory. Raises error if file name did not match anything. """
@@ -90,8 +116,14 @@ class DeduplicatedDirectory(object):
                     return True
         return False
 
-    def _filename_exists(self, fname: str):
-        return fname in self.list()
+    def _filename_exists(self, fname: str, root_only=False):
+        glob_pattern: str = '**/*'
+        if root_only:
+            glob_pattern = './*'
+        for file in pathlib.Path(self._dir_path).glob(glob_pattern):
+            if file.name == fname:
+                return True
+        return False
 
     def _build_index(self):  # todo: this should be async
         for existing in self.files():
