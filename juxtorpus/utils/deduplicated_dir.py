@@ -23,12 +23,15 @@ class DeduplicatedDirectory(object):
         return self._dir_path
 
     def files(self) -> list[pathlib.Path]:
+        """ Lists all the absolute paths of the files in the directory """
         return list(pathlib.Path(self._dir_path).glob('**/*'))
 
     def list(self) -> list[str]:
+        """ Lists all the name of the files in the directory. """
         return [f.name for f in self.files()]
 
     def add(self, file: pathlib.Path):
+        """ Adds a file to the directory. Raises error if file already exists. """
         if not file.is_file():
             raise ValueError(f"{file.name} is not a file.")
         if self.exists(file):
