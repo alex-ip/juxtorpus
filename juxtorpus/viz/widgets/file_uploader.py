@@ -9,6 +9,13 @@ import os
 from juxtorpus.viz import Viz
 from juxtorpus.utils import DeduplicatedDirectory
 
+"""
+NOTE: File size limit using jupyter notebooks.
+
+start jupyter notebook with:
+jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+"""
+
 
 class FileUploadWidget(Viz):
     DESCRIPTION = "Upload your files here.\n({})"
