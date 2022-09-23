@@ -32,8 +32,8 @@ class DeduplicatedDirectory(object):
 
     def add_content(self, content: bytes, fname: str):
         # check if content already exists.
-        if self._filename_exists(fname) and self.content_exists(content, fname):
-            raise ValueError(f"{fname} already exists.")
+        if self._filename_exists(fname) and self.content_exists(content):
+            raise ValueError(f"Both {fname} and its content is duplicated.")
         with open(self._dir_path.joinpath(fname), 'wb') as fh: fh.write(content)
         self._build_index()
 
