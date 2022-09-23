@@ -59,7 +59,7 @@ class DeduplicatedDirectory(object):
             raise ValueError(f"{path} is not a zipfile.")
         with zipfile.ZipFile(path, 'r') as z:
             temp_dir = pathlib.Path(tempfile.mkdtemp())
-            temp_dir = temp_dir.joinpath(z.filename)
+            temp_dir = temp_dir.joinpath(pathlib.Path(z.filename).name)
             z.extractall(temp_dir)
             self.add_directory(temp_dir)
 
