@@ -1,3 +1,5 @@
+import tempfile
+
 from ipywidgets import FileUpload, Output, VBox, widgets
 from IPython.display import display
 from typing import Union
@@ -41,8 +43,28 @@ class FileUploadWidget(Viz):
         with self._output:
             new_files = change.get('new').keys()
             for fname in new_files:
-                try:
-                    self._dir.add_content(change.get('new').get(fname).get('content'), fname)
-                    print(f"++ Successfully wrote {fname} to disk...")
-                except ValueError as e:
-                    print(f"-- Failed to write {fname} to disk... {e}")
+                content = change.get('new').get(fname).get('content')
+                if fname.endswith('.zip'):
+                    self._add_zip(content, fname)
+                else:
+                    self._add_file(content, fname)
+
+    def _add_zip(self, content, fname):
+        try:
+            print(f"++ Writing {fname} to disk...", end='')
+            tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
+            tmp_zip_file = tmp_zip_dir.joinpath(fname)
+            with open(tmp_zip_file, 'wb') as fh:
+                fh.write(content)
+            self._dir.add_zip(tmp_zip_file)
+            print("Success.")
+        except Exception as e:
+            print(f"Failed. Reason: {e}")
+
+    def _add_file(self, content, fname):
+        try:
+            print(f"++ Writing {fname} to disk...", end='')
+            self._dir.add_content(content, fname)
+            print("Success.")
+        except ValueError as e:
+            print(f"Failed. Reason: {e}")
