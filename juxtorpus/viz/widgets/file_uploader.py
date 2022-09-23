@@ -5,6 +5,7 @@ import pathlib
 import os
 
 from juxtorpus.viz import Viz
+from juxtorpus.utils import DeduplicatedDirectory
 
 
 class FileUploadWidget(Viz):
@@ -13,13 +14,11 @@ class FileUploadWidget(Viz):
 
     default_accepted_extensions = ['.txt', '.csv', '.xlsx', '.zip']
 
-    def __init__(self, upload_dir: Union[str, pathlib.Path], accept_extensions: list[str] = None):
+    def __init__(self, accept_extensions: list[str] = None):
         if accept_extensions is None:
             accept_extensions = self.default_accepted_extensions
 
-        # TODO: probably better to use a temp directory here. (tmp will take care of deleting files)
-        self.upload_dir = upload_dir if isinstance(upload_dir, pathlib.Path) else pathlib.Path(upload_dir)
-        self._init_upload_dir()
+        self._dir = DeduplicatedDirectory()
 
         self._uploader = FileUpload(
             description=self.DESCRIPTION.format(' '.join(accept_extensions)),
@@ -32,10 +31,8 @@ class FileUploadWidget(Viz):
         self._output = Output()
         self._uploader.observe(self._on_upload, names=['value'])  # 'value' for when any file is uploaded.
 
-        self._persisted_paths = list()
-
     def uploaded(self):
-        return self._persisted_paths
+        return self._dir.files()
 
     def render(self):
         return display(VBox([self._uploader, self._output]))
@@ -45,22 +42,7 @@ class FileUploadWidget(Viz):
             new_files = change.get('new').keys()
             for fname in new_files:
                 try:
-                    path = self.upload_dir.joinpath(pathlib.Path(fname))
-                    self._write_to_disk(fname=path, content=change.get('new').get(fname).get('content'))
+                    self._dir.add_content(change.get('new').get(fname).get('content'), fname)
                     print(f"++ Successfully wrote {fname} to disk...")
-                    self._persisted_paths.append(path.absolute())
-                except IOError as ioe:
-                    print(f"-- Failed to write {fname} to disk... {ioe}")
-                except Exception as e:
+                except ValueError as e:
                     print(f"-- Failed to write {fname} to disk... {e}")
-
-    def _write_to_disk(self, fname: Union[str, pathlib.Path], content: bytes):
-        with open(fname, 'wb') as fh:
-            fh.write(content)
-
-    def _init_upload_dir(self):
-        try:
-            if not self.upload_dir.exists():
-                os.mkdir(self.upload_dir)
-        except Exception:
-            raise IOError("Unable to create upload directory. Use another one?")
