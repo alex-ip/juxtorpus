@@ -19,21 +19,24 @@ class CorpusBuilder(object):
         self._metas_configs = dict()
         self._sep = ','
         self._col_text = 'text'
+        self._columns = pd.read_csv(self._paths[0], nrows=0).columns
 
     def show_columns(self):
-        header = pd.read_csv(self._paths[0], nrows=0)
-        all = pd.Series(header.columns, name='All Columns')
-        added = pd.Series((added for added_cols in self._metas_configs.values() for added in added_cols), name='Added')
+        all = pd.Series(self._columns, name='All Columns')
+        added = pd.Series((col for col in self._metas_configs.keys()), name='Added')
         df = pd.concat([all, added], axis=1).fillna('')
         return df
 
-    def add_meta(self, column: str, lazy=False):
-        key: str = 'series'
-        if lazy:
-            key = 'lazy'
-        list_ = self._metas_configs.get(key, list())
-        list_.append(column)
-        self._metas_configs[key] = list_
+    def add_meta(self, column: str, dtype: str = None, lazy=False):
+        if column not in self._columns:
+            raise ValueError(f"{column} column does not exist.")
+        col_dict = self._metas_configs.get(column, dict())
+        col_dict['dtype'] = dtype
+        col_dict['load_type'] = 'series' if not lazy else 'lazy'
+        self._metas_configs[column] = col_dict
+
+    def remove_meta(self, column: str):
+        del self._metas_configs[column]
 
     def set_text_column(self, column: str):
         self._col_text = column
@@ -53,40 +56,48 @@ class CorpusBuilder(object):
         if self._corpus_type.upper() == 'TWEET':
             corpus_cls = TweetCorpus
 
-        # build all meta data
         metas = dict()
-        # 1. lazy metas
-        for col in self._metas_configs.get('lazy', []):
-            if metas.get(col, None) is not None:
-                raise KeyError(f"{col} already exists. Please use a different column name.")
+        lazies = {col: col_dict for col, col_dict in self._metas_configs.items()
+                  if col_dict.get('load_type') == 'lazy'}
 
+        # note: usecols is actually buggy if used with lambda func. - see commit: 5369ad6
+        for col, col_dict in lazies.items():
             read_func = partial(pd.read_csv, usecols=[col], sep=self._sep)
-            lazy_series = LazySeries(self._paths, self._nrows, read_func)
+            lazy_series = LazySeries(self._paths, self._nrows, col_dict.get('dtype'), read_func)
             meta = SeriesMeta(col, lazy_series)
             metas[col] = meta
 
-        # 2. update the rest of the meta dictionary - build df
-        cols_set = set(self._metas_configs.get('series', [])).union({self._col_text})
+        series_cols = set(
+            (col for col, col_dict in self._metas_configs.items() if col_dict.get('load_type') == 'series')
+        )
+        datetime_cols = set((col for col in series_cols if self._metas_configs.get(col).get('dtype') == 'datetime'))
+
+        series_cols = series_cols.union([self._col_text])
         current = 0
         dfs = list()
         for path in self._paths:
             if self._nrows is None:
-                df = pd.read_csv(path, nrows=self._nrows, usecols=cols_set, sep=self._sep)
+                df = pd.read_csv(path, nrows=self._nrows, usecols=series_cols, sep=self._sep,
+                                 parse_dates=list(datetime_cols))
             else:
                 if current >= self._nrows:
                     break
-                df = pd.read_csv(path, nrows=self._nrows - current, usecols=cols_set, sep=self._sep)
+                df = pd.read_csv(path, nrows=self._nrows - current, usecols=series_cols, sep=self._sep,
+                                 parse_dates=list(datetime_cols))
                 current += len(df)
             dfs.append(df)
         df = pd.concat(dfs, axis=0)
+        dtype_dict = {col: self._metas_configs.get(col).get('dtype')
+                      for col in series_cols.difference([self._col_text]).difference(datetime_cols)}
+        df = df.astype(dtype_dict)
 
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory.")
         series_text = df.loc[:, self._col_text]
 
         # 3. update the rest of the meta dictionary - build metas
-        cols_set.remove(self._col_text)
-        for col in cols_set:
+        series_cols.remove(self._col_text)
+        for col in series_cols:
             series = df[col]
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please use a different column name.")
@@ -96,23 +107,23 @@ class CorpusBuilder(object):
 
 if __name__ == '__main__':
     cb = CorpusBuilder(
-        paths=['/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv']
+        # paths=['/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv']
+        paths=[pathlib.Path('~/Downloads/elonmusk_tweets.csv')]
     )
     cb.set_nrows(100)
     cb.set_corpus_type('corpus')
     cb.set_sep(',')
-    cb.set_text_column('processed_text')
+    # cb.set_text_column('processed_text')
+    # for col in ['year', 'day', 'tweet_lga', 'lga_code_2020']:
+    #     cb.add_meta(col, lazy=True)
+    # cb.add_meta('month', dtype='string', lazy=False)
 
+    cb.set_text_column('doc')
+    cb.add_meta('created_at', dtype='datetime', lazy=True)
+
+    print(cb.show_columns())
     corpus = cb.build()
     print(corpus.metas())
 
-    # add some meta data now using the same builder - state is kept from above.
-    for col in ['year', 'day', 'tweet_lga', 'lga_code_2020']:
-        cb.add_meta(col, lazy=True)
-    cb.add_meta('month', lazy=False)
-    print(cb.show_columns())
-
-    corpus_with_meta = cb.build()
-    print(corpus_with_meta.get_meta('tweet_lga'))
-    print("+++++")
-    print(corpus_with_meta.get_meta('tweet_lga').preview(5))
+    # print(corpus.get_meta('tweet_lga').preview(5))
+    print(corpus.get_meta('created_at').preview(5))
