@@ -11,11 +11,14 @@ pandas = "^1.4.4"
 frozendict = "^2.3.4"
 # spacy
 spacy = "^v3.4.1"
-thinc-apple-ops = {extras = ["apple"], version = "^0.1.0", platform = "apple"}
+thinc-apple-ops = { extras = ["apple"], version = "^0.1.0", platform = "apple" }
 en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.4.0/en_core_web_sm-3.4.0-py3-none-any.whl" }
 # ipywidget
 ipywidget = "^7.7.1"    # 8.x.x latest - backwards compatibility kept for FileUpload widget
-
+# algos
+rake-nltk = "^1.0.6"
+# viz
+wordcloud = "^1.8.2.2"
 
 
 [build-system]
