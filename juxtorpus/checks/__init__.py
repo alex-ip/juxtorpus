@@ -82,7 +82,6 @@ class EncodingCheck(Check):
         detector.close()
         self._current_inferred = detector.result.get('encoding')
         self._current_inferred_conf = detector.result.get('confidence')
-        print(f"Inferred results: {detector.result}")
         if self.expected.upper() == self._current_inferred.upper():
             return True
         else:
