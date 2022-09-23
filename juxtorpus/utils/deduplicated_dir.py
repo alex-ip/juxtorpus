@@ -5,6 +5,12 @@ import filecmp
 
 
 class DeduplicatedDirectory(object):
+    """
+    The DeduplicatedDirectory is a proxy to a temporary directory that does not hold any duplicated files.
+
+    It does this by keeping track of each file's message digest in an index.
+    """
+
     def __init__(self, dir_path: Union[str, pathlib.Path] = None):
         if dir_path is None: dir_path = tempfile.mkdtemp()
         if isinstance(dir_path, str): dir_path = pathlib.Path(dir_path)
@@ -13,13 +19,13 @@ class DeduplicatedDirectory(object):
         self._hash_alg = hashlib.md5
 
     @property
-    def path(self):
+    def path(self) -> pathlib.Path:
         return self._dir_path
 
-    def files(self):
+    def files(self) -> list[pathlib.Path]:
         return list(pathlib.Path(self._dir_path).glob('**/*'))
 
-    def list(self):
+    def list(self) -> list[str]:
         return [f.name for f in self.files()]
 
     def add(self, file: pathlib.Path):
@@ -31,13 +37,16 @@ class DeduplicatedDirectory(object):
         self._build_index()
 
     def add_content(self, content: bytes, fname: str):
-        # check if content already exists.
+        """ Add the content to the directory. Raises error if both file name and content are duplicated."""
+
+        # note: to change this to content ONLY, remove the self._filename_exists condition and keep content_exists ONLY.
         if self._filename_exists(fname) and self.content_exists(content):
             raise ValueError(f"File name: {fname} and its content are duplicated.")
         with open(self._dir_path.joinpath(fname), 'wb') as fh: fh.write(content)
         self._build_index()
 
     def remove(self, fname: str):
+        """ Removes the file from the directory. Raises error if file name did not match anything. """
         for existing in self.files():
             if existing.name == fname:
                 os.remove(existing)
@@ -47,16 +56,24 @@ class DeduplicatedDirectory(object):
                         return
         raise ValueError(f"{fname} does not exist.")
 
-    def upsert(self, file: pathlib.Path):
-        raise NotImplementedError()  # first compares file on stats(), if found, update, else insert. Content of file not compared.
+    def exists(self, file: pathlib.Path, shallow: bool = True) -> bool:
+        """ Check if file already exists in the directory.
 
-    def exists(self, file: pathlib.Path, shallow: bool = True):
+        :param file: path to file.
+        :param shallow: True - checks file metadata only. False - checks content.
+
+        Uses filecmp under the hood.
+        """
         for existing in self.files():
             if filecmp.cmp(file, existing, shallow=shallow):
                 return True
         return False
 
-    def content_exists(self, content: bytes, shallow: bool = True):
+    def content_exists(self, content: bytes, shallow: bool = True) -> bool:
+        """ Check if content exists in directory.
+        :param content:
+        :param shallow: True - check size only. False - checks content.
+        """
         size = len(content)
         digest = ''
         if not shallow:
