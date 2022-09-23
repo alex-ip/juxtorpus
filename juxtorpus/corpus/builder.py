@@ -3,7 +3,8 @@ import pathlib
 from functools import partial
 
 from juxtorpus.corpus import Corpus, TweetCorpus
-from juxtorpus.meta import LazySeries, SeriesMeta
+from juxtorpus.meta import SeriesMeta
+from juxtorpus.loader import LazySeries
 
 
 class CorpusBuilder(object):
