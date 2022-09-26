@@ -2,7 +2,7 @@
 name = "juxtorpus"
 version = "0.1.0"
 description = ""
-authors = ["jack <hhc.jack.chan@gmail.com>"]
+authors = ["jack <huen.chan@sydney.edu.au>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
