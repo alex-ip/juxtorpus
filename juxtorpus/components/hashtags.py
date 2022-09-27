@@ -6,10 +6,13 @@ from juxtorpus.components import Component
 
 
 class HashtagComponent(Component):
-    def __init__(self, nlp: Language, name: str):
-        super().__init__(nlp, name)
-        if not Doc.has_extension("hashtags"):
-            Doc.set_extension("hashtags", default=[])  # doc._.hashtags is may now be accessed.
+    def __init__(self, nlp: Language, name: str, attr: str):
+        super().__init__(nlp, name, attr)
+        self._getter = lambda hashtags: [ht.text for ht in hashtags]
+        if not Doc.has_extension(self._attr):
+            Doc.set_extension(self._attr, default=[])  # doc._.hashtags is may now be accessed.
+        else:
+            raise KeyError(f"{self._attr} already exist. Consider changing the attribute name.")
 
         self.matcher = Matcher(nlp.vocab)
         self.matcher.add("hashtag", patterns=[
@@ -19,7 +22,7 @@ class HashtagComponent(Component):
     def __call__(self, doc: Doc) -> Doc:
         for _, start, end in self.matcher(doc):
             span = doc[start: end]
-            doc._.hashtags.append(span)
+            doc._.hashtags.append(span.text)
         return doc
 
 
