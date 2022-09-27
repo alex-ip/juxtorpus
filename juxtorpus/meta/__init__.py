@@ -94,7 +94,7 @@ class DocMeta(Meta):
         self._nlp = nlp  # keep a ref to the spacy.Language
 
     @property
-    def attribute(self):
+    def attr(self):
         return self._attr
 
     def apply(self, func) -> pd.Series:
