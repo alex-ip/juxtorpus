@@ -89,9 +89,11 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
+
+        #   TODO: compute word statistics W/O any 3rd party dependencies.
         return pd.Series({
-            "Number of words": self.num_words,
-            "Number of unique words": self.num_unique_words,
+            "Number of words": max(self.num_words, 0),
+            "Number of unique words": max(self.num_unique_words, 0),
             "Number of documents": len(self)
         }, name='frequency', dtype='uint64')  # supports up to ~4 billion
 
