@@ -3,7 +3,6 @@ import pandas as pd
 from frozendict import frozendict
 from functools import partial
 
-from juxtorpus import nlp
 from juxtorpus.meta import Meta, SeriesMeta, DocMeta
 
 
@@ -44,6 +43,9 @@ class Corpus:
         if self._meta_registry is None:
             self._meta_registry = dict()
 
+        # processing
+        self._processing_history = list()
+
         # internals
         self.__num_tokens: int = -1
         self.__num_uniqs: int = -1
@@ -64,6 +66,14 @@ class Corpus:
     def get_meta(self, id_: str):
         return self._meta_registry.get(id_, None)
 
+    ### Processing ###
+    def history(self):
+        """ Returns a list of processing history. """
+        return self._processing_history.copy()
+
+    def add_process_episode(self, episode):
+        self._processing_history.append(episode)
+
     ### Statistics ###
 
     @property
@@ -81,8 +91,9 @@ class Corpus:
         """ Basic summary statistics of the corpus. """
         return pd.Series({
             "Number of words": self.num_words,
-            "Number of unique words": self.num_unique_words
-        }, name='frequency')  # todo: use uint32 dtype.
+            "Number of unique words": self.num_unique_words,
+            "Number of documents": len(self)
+        }, name='frequency', dtype='uint64')  # supports up to ~4 billion
 
     def freq_of(self, words: Set[str]):
         """ Returns the frequency of a list of words. """
@@ -102,9 +113,6 @@ class Corpus:
         cloned_meta_registry = dict()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
-            if isinstance(meta, DocMeta):
-                mask = partial(nlp.pipe, text_series)
-            cloned_meta_registry[id_] = meta.cloned(mask)
         return Corpus(text_series, cloned_meta_registry)
 
     def __len__(self):
@@ -140,9 +148,6 @@ class DummyCorpus(Corpus):
         super(DummyCorpus, self).__init__(pd.Series(self.dummy_texts), metas=None)
 
 
-# aliases
+# import aliases
 from .builder import CorpusBuilder
 from .slicer import CorpusSlicer
-
-if __name__ == '__main__':
-    pass
