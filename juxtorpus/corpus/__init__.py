@@ -101,7 +101,7 @@ class Corpus:
         text_series = self._df.loc[:, self.COL_TEXT][mask]
         cloned_meta_registry = dict()
         for id_, meta in self._meta_registry.items():
-            # TODO: tight coupling here - DocMeta, spacy nlp
+            cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
             if isinstance(meta, DocMeta):
                 mask = partial(nlp.pipe, text_series)
             cloned_meta_registry[id_] = meta.cloned(mask)
