@@ -2,7 +2,7 @@ import pandas as pd
 from abc import ABCMeta, abstractmethod
 from spacy import Language
 from spacy.tokens import Doc
-from typing import List, Callable, Any, Set, Union, Iterable
+from typing import List, Callable, Any, Set, Union, Iterable, Generator
 from functools import partial
 
 from juxtorpus.loader import LazySeries
@@ -110,7 +110,16 @@ class DocMeta(Meta):
         return DocMeta(self._id, self._attr, self._nlp, partial(self._nlp.pipe, texts))
 
     def preview(self, n: int):
-        return [(doc, self._get_doc_attr(doc)) for i, doc in enumerate(self._docs()) if i < n]
+        docs: Iterable
+        if isinstance(self._docs, pd.Series):
+            docs = self._docs
+        elif isinstance(self._docs, Callable):
+            docs = self._docs()
+        else:
+            raise ValueError(f"docs are neither a Series or a Callable stream. This should not happen.")
+        texts = (doc.text for i, doc in enumerate(docs) if i < n)
+        attrs = (self._get_doc_attr(doc) for i, doc in enumerate(docs) if i < n)
+        return pd.DataFrame(zip(texts, attrs), columns=['text', self._id])
 
     def __iter__(self):
         for doc in self._docs():
