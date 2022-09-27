@@ -50,6 +50,7 @@ import spacy
 from spacy import Language
 from typing import Union
 from functools import partial
+from datetime import datetime
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.processors import Processor, ProcessEpisode
@@ -57,45 +58,44 @@ from juxtorpus.processors.components import Component
 from juxtorpus.processors.components.hashtags import HashtagComponent
 from juxtorpus.meta import DocMeta
 
-model: str = 'en_core_web_sm'
-nlp: Union[spacy.Language, None] = spacy.load(model)
-out_of_the_box_components = list(nlp.meta.get('components'))
 
-
-def reload_spacy(model_: str, clear_mem: bool):
-    global model, nlp, out_of_the_box_components
-    model = model_
-    nlp = spacy.load(model)
-    out_of_the_box_components = list(nlp.meta.get('components'))
-    if clear_mem:
-        import gc
-        gc.collect()
-    return nlp
-
-
-@Language.factory("extract_hashtags")
-def create_hashtag_component(nlp: Language, name: str):
-    return HashtagComponent(nlp, name, attr='hashtags')
-
+# model: str = 'en_core_web_sm'
+# nlp: union[spacy.language, none] = spacy.load(model)
+# out_of_the_box_components = list(nlp.meta.get('components'))
+#
+#
+# def reload_spacy(model_: str, clear_mem: bool):
+#     global model, nlp, out_of_the_box_components
+#     model = model_
+#     nlp = spacy.load(model)
+#     out_of_the_box_components = list(nlp.meta.get('components'))
+#     if clear_mem:
+#         import gc
+#         gc.collect()
+#     return nlp
 
 # todo: ordering of all components not handled here
 # todo: trainable components + modelling not entirely thought through here. (as these will use .cfg s)
 
 
-def adjust_pipeline(nlp: Language, components: List[str]):
-    """ add pipes if not exist. """
-    for name in nlp.pipe_names:
-        nlp.disable_pipe(name)
+# def adjust_pipeline(nlp: Language, components: List[str]):
+#     """ add pipes if not exist. """
+#     for name in nlp.pipe_names:
+#         nlp.disable_pipe(name)
+#
+#     for c in nlp.component_names:
+#         if c not in out_of_the_box_components:
+#             nlp.remove_pipe(c)
+#
+#     for c in components:
+#         if c in out_of_the_box_components:
+#             nlp.enable_pipe(c)
+#         else:
+#             _ = nlp.add_pipe(factory_name=c)
 
-    for c in nlp.component_names:
-        if c not in out_of_the_box_components:
-            nlp.remove_pipe(c)
-
-    for c in components:
-        if c in out_of_the_box_components:
-            nlp.enable_pipe(c)
-        else:
-            _ = nlp.add_pipe(factory_name=c)
+@Language.factory("extract_hashtags")
+def create_hashtag_component(nlp: Language, name: str):
+    return HashtagComponent(nlp, name, attr='hashtags')
 
 
 class SpacyProcessor(Processor):
@@ -120,8 +120,9 @@ class SpacyProcessor(Processor):
 
         Note: attribute name can come from custom extensions OR spacy built in. see built_in_component_attrs.
         """
-        for name, comp in nlp.pipeline:
-            _attr = comp.attr if isinstance(comp, Component) else self.built_in_component_attrs.get(name)
+        for name, comp in self._nlp.pipeline:
+            _attr = comp.attr if isinstance(comp, Component) else self.built_in_component_attrs.get(name, None)
+            if _attr is None: continue
             generator = corpus._df.loc[:, self.COL_PROCESSED] if self._in_memory \
                 else partial(nlp.pipe, corpus.texts())
             meta = DocMeta(id_=name, attr=_attr, nlp=self._nlp, docs=generator)
@@ -129,7 +130,7 @@ class SpacyProcessor(Processor):
 
     def _create_episode(self) -> ProcessEpisode:
         return ProcessEpisode(
-            f"Spacy Processor processed on {datetime.now()} with pipeline components {', '.join(nlp.pipe_names)}."
+            f"Spacy Processor processed on {datetime.now()} with pipeline components {', '.join(self._nlp.pipe_names)}."
         )
 
 
@@ -146,7 +147,11 @@ if __name__ == '__main__':
 
     # Now to process the corpus...
 
-    adjust_pipeline(nlp, ['tok2vec', 'ner', 'extract_hashtags'])
+    # adjust_pipeline(nlp, ['tok2vec', 'ner', 'extract_hashtags'])
+
+    import spacy
+
+    nlp = spacy.load('en_core_web_sm')
 
     from datetime import datetime
 

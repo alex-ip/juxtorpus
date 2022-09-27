@@ -29,4 +29,4 @@ class Processor(metaclass=ABCMeta):
         return ProcessEpisode("No message was set.")
 
 
-from .spacy_processor import SpacyProcessor, adjust_pipeline, reload_spacy
+from .spacy_processor import SpacyProcessor
