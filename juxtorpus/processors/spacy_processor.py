@@ -53,8 +53,8 @@ from functools import partial
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.processors import Processor, ProcessEpisode
-from juxtorpus.components import Component
-from juxtorpus.components.hashtags import HashtagComponent
+from juxtorpus.processors.components import Component
+from juxtorpus.processors.components.hashtags import HashtagComponent
 from juxtorpus.meta import DocMeta
 
 model: str = 'en_core_web_sm'

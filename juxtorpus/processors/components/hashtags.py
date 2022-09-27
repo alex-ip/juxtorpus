@@ -2,7 +2,7 @@ from spacy import Language
 from spacy.tokens import Doc
 from spacy.matcher import Matcher
 
-from juxtorpus.components import Component
+from juxtorpus.processors.components import Component
 
 
 class HashtagComponent(Component):
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     # using the custom component...
     @Language.factory('extract_hashtags')
     def create_hashtag_component(nlp: Language, name: str):
-        return HashtagComponent(nlp, name)
+        return HashtagComponent(nlp, name, 'hashtags')
 
 
     nlp.add_pipe('extract_hashtags')
