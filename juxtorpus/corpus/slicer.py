@@ -41,7 +41,7 @@ class CorpusSlicer(object):
     def __init__(self, corpus):
         self.corpus = corpus
 
-    def filter_by_condition(self, id_, cond_func):
+    def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
         meta = self.corpus.get_meta(id_)
 
         mask = self._mask_by_condition(meta, cond_func)
@@ -49,11 +49,23 @@ class CorpusSlicer(object):
 
     def filter_by_item(self, id_, items):
         meta = self.corpus.get_meta(id_)
-        cond_func = lambda x: x in items
-        # todo: this func needs to change depending on the meta type -> perhaps use the visitor pattern to move
-        #  the responsibility to the meta classes.
+        cond_func = self._item_cond_func(items)
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
+
+    def _item_cond_func(self, items):
+        items = [items] if isinstance(items, str) else items
+        items = set(items)
+
+        def cond_func(any_):
+            if isinstance(any_, str):
+                return any_ in items
+            elif isinstance(any_, Iterable):
+                return not set(any_).isdisjoint(items)
+            else:
+                print(f"[Warn] Unable to filter {type(any_)}. Only string or iterables.")
+
+        return cond_func
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool):
         meta = self.corpus.get_meta(id_)
