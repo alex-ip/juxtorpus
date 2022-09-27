@@ -80,8 +80,6 @@ class DelimitedStrSeriesMeta(SeriesMeta):
 
 """ Metadata from spaCy docs can only be derived metadata. """
 
-from datetime import datetime
-
 
 class DocMeta(Meta):
     """ This class represents the metadata stored within the spacy Docs """
