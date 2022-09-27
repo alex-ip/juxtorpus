@@ -1,6 +1,7 @@
 import pandas as pd
 import pathlib
 from functools import partial
+from typing import Union
 
 from juxtorpus.corpus import Corpus, TweetCorpus
 from juxtorpus.meta import SeriesMeta
@@ -8,7 +9,7 @@ from juxtorpus.loader import LazySeries
 
 
 class CorpusBuilder(object):
-    def __init__(self, paths: list[pathlib.Path]):
+    def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
         if isinstance(paths, str):
             paths = pathlib.Path(paths)
         if isinstance(paths, pathlib.Path):
@@ -45,6 +46,8 @@ class CorpusBuilder(object):
         self._sep = sep
 
     def set_nrows(self, nrows: int):
+        if nrows < 0:
+            raise ValueError("nrows must be a positive integer. Set as None to remove.")
         self._nrows = nrows
 
     def set_corpus_type(self, type_: str):
