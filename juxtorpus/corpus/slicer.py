@@ -42,13 +42,13 @@ class CorpusSlicer(object):
         self.corpus = corpus
 
     def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
-        meta = self.corpus.get_meta(id_)
+        meta = self._get_meta_or_raise_err(id_)
 
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
 
     def filter_by_item(self, id_, items):
-        meta = self.corpus.get_meta(id_)
+        meta = self._get_meta_or_raise_err(id_)
         cond_func = self._item_cond_func(items)
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
@@ -68,7 +68,7 @@ class CorpusSlicer(object):
         return cond_func
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool):
-        meta = self.corpus.get_meta(id_)
+        meta = self._get_meta_or_raise_err(id_)
         flags = 0 if not ignore_case else re.IGNORECASE
         pattern = re.compile(regex, flags=flags)
         cond_func = lambda x: pattern.search(x) is not None
@@ -91,6 +91,11 @@ class CorpusSlicer(object):
     def group_by(self, id_):
         """ TODO: retrieve the series and run pandas groupby. Only works for type: SeriesMeta. """
         raise NotImplementedError()
+
+    def _get_meta_or_raise_err(self, id_):
+        meta = self.corpus.get_meta(id_)
+        if meta is None: raise KeyError(f"{id_} metadata does not exist. Try calling metas().")
+        return meta
 
 
 if __name__ == '__main__':
