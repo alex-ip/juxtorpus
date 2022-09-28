@@ -2,7 +2,7 @@ from spacy import Language
 from spacy.tokens import Doc
 from spacy.matcher import Matcher
 
-from juxtorpus.processors.components import Component
+from juxtorpus.corpus.processors.components import Component
 
 
 class HashtagComponent(Component):

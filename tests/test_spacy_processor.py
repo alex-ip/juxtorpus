@@ -1,7 +1,6 @@
 from unittest import TestCase
 
 from spacy import Language
-from juxtorpus.processors import *
 
 
 class PipelineTestCases(TestCase):

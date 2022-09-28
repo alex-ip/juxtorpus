@@ -45,17 +45,13 @@ Notes:
     + use 'senter' instead of 'parser' when dependency parsing is not required. Inference is ~10x faster.
 """
 
-from typing import List
-import spacy
 from spacy import Language
-from typing import Union
 from functools import partial
-from datetime import datetime
 
 from juxtorpus.corpus import Corpus
-from juxtorpus.processors import Processor, ProcessEpisode
-from juxtorpus.processors.components import Component
-from juxtorpus.processors.components.hashtags import HashtagComponent
+from juxtorpus.corpus.processors import Processor, ProcessEpisode
+from juxtorpus.corpus.processors.components import Component
+from juxtorpus.corpus.processors.components.hashtags import HashtagComponent
 from juxtorpus.meta import DocMeta
 
 
@@ -152,6 +148,7 @@ if __name__ == '__main__':
     import spacy
 
     nlp = spacy.load('en_core_web_sm')
+    nlp.add_pipe('extract_hashtags')
 
     from datetime import datetime
 
