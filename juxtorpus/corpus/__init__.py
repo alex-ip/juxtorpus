@@ -2,8 +2,9 @@ from typing import Union, List, Set, Dict
 import pandas as pd
 from frozendict import frozendict
 from functools import partial
+from collections import Counter
 
-from juxtorpus.meta import Meta, SeriesMeta, DocMeta
+from juxtorpus.meta import Meta, SeriesMeta
 
 
 class Corpus:
@@ -26,7 +27,6 @@ class Corpus:
         return cls(df[col_text], metas)
 
     COL_TEXT: str = 'text'
-    __dtype_text = pd.StringDtype(storage='pyarrow')
 
     def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
         text.name = self.COL_TEXT
@@ -36,7 +36,10 @@ class Corpus:
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
         # sets the default dtype for texts
-        self.__try_text_dtype_conversion(Corpus.__dtype_text)
+        self.__try_text_dtype_conversion(
+            dtype=pd.StringDtype(storage='pyarrow'),
+            err="There will possibly be higher memory consumption however you may safely ignore this."
+        )
 
         # meta data
         self._meta_registry = metas
@@ -46,7 +49,8 @@ class Corpus:
         # processing
         self._processing_history = list()
 
-        # internals
+        # internals - word statistics
+        self._counter: Union[Counter, None] = None
         self.__num_tokens: int = -1
         self.__num_uniqs: int = -1
 
@@ -89,8 +93,8 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-
-        #   TODO: compute word statistics W/O any 3rd party dependencies.
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
         return pd.Series({
             "Number of words": max(self.num_words, 0),
             "Number of unique words": max(self.num_unique_words, 0),
@@ -99,15 +103,32 @@ class Corpus:
 
     def freq_of(self, words: Set[str]):
         """ Returns the frequency of a list of words. """
-        word_dict = dict()
-        for w in words:
-            word_dict[w] = 0
-        for i in range(len(self._df)):
-            _doc = self._df[self.COL_TEXT].iloc[i]
-            for t in _doc:
-                if word_dict.get(t, None) is not None:
-                    word_dict[t] += 1
-        return word_dict
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
+        freqs = dict()
+        if isinstance(words, str):
+            freqs[words] = self._counter.get(words, 0)
+            return freqs
+        else:
+            for word in words:
+                freqs[word] = self._counter.get(words, 0)
+
+    def most_common(self, n: int):
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
+        return self._counter.most_common(n)
+
+    def _computed_word_statistics(self):
+        return self._counter is not None
+
+    def _compute_word_statistics(self):
+        self._counter = Counter()
+        self.texts().apply(lambda text: self._counter.update(self._tokenise(text)))
+        self.__num_tokens = sum(self._counter.values())  # total() may be used for python >3.10
+        self.__num_uniqs = len(self._counter.keys())
+
+    def _tokenise(self, text) -> list[str]:
+        return [token.lower() for token in text.split()]
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a clone of itself with the boolean mask applied. """
@@ -117,18 +138,17 @@ class Corpus:
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return Corpus(text_series, cloned_meta_registry)
 
-    def __len__(self):
-        return len(self._df) if self._df is not None else 0
-
-    def __try_text_dtype_conversion(self, dtype):
+    def __try_text_dtype_conversion(self, dtype, err: str):
         try:
-            if self._df.loc[:, self.COL_TEXT].dtype != self.__dtype_text:
+            if self._df.dtypes.loc[self.COL_TEXT] != dtype:
                 self._df = self._df.astype(dtype={self.COL_TEXT: dtype})
         except TypeError:
             print(
-                f"[Warn] {self.COL_TEXT} column failed to convert to {dtype} dtype. \
-                There will possibly be higher memory consumption however you  may safely ignore this."
+                f"[Warn] {self.COL_TEXT} column failed to convert to {dtype} dtype.\n{err}"
             )
+
+    def __len__(self):
+        return len(self._df) if self._df is not None else 0
 
     def __iter__(self):
         col_text_idx = self._df.columns.get_loc('text')
@@ -139,20 +159,6 @@ class Corpus:
 class TweetCorpus(Corpus):
     # the features/attributes is a superset of corpus.
     pass
-
-
-class DummyCorpus(Corpus):
-    dummy_texts = [
-        "The cafe is empty aside from an old man reading a book about Aristotle."
-        "In Australia, Burger King is called Hungry Jacks.",
-        "She is poor but quite respectable.",
-        "She was very tired and frustrated.",
-        "What's your address?",
-        "Man it is hot in Australia!"
-    ]
-
-    def __init__(self):
-        super(DummyCorpus, self).__init__(pd.Series(self.dummy_texts), metas=None)
 
 
 # import aliases
