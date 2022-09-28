@@ -130,6 +130,11 @@ class Corpus:
                 There will possibly be higher memory consumption however you  may safely ignore this."
             )
 
+    def __iter__(self):
+        col_text_idx = self._df.columns.get_loc('text')
+        for i in range(len(self)):
+            yield self._df.iat[i, col_text_idx]
+
 
 class TweetCorpus(Corpus):
     # the features/attributes is a superset of corpus.
