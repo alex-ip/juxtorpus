@@ -110,6 +110,16 @@ class DocMeta(Meta):
         return DocMeta(self._id, self._attr, self._nlp, partial(self._nlp.pipe, texts))
 
     def preview(self, n: int):
+        docs = self._get_iterable()
+        texts = (doc.text for i, doc in enumerate(docs) if i < n)
+        attrs = (self._get_doc_attr(doc) for i, doc in enumerate(docs) if i < n)
+        return pd.DataFrame(zip(texts, attrs), columns=['text', self._id])
+
+    def __iter__(self):
+        for doc in self._get_iterable():
+            yield doc
+
+    def _get_iterable(self):
         docs: Iterable
         if isinstance(self._docs, pd.Series):
             docs = self._docs
@@ -117,13 +127,7 @@ class DocMeta(Meta):
             docs = self._docs()
         else:
             raise ValueError(f"docs are neither a Series or a Callable stream. This should not happen.")
-        texts = (doc.text for i, doc in enumerate(docs) if i < n)
-        attrs = (self._get_doc_attr(doc) for i, doc in enumerate(docs) if i < n)
-        return pd.DataFrame(zip(texts, attrs), columns=['text', self._id])
-
-    def __iter__(self):
-        for doc in self._docs():
-            yield doc
+        return docs
 
     def _get_doc_attr(self, doc: Doc) -> Any:
         """ Returns a built-in spacy entity OR a custom entity. """
