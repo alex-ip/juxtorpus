@@ -22,7 +22,7 @@ class HashtagComponent(Component):
     def __call__(self, doc: Doc) -> Doc:
         for _, start, end in self.matcher(doc):
             span = doc[start: end]
-            doc._.hashtags.append(span.text)
+            getattr(getattr(doc, '_'), self._attr).append(span.text)
         return doc
 
 
