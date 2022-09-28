@@ -16,7 +16,7 @@ class Corpus:
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, col_text: str = 'text'):
-        meta_df: pd.DataFrame = df.drop(col_text)
+        meta_df: pd.DataFrame = df.drop(col_text, axis=1)
         metas: dict[str, SeriesMeta] = dict()
         for col in meta_df.columns:
             # create series meta
