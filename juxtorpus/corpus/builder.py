@@ -3,7 +3,7 @@ import pathlib
 from functools import partial
 from typing import Union
 
-from juxtorpus.corpus import Corpus, TweetCorpus
+from juxtorpus.corpus import Corpus
 from juxtorpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
 
@@ -56,8 +56,8 @@ class CorpusBuilder(object):
     def build(self) -> 'Corpus':
         # decide which corpus.
         corpus_cls = Corpus
-        if self._corpus_type.upper() == 'TWEET':
-            corpus_cls = TweetCorpus
+        # if self._corpus_type.upper() == 'TWEET':
+        #     corpus_cls = TweetCorpus
 
         metas = dict()
         lazies = {col: col_dict for col, col_dict in self._metas_configs.items()
@@ -90,8 +90,11 @@ class CorpusBuilder(object):
                 current += len(df)
             dfs.append(df)
         df = pd.concat(dfs, axis=0)
+
+        # dtypes conversions
         dtype_dict = {col: self._metas_configs.get(col).get('dtype')
                       for col in series_cols.difference([self._col_text]).difference(datetime_cols)}
+        dtype_dict[self._col_text] = pd.StringDtype(storage='pyarrow')
         df = df.astype(dtype_dict)
 
         if self._col_text not in df.columns:
