@@ -58,13 +58,13 @@ class FileUploadWidget(Viz):
 
     def _add_zip(self, content, fname):
         try:
-            print(f"++ Writing {fname} to disk...", end='')
+            print(f"++ Extracting {fname} to disk. Please wait...")
             tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
-            self._dir.add_zip(tmp_zip_file)
-            print("Success.")
+            self._dir.add_zip(tmp_zip_file, verbose=True)
+            print("++ Finished.")
         except Exception as e:
             print(f"Failed. Reason: {e}")
 
