@@ -3,6 +3,7 @@
 set -e
 
 VENV_DIR="./.venv"
+POETRY_FILE="./pyproject.toml"
 REQ_FILE="./requirements.dev.txt"
 
 echo "++ Initialising dev environment..."
@@ -19,13 +20,20 @@ python3 -m venv $VENV_DIR
 echo "++ Activating virtual env..."
 source $VENV_DIR/bin/activate
 
-set +e
 echo "++ Installing dependencies..."
-if [[ -f $REQ_FILE ]]; then
+if [[ -f $POETRY_FILE ]]; then
+  pip install --upgrade pip
+  pip install poetry
+  poetry install --all-extras
+elif [[ -f $REQ_FILE ]]; then
+  set +e
   pip install --upgrade pip
   pip install -r requirements.dev.txt
 else
-  echo "++ Missing $REQ_FILE! No dependencies installed."
-fi
+  echo "++ Neither $POETRY_FILE or $REQ_FILE is found. No dependencies installed."
+  exit 1
+fi;
 
-echo "Done."
+echo "++ Done. Your virtual env is installed at $VENV_DIR"
+source $VENV_DIR/bin/activate
+exit 0
