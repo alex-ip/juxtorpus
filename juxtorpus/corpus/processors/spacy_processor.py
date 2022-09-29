@@ -45,49 +45,18 @@ Notes:
     + use 'senter' instead of 'parser' when dependency parsing is not required. Inference is ~10x faster.
 """
 
+import spacy
 from spacy import Language
 from functools import partial
+from datetime import datetime
+import pandas as pd
 
-from juxtorpus.corpus import Corpus
+from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.processors import Processor, ProcessEpisode
 from juxtorpus.corpus.processors.components import Component
 from juxtorpus.corpus.processors.components.hashtags import HashtagComponent
 from juxtorpus.meta import DocMeta
 
-
-# model: str = 'en_core_web_sm'
-# nlp: union[spacy.language, none] = spacy.load(model)
-# out_of_the_box_components = list(nlp.meta.get('components'))
-#
-#
-# def reload_spacy(model_: str, clear_mem: bool):
-#     global model, nlp, out_of_the_box_components
-#     model = model_
-#     nlp = spacy.load(model)
-#     out_of_the_box_components = list(nlp.meta.get('components'))
-#     if clear_mem:
-#         import gc
-#         gc.collect()
-#     return nlp
-
-# todo: ordering of all components not handled here
-# todo: trainable components + modelling not entirely thought through here. (as these will use .cfg s)
-
-
-# def adjust_pipeline(nlp: Language, components: List[str]):
-#     """ add pipes if not exist. """
-#     for name in nlp.pipe_names:
-#         nlp.disable_pipe(name)
-#
-#     for c in nlp.component_names:
-#         if c not in out_of_the_box_components:
-#             nlp.remove_pipe(c)
-#
-#     for c in components:
-#         if c in out_of_the_box_components:
-#             nlp.enable_pipe(c)
-#         else:
-#             _ = nlp.add_pipe(factory_name=c)
 
 @Language.factory("extract_hashtags")
 def create_hashtag_component(nlp: Language, name: str):
@@ -95,38 +64,36 @@ def create_hashtag_component(nlp: Language, name: str):
 
 
 class SpacyProcessor(Processor):
-    COL_PROCESSED: str = 'doc__'
-
     built_in_component_attrs = {
         'ner': 'ents'
     }
 
-    def __init__(self, nlp: Language, in_memory=True):
+    def __init__(self, nlp: Language):
         self._nlp = nlp
-        self._in_memory = in_memory
 
-    def _process(self, corpus: Corpus):
-        if self._in_memory:
-            corpus._df[self.COL_PROCESSED] = list(self._nlp.pipe(corpus.texts()))
-        else:
-            pass  # spacy docs does not stay in memory. Metadata may be accessed.
+    @property
+    def nlp(self):
+        return self._nlp
+
+    def _process(self, corpus: Corpus) -> SpacyCorpus:
+        docs = pd.Series(self.nlp.pipe(corpus.texts()))
+        return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
 
     def _add_metas(self, corpus: Corpus):
         """ Add the relevant meta-objects into the Corpus class.
 
         Note: attribute name can come from custom extensions OR spacy built in. see built_in_component_attrs.
         """
-        for name, comp in self._nlp.pipeline:
+        for name, comp in self.nlp.pipeline:
             _attr = comp.attr if isinstance(comp, Component) else self.built_in_component_attrs.get(name, None)
             if _attr is None: continue
-            generator = corpus._df.loc[:, self.COL_PROCESSED] if self._in_memory \
-                else partial(nlp.pipe, corpus.texts())
-            meta = DocMeta(id_=name, attr=_attr, nlp=self._nlp, docs=generator)
+            generator = corpus._df.loc[:, corpus.COL_TEXT]
+            meta = DocMeta(id_=name, attr=_attr, nlp=self.nlp, docs=generator)
             corpus.add_meta(meta)
 
     def _create_episode(self) -> ProcessEpisode:
         return ProcessEpisode(
-            f"Spacy Processor processed on {datetime.now()} with pipeline components {', '.join(self._nlp.pipe_names)}."
+            f"Spacy Processor processed on {datetime.now()} with pipeline components {', '.join(self.nlp.pipe_names)}."
         )
 
 
@@ -137,38 +104,27 @@ if __name__ == '__main__':
     builder = CorpusBuilder(
         pathlib.Path('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
     )
-    builder.set_nrows(100)
+    builder.set_nrows(10000)
     builder.set_text_column('text')
     corpus = builder.build()
 
     # Now to process the corpus...
-
-    # adjust_pipeline(nlp, ['tok2vec', 'ner', 'extract_hashtags'])
 
     import spacy
 
     nlp = spacy.load('en_core_web_sm')
     nlp.add_pipe('extract_hashtags')
 
-    from datetime import datetime
-
-    s = datetime.now()
-    spacy_processor = SpacyProcessor(nlp, in_memory=True)
-    spacy_processor.run(corpus)
-    print(f"processing elapsed: {datetime.now() - s}s.")
+    spacy_processor = SpacyProcessor(nlp)
+    corpus = spacy_processor.run(corpus)
 
     print(corpus.history())
 
     # Now to test with corpus slicer...
 
     slicer = CorpusSlicer(corpus)
-    # slicer.filter_by_condition(lambda x: x in ('#MarchForLife'))
-    s = datetime.now()
     slice = slicer.filter_by_condition('extract_hashtags', lambda x: '#RiseofthePeople' in x)
-    print(f"filter cond elapsed: {datetime.now() - s}s.")
     print(len(slice))
 
-    s = datetime.now()
     slice = slicer.filter_by_item('extract_hashtags', '#RiseofthePeople')
-    print(f"filter item elapsed: {datetime.now() - s}s.")
     print(len(slice))

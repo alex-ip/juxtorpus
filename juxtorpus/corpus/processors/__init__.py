@@ -13,9 +13,10 @@ class ProcessEpisode(object):
 
 class Processor(metaclass=ABCMeta):
     def run(self, corpus: Corpus):
-        self._process(corpus)
+        corpus = self._process(corpus)
         self._add_metas(corpus)
         corpus.add_process_episode(self._create_episode())
+        return corpus
 
     @abstractmethod
     def _process(self, corpus: Corpus):
