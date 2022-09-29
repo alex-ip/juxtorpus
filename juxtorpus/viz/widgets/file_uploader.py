@@ -21,7 +21,7 @@ class FileUploadWidget(Viz):
     DESCRIPTION = "Upload your files here.\n({})"
     ERR_FAILED_UPLOAD = "File upload unsuccessful. Please try again!."
 
-    default_accepted_extensions = ['.txt', '.csv', '.xlsx', '.zip']
+    default_accepted_extensions = ['.csv', '.zip']
 
     def __init__(self, accept_extensions: list[str] = None):
         if accept_extensions is None:
