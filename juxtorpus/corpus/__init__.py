@@ -136,7 +136,10 @@ class Corpus:
         cloned_meta_registry = dict()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
-        return Corpus(text_series, cloned_meta_registry)
+        corpus = Corpus(text_series, cloned_meta_registry)
+        for h in self.history():
+            corpus.add_process_episode(h)
+        return corpus
 
     def __try_text_dtype_conversion(self, dtype, err: str):
         try:
@@ -154,11 +157,6 @@ class Corpus:
         col_text_idx = self._df.columns.get_loc('text')
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
-
-
-class TweetCorpus(Corpus):
-    # the features/attributes is a superset of corpus.
-    pass
 
 
 # import aliases
