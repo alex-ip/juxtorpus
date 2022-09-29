@@ -15,8 +15,8 @@ class Corpus:
     summary() provides a quick summary of your corpus.
     """
 
-    @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = 'text'):
+    @staticmethod
+    def from_dataframe(df: pd.DataFrame, col_text: str = 'text'):
         meta_df: pd.DataFrame = df.drop(col_text, axis=1)
         metas: dict[str, SeriesMeta] = dict()
         for col in meta_df.columns:
@@ -24,7 +24,7 @@ class Corpus:
             if metas.get(col, None) is None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
-        return cls(df[col_text], metas)
+        return Corpus(df[col_text], metas)
 
     COL_TEXT: str = 'text'
 
@@ -34,12 +34,6 @@ class Corpus:
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
-
-        # sets the default dtype for texts
-        self.__try_text_dtype_conversion(
-            dtype=pd.StringDtype(storage='pyarrow'),
-            err="There will possibly be higher memory consumption however you may safely ignore this."
-        )
 
         # meta data
         self._meta_registry = metas
@@ -123,32 +117,31 @@ class Corpus:
 
     def _compute_word_statistics(self):
         self._counter = Counter()
-        self.texts().apply(lambda text: self._counter.update(self._tokenise(text)))
+        self.texts().apply(lambda text: self._counter.update(self._gen_words_from(text)))
         self.__num_tokens = sum(self._counter.values())  # total() may be used for python >3.10
         self.__num_uniqs = len(self._counter.keys())
 
-    def _tokenise(self, text) -> list[str]:
-        return [token.lower() for token in text.split()]
+    def _gen_words_from(self, text) -> list[str]:
+        return (token.lower() for token in text.split())
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a clone of itself with the boolean mask applied. """
-        text_series = self._df.loc[:, self.COL_TEXT][mask]
+        corpus = Corpus(self._cloned_texts(mask), self._cloned_metas(mask))
+        self._clone_history(corpus)
+        return corpus
+
+    def _cloned_texts(self, mask):
+        return self.texts()[mask]
+
+    def _cloned_metas(self, mask):
         cloned_meta_registry = dict()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
-        corpus = Corpus(text_series, cloned_meta_registry)
+        return cloned_meta_registry
+
+    def _clone_history(self, corpus):
         for h in self.history():
             corpus.add_process_episode(h)
-        return corpus
-
-    def __try_text_dtype_conversion(self, dtype, err: str):
-        try:
-            if self._df.dtypes.loc[self.COL_TEXT] != dtype:
-                self._df = self._df.astype(dtype={self.COL_TEXT: dtype})
-        except TypeError:
-            print(
-                f"[Warn] {self.COL_TEXT} column failed to convert to {dtype} dtype.\n{err}"
-            )
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
@@ -157,6 +150,30 @@ class Corpus:
         col_text_idx = self._df.columns.get_loc('text')
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
+
+
+from spacy.matcher import Matcher
+from juxtorpus.matchers import no_puncs
+
+
+class SpacyCorpus(Corpus):
+
+    @classmethod
+    def from_corpus(cls, corpus: Corpus, docs, vocab):
+        _no_puncs = no_puncs(vocab)
+        return cls(docs, corpus._meta_registry, _no_puncs)
+
+    def __init__(self, docs, metas, no_puncs_matcher: Matcher):
+        super(SpacyCorpus, self).__init__(docs, metas)
+        self._no_puncs = no_puncs_matcher
+
+    def _gen_words_from(self, text):
+        return (t for t in self._no_puncs(text))
+
+    def cloned(self, mask: 'pd.Series[bool]'):
+        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._no_puncs)
+        self._clone_history(corpus)
+        return corpus
 
 
 # import aliases
