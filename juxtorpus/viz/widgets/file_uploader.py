@@ -73,5 +73,5 @@ class FileUploadWidget(Viz):
             print(f"++ Writing {fname} to disk...", end='')
             self._dir.add_content(content, fname)
             print("Success.")
-        except ValueError as e:
+        except Exception as e:
             print(f"Failed. Reason: {e}")
