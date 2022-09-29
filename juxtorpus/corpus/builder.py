@@ -22,10 +22,13 @@ class CorpusBuilder(object):
         self._col_text = 'text'
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
 
+    def head(self, n: int):
+        return pd.read_csv(self._paths[0], nrows=n).head(n)
+
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
         added = pd.Series((col for col in self._metas_configs.keys()), name='Added')
-        df = pd.concat([all, added], axis=1).fillna('')
+        df = pd.concat([all, added], axis=1).fillna('').T
         return df
 
     def add_meta(self, column: str, dtype: str = None, lazy=False):
@@ -40,6 +43,9 @@ class CorpusBuilder(object):
         del self._metas_configs[column]
 
     def set_text_column(self, column: str):
+        if column not in self._columns:
+            raise KeyError(
+                f"Column: '{column}' not found. Use show_columns() to preview the columns in the dataframe")
         self._col_text = column
 
     def set_sep(self, sep: str):
