@@ -21,7 +21,7 @@ class FileUploadWidget(Viz):
     DESCRIPTION = "Upload your files here.\n({})"
     ERR_FAILED_UPLOAD = "File upload unsuccessful. Please try again!."
 
-    default_accepted_extensions = ['.txt', '.csv', '.xlsx', '.zip']
+    default_accepted_extensions = ['.csv', '.zip']
 
     def __init__(self, accept_extensions: list[str] = None):
         if accept_extensions is None:
@@ -58,13 +58,13 @@ class FileUploadWidget(Viz):
 
     def _add_zip(self, content, fname):
         try:
-            print(f"++ Writing {fname} to disk...", end='')
+            print(f"++ Extracting {fname} to disk. Please wait...")
             tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
-            self._dir.add_zip(tmp_zip_file)
-            print("Success.")
+            self._dir.add_zip(tmp_zip_file, verbose=True)
+            print("++ Finished.")
         except Exception as e:
             print(f"Failed. Reason: {e}")
 
@@ -73,5 +73,5 @@ class FileUploadWidget(Viz):
             print(f"++ Writing {fname} to disk...", end='')
             self._dir.add_content(content, fname)
             print("Success.")
-        except ValueError as e:
+        except Exception as e:
             print(f"Failed. Reason: {e}")
