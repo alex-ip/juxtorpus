@@ -1,29 +1,55 @@
-""" Loader class
-
-21.08.22
-This class serves as the first loader and is expected to be refactored as more loading procedures are supported.
-It will ideally be responsible for the following functions...
-
-1. unified interface to load from various inputs (e.g. upload widget, csv, parquets)
-2. perform automatic dtype recognition for memory enhancements in pandas dataframes.
-"""
-
+from abc import ABCMeta, abstractmethod
+import pathlib
+from typing import Iterable
 import pandas as pd
 
 
-class Loader(object):
-    def __init__(self):
-        pass
+class LazyLoader(metaclass=ABCMeta):
+    @abstractmethod
+    def load(self) -> Iterable:
+        """"""
+        raise NotImplementedError()
 
 
-class DTypeRecogniser(object):
-    """ DTypeRecogniser
-    This class tries to automatically detect the dtype for the series and assign it.
-    """
+class LazySeries(LazyLoader):
+    def __init__(self, paths: list[pathlib.Path], nrows: int, dtype: str, pd_read_func):
+        """
+        :param paths: paths of the csv
+        :param nrows: max number of rows
+        :param pd_read_func: One of pandas read functions (i.e. dataframe constructors)
+        """
+        self._paths = paths if isinstance(paths, list) else list(paths)
+        self._nrows = nrows
+        self._read_func = pd_read_func
+        self._dtype = dtype
 
-    def __init__(self):
-        pass
+    @property
+    def nrows(self):
+        return self._nrows
 
-    def __call__(self, series: pd.Series) -> pd.Series:
-        """ Return the same series with a more efficient dtype. """
-        pass
+    @property
+    def paths(self):
+        return self._paths
+
+    def load(self):
+        s = pd.concat(self._yield_series(), axis=0)
+        if self._dtype is None:
+            return s
+        if self._dtype == 'datetime':
+            return pd.to_datetime(s)
+        else:
+            return s.astype(self._dtype)
+
+    def _yield_series(self) -> pd.Series:
+        # load all
+        if self._nrows is None:
+            for path in self._paths:
+                yield self._read_func(path).squeeze("columns")
+        # load up to nrows
+        else:
+            current = 0
+            for path in self.paths:
+                series: pd.Series = self._read_func(path, nrows=self._nrows - current).squeeze("columns")
+                current += len(series)
+                if current <= self._nrows:
+                    yield series

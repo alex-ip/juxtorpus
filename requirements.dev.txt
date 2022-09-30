@@ -3,3 +3,5 @@ numpy
 jupyter
 rake
 wordcloud
+froznedict
+ipywidgets==7.7.1
