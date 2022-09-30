@@ -33,7 +33,7 @@ class Meta(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def preview(self, n: int):
+    def head(self, n: int):
         raise NotImplementedError()
 
     def __repr__(self) -> str:
@@ -62,7 +62,7 @@ class SeriesMeta(Meta):
     def cloned(self, texts, mask):
         return SeriesMeta(self._id, self.series()[mask])
 
-    def preview(self, n):
+    def head(self, n):
         return self.series().head(n)
 
 
@@ -109,7 +109,7 @@ class DocMeta(Meta):
             return DocMeta(self._id, self._attr, self._nlp, self._docs[mask])
         return DocMeta(self._id, self._attr, self._nlp, partial(self._nlp.pipe, texts))
 
-    def preview(self, n: int):
+    def head(self, n: int):
         docs = self._get_iterable()
         texts = (doc.text for i, doc in enumerate(docs) if i < n)
         attrs = (self._get_doc_attr(doc) for i, doc in enumerate(docs) if i < n)

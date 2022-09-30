@@ -138,4 +138,4 @@ if __name__ == '__main__':
     print(corpus.metas())
 
     # print(corpus.get_meta('tweet_lga').preview(5))
-    print(corpus.get_meta('created_at').preview(5))
+    print(corpus.get_meta('created_at').head(5))
