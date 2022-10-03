@@ -77,15 +77,27 @@ class Corpus:
 
     @property
     def num_words(self) -> int:
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
         return self.__num_tokens
 
     @property
     def num_unique_words(self) -> int:
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
         return self.__num_uniqs
 
     @property
     def unique_words(self) -> set[str]:
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
         return set(self._counter.keys())
+
+    @property
+    def word_counts(self) -> Counter:
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
+        return self._counter.copy()
 
     def texts(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT]
@@ -126,11 +138,11 @@ class Corpus:
         self.__num_tokens = sum(self._counter.values())  # total() may be used for python >3.10
         self.__num_uniqs = len(self._counter.keys())
 
-    def _gen_words_from(self, text) -> Generator[str]:
+    def _gen_words_from(self, text) -> Generator[str, None, None]:
         return (token.lower() for token in re.findall('[A-Za-z]+', text))
 
     def cloned(self, mask: 'pd.Series[bool]'):
-        """ Returns a clone of itself with the boolean mask applied. """
+        """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         corpus = Corpus(self._cloned_texts(mask), self._cloned_metas(mask))
         self._clone_history(corpus)
         return corpus
