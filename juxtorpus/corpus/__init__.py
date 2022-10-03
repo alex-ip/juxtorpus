@@ -83,6 +83,10 @@ class Corpus:
     def num_unique_words(self) -> int:
         return self.__num_uniqs
 
+    @property
+    def unique_words(self) -> set[str]:
+        return set(self._counter.keys())
+
     def texts(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT]
 
