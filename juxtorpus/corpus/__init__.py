@@ -1,8 +1,9 @@
-from typing import Union, List, Set, Dict
+from typing import Union, List, Set, Dict, Generator
 import pandas as pd
 from frozendict import frozendict
 from functools import partial
 from collections import Counter
+import re
 
 from juxtorpus.meta import Meta, SeriesMeta
 
@@ -121,8 +122,8 @@ class Corpus:
         self.__num_tokens = sum(self._counter.values())  # total() may be used for python >3.10
         self.__num_uniqs = len(self._counter.keys())
 
-    def _gen_words_from(self, text) -> list[str]:
-        return (token.lower() for token in text.split())
+    def _gen_words_from(self, text) -> Generator[str]:
+        return (token.lower() for token in re.findall('[A-Za-z]+', text))
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a clone of itself with the boolean mask applied. """
