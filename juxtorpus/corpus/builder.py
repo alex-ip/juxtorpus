@@ -1,7 +1,7 @@
 import pandas as pd
 import pathlib
 from functools import partial
-from typing import Union
+from typing import Union, Callable
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.meta import SeriesMeta
@@ -21,6 +21,8 @@ class CorpusBuilder(object):
         self._sep = ','
         self._col_text = 'text'
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
+
+        self._preprocessors = list()
 
     def head(self, n: int):
         return pd.read_csv(self._paths[0], nrows=n).head(n)
@@ -58,6 +60,19 @@ class CorpusBuilder(object):
 
     def set_corpus_type(self, type_: str):
         self._corpus_type = type_
+
+    def set_preprocessors(self, preprocess_callables: list[Callable]):
+        """ Set a list of preprocessors for your text data.
+
+        This is typically designed for basic preprocessing.
+        Your preprocessor callables/functions will have the text passed down.
+        """
+        self._preprocessors = preprocess_callables
+
+    def _preprocess(self, text):
+        for preprocessor in self._preprocessors:
+            text = preprocessor(text)
+        return text
 
     def build(self) -> 'Corpus':
         # decide which corpus.
@@ -105,9 +120,12 @@ class CorpusBuilder(object):
 
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory.")
-        series_text = df.loc[:, self._col_text]
+        # 3. apply preprocessors if exist
+        df[self._col_text] = df.loc[:, self._col_text].apply(self._preprocess)
 
-        # 3. update the rest of the meta dictionary - build metas
+        # 4. set up Corpus dependencies
+        series_text = df.loc[:, self._col_text]
+        # 5. update the rest of the meta dictionary - build metas
         series_cols.remove(self._col_text)
         for col in series_cols:
             series = df[col]
