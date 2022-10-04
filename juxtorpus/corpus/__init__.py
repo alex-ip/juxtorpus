@@ -93,8 +93,7 @@ class Corpus:
             self._compute_word_statistics()
         return set(self._counter.keys())
 
-    @property
-    def word_counts(self) -> Counter:
+    def word_counter(self) -> Counter:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
         return self._counter.copy()
@@ -170,25 +169,25 @@ class Corpus:
 
 
 from spacy.matcher import Matcher
-from juxtorpus.matchers import no_puncs
+from juxtorpus.matchers import is_word
 
 
 class SpacyCorpus(Corpus):
 
     @classmethod
     def from_corpus(cls, corpus: Corpus, docs, vocab):
-        _no_puncs = no_puncs(vocab)
-        return cls(docs, corpus._meta_registry, _no_puncs)
+        _is_word = is_word(vocab)
+        return cls(docs, corpus._meta_registry, _is_word)
 
-    def __init__(self, docs, metas, no_puncs_matcher: Matcher):
+    def __init__(self, docs, metas, is_word_matcher: Matcher):
         super(SpacyCorpus, self).__init__(docs, metas)
-        self._no_puncs = no_puncs_matcher
+        self._is_word_matcher = is_word_matcher
 
     def _gen_words_from(self, text):
-        return (t for t in self._no_puncs(text))
+        return (text[start: end].text.lower() for _, start, end in self._is_word_matcher(text))
 
     def cloned(self, mask: 'pd.Series[bool]'):
-        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._no_puncs)
+        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._is_word_matcher)
         self._clone_history(corpus)
         return corpus
 
