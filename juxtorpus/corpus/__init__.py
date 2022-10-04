@@ -45,7 +45,7 @@ class Corpus:
         self._processing_history = list()
 
         # internals - word statistics
-        self._counter: Union[Counter, None] = None
+        self._counter: Union[Counter[str, int], None] = None
         self.__num_tokens: int = -1
         self.__num_uniqs: int = -1
 
