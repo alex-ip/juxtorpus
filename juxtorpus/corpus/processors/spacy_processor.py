@@ -76,7 +76,8 @@ class SpacyProcessor(Processor):
         return self._nlp
 
     def _process(self, corpus: Corpus) -> SpacyCorpus:
-        docs = pd.Series(self.nlp.pipe(corpus.texts()))
+        texts = corpus.texts()
+        docs = pd.Series(self.nlp.pipe(texts), index=texts.index)
         return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
 
     def _add_metas(self, corpus: Corpus):
