@@ -126,7 +126,7 @@ class DocMeta(Meta):
         elif isinstance(self._docs, Callable):
             docs = self._docs()
         else:
-            raise ValueError(f"docs are neither a Series or a Callable stream. This should not happen.")
+            raise RuntimeError(f"docs are neither a Series or a Callable stream. This should not happen.")
         return docs
 
     def _get_doc_attr(self, doc: Doc) -> Any:
