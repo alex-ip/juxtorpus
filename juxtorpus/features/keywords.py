@@ -10,6 +10,7 @@ from sklearn.preprocessing import binarize
 from scipy.sparse import csr_matrix
 from collections import Counter
 from spacy.matcher import Matcher
+from spacy.tokens import Doc
 import numpy as np
 
 from juxtorpus.corpus import Corpus, SpacyCorpus
@@ -107,9 +108,12 @@ class TFKeywords(Keywords):
                             f"Please process it with {SpacyProcessor.__name__}")
 
         self._vocab = corpus.vocab
+        # config defaults
         self._threshold = None
         self._normalise = True
+        self._use_lemmas = True
         self._log = False
+
         self._df_min = 0.0
         self._df_max = 1.0
 
@@ -127,6 +131,10 @@ class TFKeywords(Keywords):
     def log_freqs(self, to_log=True):
         """ Log the score from term frequencies. (Zip's law) """
         self._log = to_log
+        return self
+
+    def use_lemmas(self, use_lemmas=True):
+        self._use_lemmas = use_lemmas
         return self
 
     def set_df_range(self, min_=0.0, max_=1.0):
@@ -156,10 +164,9 @@ class TFKeywords(Keywords):
         _no_puncs_no_stopwords = no_puncs_no_stopwords(self._vocab)
         for d in corpus.texts():
             per_doc_freqs = dict()
-            for _, start, end in _no_puncs_no_stopwords(d):
-                t = d[start:end].text.lower()
-                current = per_doc_freqs.get(t, 0)
-                per_doc_freqs[t] = current
+            for token in self._find_matches(d, _no_puncs_no_stopwords, lemma_only=self._use_lemmas):
+                current = per_doc_freqs.get(token, 0)
+                per_doc_freqs[token] = current
 
             # apply threshold here and count the difference.
             for k, v in per_doc_freqs.items():
@@ -194,6 +201,14 @@ class TFKeywords(Keywords):
                 freq_counter[k] = (freq_counter.get(k) / num_words) * 100
         return sorted(freq_counter.items(), key=lambda kv: kv[1], reverse=True)
 
+    def _find_matches(self, doc: Doc, matcher: Matcher, lemma_only: bool):
+        for _, start, end in matcher(doc):
+            span = doc[start:end]
+            if lemma_only:
+                yield span.lemma_.lower()
+            else:
+                yield span.text.lower()
+
 
 if __name__ == '__main__':
     from juxtorpus.corpus import Corpus, CorpusBuilder
@@ -203,7 +218,7 @@ if __name__ == '__main__':
 
     builder = CorpusBuilder('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
     builder.set_text_column('text')
-    builder.set_nrows(100)
+    builder.set_nrows(10)
     builder.set_preprocessors([lambda text: tweet_wrapper.sub('', text)])
     corpus = builder.build()
 
@@ -220,3 +235,16 @@ if __name__ == '__main__':
     tf.set_df_range(0.01, 0.5)
     print('\n'.join((str(x) for x in tf.extracted()[:10])))
     print('\n'.join((str(x) for x in tf.filtered().items())))
+
+    tf = TFKeywords(corpus)
+    tf.freq_threshold(3).normalise().log_freqs(False).use_lemmas(True)
+    lemmas = tf.extracted()[:10]
+    tf.freq_threshold(3).normalise().log_freqs(False).use_lemmas(False)
+    no_lemmas = tf.extracted()[:10]
+
+    import pandas as pd
+
+    print(pd.concat([pd.DataFrame(lemmas, columns=['lemmas', 'score']),
+                     pd.DataFrame(no_lemmas, columns=['not_lemma', 'score'])], axis=1))
+
+    print()
