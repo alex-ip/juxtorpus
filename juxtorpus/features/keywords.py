@@ -129,7 +129,7 @@ class TFKeywords(Keywords):
         self._log = to_log
         return self
 
-    def set_df_range(self, min_, max_):
+    def set_df_range(self, min_=0.0, max_=1.0):
         """ Set the document frequency range you want to include in the term frequencies.
         The values used here is normalised with the number of documents in the corpus.
 
