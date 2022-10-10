@@ -100,7 +100,7 @@ class TFIDFKeywords(Keywords):
 
 
 class TFKeywords(Keywords):
-    def __init__(self, corpus: Corpus):
+    def __init__(self, corpus: SpacyCorpus):
         super(TFKeywords, self).__init__(corpus)
         if type(corpus) != SpacyCorpus:
             raise TypeError(f"TFKeywords requires {SpacyCorpus.__name__}. "
@@ -110,6 +110,10 @@ class TFKeywords(Keywords):
         self._threshold = None
         self._normalise = True
         self._log = False
+        self._df_min = 0.0
+        self._df_max = 1.0
+
+        self._filtered_words = dict()
 
     def freq_threshold(self, threshold: int):
         self._threshold = threshold
@@ -126,12 +130,23 @@ class TFKeywords(Keywords):
         return self
 
     def set_df_range(self, min_, max_):
-        """ """
-        pass
+        """ Set the document frequency range you want to include in the term frequencies.
+        The values used here is normalised with the number of documents in the corpus.
+
+        min_: value between 0.0 and max_.
+        max_: value between min_ and 1.0.
+        """
+        if not 0.0 <= min_ < max_ <= 1.0:
+            raise ValueError("Incorrect range. Must be 0.0 < min_ < max_ < 1.0")
+        self._df_min = min_
+        self._df_max = max_
 
     def extracted(self):
         word_freqs = self._count(self.corpus, normalise=self._normalise, log=self._log)
         return word_freqs
+
+    def filtered(self):
+        return self._filtered_words.copy()
 
     def _count(self, corpus: Corpus, normalise: bool, log: bool):
         doc_freq_counter = Counter()
@@ -155,8 +170,21 @@ class TFKeywords(Keywords):
             # set a max on per_doc_freqs to 1 and add to doc_freq_counter
             doc_freq_counter.update({k: 1 for k, _ in per_doc_freqs.items()})
 
-        freq_counter = dict(freq_counter)
+        # remove the words
+        self._filtered_words = dict()
+        for k, doc_freq in doc_freq_counter.items():
+            doc_freq_norm = doc_freq / len(corpus)
+            if doc_freq_norm < self._df_min:
+                del freq_counter[k]
+                self._filtered_words[k] = f"Minimum doc freq threshold exceeded. {doc_freq_norm} < {self._df_min}."
+            elif doc_freq_norm >= self._df_max:
+                del freq_counter[k]
+                self._filtered_words[k] = f"Maximum doc freq threshold exceeded. {doc_freq_norm} > {self._df_max}."
+            else:
+                continue
+
         num_words = corpus.num_words - threshold_diff_to_adjust
+        freq_counter = dict(freq_counter)
         if log:
             for k in freq_counter.keys():
                 freq_counter[k] = math.log(freq_counter.get(k))
@@ -186,8 +214,9 @@ if __name__ == '__main__':
     spacy_processor = SpacyProcessor(nlp)
     corpus = spacy_processor.run(corpus)
 
-    from juxtorpus.features.keywords import TFKeywords
-
+    # TF Keywords
     tf = TFKeywords(corpus)
     tf.freq_threshold(3).normalise().log_freqs(False)
+    tf.set_df_range(0.01, 0.5)
     print('\n'.join((str(x) for x in tf.extracted()[:10])))
+    print('\n'.join((str(x) for x in tf.filtered().items())))
