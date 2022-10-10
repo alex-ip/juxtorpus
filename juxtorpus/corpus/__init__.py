@@ -1,5 +1,6 @@
 from typing import Union, List, Set, Dict, Generator
 import pandas as pd
+import spacy.vocab
 from frozendict import frozendict
 from functools import partial
 from collections import Counter
@@ -176,18 +177,22 @@ class SpacyCorpus(Corpus):
 
     @classmethod
     def from_corpus(cls, corpus: Corpus, docs, vocab):
-        _is_word = is_word(vocab)
-        return cls(docs, corpus._meta_registry, _is_word)
+        return cls(docs, corpus._meta_registry, vocab)
 
-    def __init__(self, docs, metas, is_word_matcher: Matcher):
+    def __init__(self, docs, metas, vocab: spacy.vocab.Vocab):
         super(SpacyCorpus, self).__init__(docs, metas)
-        self._is_word_matcher = is_word_matcher
+        self._vocab = vocab
+        self._is_word_matcher = is_word(vocab)
+
+    @property
+    def vocab(self):
+        return self._vocab
 
     def _gen_words_from(self, text):
         return (text[start: end].text.lower() for _, start, end in self._is_word_matcher(text))
 
     def cloned(self, mask: 'pd.Series[bool]'):
-        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._is_word_matcher)
+        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._vocab)
         self._clone_history(corpus)
         return corpus
 

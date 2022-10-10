@@ -1,3 +1,5 @@
+import math
+
 import nltk
 
 from rake_nltk import Rake
@@ -10,9 +12,8 @@ from collections import Counter
 from spacy.matcher import Matcher
 import numpy as np
 
-from juxtorpus import nlp
-from juxtorpus.corpus import Corpus
-from juxtorpus.matchers import no_stopwords, no_puncs, no_puncs_no_stopwords
+from juxtorpus.corpus import Corpus, SpacyCorpus
+from juxtorpus.matchers import no_stopwords, is_word, no_puncs_no_stopwords
 
 
 class Keywords(metaclass=ABCMeta):
@@ -36,7 +37,7 @@ class RakeKeywords(Keywords):
     """
 
     def extracted(self):
-        _kw_A = Counter(RakeKeywords._rake(sentences=self.corpus.texts()))
+        _kw_A = Counter(RakeKeywords._rake(sentences=self.corpus.texts().tolist()))
         return _kw_A.most_common(20)
 
     @staticmethod
@@ -70,7 +71,7 @@ class TFIDFKeywords(Keywords):
 
     def _corpus_tf_idf(self, smooth: bool = False):
         """ Term frequency is of the entire corpus. Idfs calculated as per normal. """
-        tfs = self.count_vec.fit_transform(self.corpus.docs())
+        tfs = self.count_vec.fit_transform(self.corpus.texts())
         idfs = binarize(tfs, threshold=0.99)
         if smooth:
             pass  # TODO: smoothing of idfs using log perhaps.
@@ -81,7 +82,7 @@ class TFIDFKeywords(Keywords):
         # get the tfidf score of the docs.
         # get the tfidf score of each word and rank them that way.
         vectorizer = TfidfVectorizer()
-        X = vectorizer.fit_transform(corpus.docs())
+        X = vectorizer.fit_transform(corpus.texts())
         col_words = vectorizer.get_feature_names_out()
         max_tfidf_cols = [(col_words[i], X[:, i].max()) for i in range(X.shape[1])]
         max_tfidf_cols.sort(key=lambda t: t[1], reverse=True)
@@ -101,45 +102,92 @@ class TFIDFKeywords(Keywords):
 class TFKeywords(Keywords):
     def __init__(self, corpus: Corpus):
         super(TFKeywords, self).__init__(corpus)
+        if type(corpus) != SpacyCorpus:
+            raise TypeError(f"TFKeywords requires {SpacyCorpus.__name__}. "
+                            f"Please process it with {SpacyProcessor.__name__}")
+
+        self._vocab = corpus.vocab
+        self._threshold = None
+        self._normalise = True
+        self._log = False
+
+    def freq_threshold(self, threshold: int):
+        self._threshold = threshold
+        return self
+
+    def normalise(self, to_normalise=True):
+        """ Normalise by the number of words in the corpus. """
+        self._normalise = to_normalise
+        return self
+
+    def log_freqs(self, to_log=True):
+        """ Log the score from term frequencies. (Zip's law) """
+        self._log = to_log
+        return self
+
+    def set_df_range(self, min_, max_):
+        """ """
+        pass
 
     def extracted(self):
-        word_freqs = self._count(self.corpus, normalise=True)
+        word_freqs = self._count(self.corpus, normalise=self._normalise, log=self._log)
         return word_freqs
 
-    def _count(self, corpus: Corpus, normalise: bool = True):
-        freq_dict = dict()
-        _no_puncs_no_stopwords = no_puncs_no_stopwords(nlp.vocab)
-        for d in corpus.docs():
+    def _count(self, corpus: Corpus, normalise: bool, log: bool):
+        doc_freq_counter = Counter()
+        freq_counter = Counter()
+        threshold_diff_to_adjust = 0
+
+        _no_puncs_no_stopwords = no_puncs_no_stopwords(self._vocab)
+        for d in corpus.texts():
+            per_doc_freqs = dict()
             for _, start, end in _no_puncs_no_stopwords(d):
                 t = d[start:end].text.lower()
-                freq_dict[t] = freq_dict.get(t, 0) + 1
+                current = per_doc_freqs.get(t, 0)
+                per_doc_freqs[t] = current
+
+            # apply threshold here and count the difference.
+            for k, v in per_doc_freqs.items():
+                _orig_value = v
+                per_doc_freqs[k] = max(v, self._threshold)
+                threshold_diff_to_adjust += _orig_value - self._threshold
+            freq_counter.update(per_doc_freqs)
+            # set a max on per_doc_freqs to 1 and add to doc_freq_counter
+            doc_freq_counter.update({k: 1 for k, _ in per_doc_freqs.items()})
+
+        freq_counter = dict(freq_counter)
+        num_words = corpus.num_words - threshold_diff_to_adjust
+        if log:
+            for k in freq_counter.keys():
+                freq_counter[k] = math.log(freq_counter.get(k))
+            num_words = math.log(num_words)
         if normalise:
-            for k in freq_dict.keys():
-                freq_dict[k] = (freq_dict.get(k) / corpus.num_words) * 100
-        return sorted(freq_dict.items(), key=lambda kv: kv[1], reverse=True)
+            for k in freq_counter.keys():
+                freq_counter[k] = (freq_counter.get(k) / num_words) * 100
+        return sorted(freq_counter.items(), key=lambda kv: kv[1], reverse=True)
 
 
 if __name__ == '__main__':
-    from juxtorpus.corpus import DummyCorpus
+    from juxtorpus.corpus import Corpus, CorpusBuilder
+    import re
 
+    tweet_wrapper = re.compile(r'([ ]?<[/]?TWEET>[ ]?)')
 
-    def print_inline(list_: list):
-        for element in list_:
-            print(element, end=', ')
-        print()
+    builder = CorpusBuilder('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
+    builder.set_text_column('text')
+    builder.set_nrows(100)
+    builder.set_preprocessors([lambda text: tweet_wrapper.sub('', text)])
+    corpus = builder.build()
 
+    from juxtorpus.corpus.processors import SpacyProcessor
+    import spacy
 
-    top = 5
-    corpus = DummyCorpus().preprocess()
+    nlp = spacy.load('en_core_web_sm')
+    spacy_processor = SpacyProcessor(nlp)
+    corpus = spacy_processor.run(corpus)
 
-    rkw = RakeKeywords(corpus)
-    print("RakeKeywords")
-    print_inline(rkw.extracted()[:top])
-
-    tfidf = TFIDFKeywords(corpus)
-    print("TFIDfKeywords")
-    print_inline(tfidf.extracted()[:top])
+    from juxtorpus.features.keywords import TFKeywords
 
     tf = TFKeywords(corpus)
-    print("TFKeywords")
-    print_inline(tf.extracted()[:top])
+    tf.freq_threshold(3).normalise().log_freqs(False)
+    print('\n'.join((str(x) for x in tf.extracted()[:10])))
