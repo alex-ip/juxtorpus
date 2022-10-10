@@ -190,7 +190,8 @@ class PolarityWordCloud(Viz):
             word = self._df_top_tmp.iloc[i].name
             norm_score = self._df_top_tmp.iloc[i][self._COL_REL_NORM]
 
-            colour = polar_A_colour if norm_score < 1.5 else polar_B_colour
+            # since > 1.5 means A is more dominant than B. And vice versa.
+            colour = polar_A_colour if norm_score > 1.5 else polar_B_colour
             deg = hsv_color_degrees.get(colour.upper(), None)
             if deg is None:
                 raise NotImplementedError(f"Unsupported colour: {colour}. "
