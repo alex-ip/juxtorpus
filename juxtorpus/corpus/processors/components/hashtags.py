@@ -9,9 +9,9 @@ class HashtagComponent(Component):
     def __init__(self, nlp: Language, name: str, attr: str):
         super().__init__(nlp, name, attr)
         self._getter = lambda hashtags: [ht.text for ht in hashtags]
-        if not Doc.has_extension(self._attr):
-            Doc.set_extension(self._attr, default=[])  # doc._.hashtags is may now be accessed.
-
+        if Doc.has_extension(self._attr):
+            raise KeyError(f"{self._attr} already exists. {HashtagComponent.__name__} will not function properly.")
+        Doc.set_extension(self._attr, default=[])  # doc._.hashtags is may now be accessed.
         self.matcher = Matcher(nlp.vocab)
         self.matcher.add("hashtag", patterns=[
             [{"TEXT": "#"}, {"IS_ASCII": True}]
