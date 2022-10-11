@@ -1,4 +1,3 @@
-from juxtorpus import nlp
 from juxtorpus.corpus import Corpus
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
 
