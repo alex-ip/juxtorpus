@@ -2,7 +2,7 @@ import logging.config
 import colorlog
 from pathlib import Path
 
-conf_path = Path("../logging_conf.ini")
+conf_path = Path("logging_conf.ini")
 logging.config.fileConfig(conf_path)
 logger = colorlog.getLogger(__name__)
 
