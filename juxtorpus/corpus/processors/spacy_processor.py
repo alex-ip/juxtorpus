@@ -85,7 +85,7 @@ class SpacyProcessor(Processor):
         return self._nlp
 
     def _process(self, corpus: Corpus) -> SpacyCorpus:
-        logger.info("Processing corpus of {len(corpus)} documents...")
+        logger.info(f"Processing corpus of {len(corpus)} documents...")
         texts = corpus.texts()
         docs = pd.Series(self.nlp.pipe(texts), index=texts.index)
         logger.info("Done.")
