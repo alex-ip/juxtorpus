@@ -55,12 +55,21 @@ from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.processors import Processor, ProcessEpisode
 from juxtorpus.corpus.processors.components import Component
 from juxtorpus.corpus.processors.components.hashtags import HashtagComponent
+from juxtorpus.corpus.processors.components.sentiment import SentimentComp
 from juxtorpus.meta import DocMeta
+
+import colorlog
+logger = colorlog.getLogger(__name__)
 
 
 @Language.factory("extract_hashtags")
 def create_hashtag_component(nlp: Language, name: str):
     return HashtagComponent(nlp, name, attr='hashtags')
+
+
+@Language.factory("extract_sentiments")
+def create_sentiment(nlp: Language, name: str):
+    return SentimentComp(nlp, name, attr='sentiment')
 
 
 class SpacyProcessor(Processor):
@@ -76,8 +85,10 @@ class SpacyProcessor(Processor):
         return self._nlp
 
     def _process(self, corpus: Corpus) -> SpacyCorpus:
+        logger.info("Processing corpus of {len(corpus)} documents...")
         texts = corpus.texts()
         docs = pd.Series(self.nlp.pipe(texts), index=texts.index)
+        logger.info("Done.")
         return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
 
     def _add_metas(self, corpus: Corpus):
