@@ -77,8 +77,6 @@ class CorpusBuilder(object):
     def build(self) -> 'Corpus':
         # decide which corpus.
         corpus_cls = Corpus
-        # if self._corpus_type.upper() == 'TWEET':
-        #     corpus_cls = TweetCorpus
 
         metas = dict()
         lazies = {col: col_dict for col, col_dict in self._metas_configs.items()
