@@ -45,26 +45,32 @@ Notes:
     + use 'senter' instead of 'parser' when dependency parsing is not required. Inference is ~10x faster.
 """
 
-import spacy
 from spacy import Language
-from functools import partial
 from datetime import datetime
 import pandas as pd
+from tqdm.auto import tqdm
 
 from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.processors import Processor, ProcessEpisode
 from juxtorpus.corpus.processors.components import Component
 from juxtorpus.corpus.processors.components.hashtags import HashtagComponent
+from juxtorpus.corpus.processors.components.mentions import MentionsComp
 from juxtorpus.corpus.processors.components.sentiment import SentimentComp
-from juxtorpus.meta import DocMeta
+from juxtorpus.corpus.meta import DocMeta
 
 import colorlog
+
 logger = colorlog.getLogger(__name__)
 
 
 @Language.factory("extract_hashtags")
 def create_hashtag_component(nlp: Language, name: str):
     return HashtagComponent(nlp, name, attr='hashtags')
+
+
+@Language.factory("extract_mentions")
+def create_mention_component(nlp: Language, name: str):
+    return MentionsComp(nlp, name, attr='mentions')
 
 
 @Language.factory("extract_sentiments")
@@ -85,10 +91,14 @@ class SpacyProcessor(Processor):
         return self._nlp
 
     def _process(self, corpus: Corpus) -> SpacyCorpus:
+        start = datetime.now()
         logger.info(f"Processing corpus of {len(corpus)} documents...")
         texts = corpus.texts()
-        docs = pd.Series(self.nlp.pipe(texts), index=texts.index)
+        doc_generator = (doc for doc in tqdm(self.nlp.pipe(texts)))
+        # doc_generator = self.nlp.pipe(texts)
+        docs = pd.Series(doc_generator, index=texts.index)
         logger.info("Done.")
+        logger.debug(f"Elapsed time: {datetime.now() - start}s.")
         return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
 
     def _add_metas(self, corpus: Corpus):
