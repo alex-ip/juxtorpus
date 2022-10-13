@@ -1,12 +1,11 @@
-from typing import Union, List, Set, Dict, Generator
+from typing import Union, Set, Dict, Generator
 import pandas as pd
 import spacy.vocab
 from frozendict import frozendict
-from functools import partial
 from collections import Counter
 import re
 
-from juxtorpus.meta import Meta, SeriesMeta
+from juxtorpus.corpus.meta import Meta, SeriesMeta
 
 
 class Corpus:
@@ -169,7 +168,6 @@ class Corpus:
             yield self._df.iat[i, col_text_idx]
 
 
-from spacy.matcher import Matcher
 from juxtorpus.matchers import is_word
 
 

@@ -1,6 +1,6 @@
 from juxtorpus.corpus import Corpus
-from juxtorpus.meta import *
-from typing import Union, List, Callable
+from juxtorpus.corpus.meta import *
+from typing import Union, Callable
 import weakref
 import re
 
