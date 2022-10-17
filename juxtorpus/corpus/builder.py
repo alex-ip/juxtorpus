@@ -1,11 +1,68 @@
 import pandas as pd
 import pathlib
 from functools import partial
-from typing import Union, Callable
+from typing import Union, Callable, Iterable
+from dataclasses import dataclass
 
 from juxtorpus.corpus import Corpus
-from juxtorpus.meta import SeriesMeta
+from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
+
+import colorlog
+
+logger = colorlog.getLogger(__name__)
+
+
+class MetaConfig(object):
+    def __init__(self, column: str, dtype: str, lazy: bool):
+        self._column = column
+        self._lazy = lazy
+        self._dtype = dtype
+
+    @property
+    def column(self):
+        return self._column
+
+    @property
+    def lazy(self):
+        return self._lazy
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    def __hash__(self):
+        # used in checks in case of duplicate column names.
+        return hash((self.column, self.__class__.__name__))
+
+    def __eq__(self, other: Union['MetaConfig', str]):
+        if not isinstance(other, MetaConfig) and not isinstance(other, str):
+            return NotImplemented
+        if isinstance(other, str):
+            other = (other, self.__class__.__name__)
+        return hash(other) == self.__hash__()
+
+    def __repr__(self):
+        return f"<{self.column}: dtype={self._dtype} lazy={self._lazy}>"
+
+
+class DateTimeMetaConfig(MetaConfig):
+    COL_DATETIME = 'datetime'
+
+    def __init__(self, columns: Union[str, list[str]], lazy: bool):
+        if isinstance(columns, str):
+            column = columns
+            self.columns = None
+        else:
+            column = self.COL_DATETIME
+            self.columns = columns
+        super(DateTimeMetaConfig, self).__init__(column, None, lazy)
+
+    def is_multi_columned(self) -> bool:
+        return self.columns is not None
+
+    def get_parsed_dates(self):
+        return {self.column: self.columns}
 
 
 class CorpusBuilder(object):
@@ -15,11 +72,10 @@ class CorpusBuilder(object):
         if isinstance(paths, pathlib.Path):
             paths = [paths]
         self._paths = paths
-        self._corpus_type: str = 'corpus'
         self._nrows = None
-        self._metas_configs = dict()
+        self._meta_configs = dict()
         self._sep = ','
-        self._col_text = 'text'
+        self._col_text = None
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
 
         self._preprocessors = list()
@@ -29,20 +85,57 @@ class CorpusBuilder(object):
 
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
-        added = pd.Series((col for col in self._metas_configs.keys()), name='Added')
-        df = pd.concat([all, added], axis=1).fillna('').T
+        to_add = pd.Series((mc.column for mc in self._meta_configs.values()), name='Add')
+        to_ignore = pd.Series((col for col in self._columns if col not in to_add), name='Ignore')
+        df = pd.concat([all, to_ignore, to_add], axis=1).fillna('')
         return df
 
-    def add_meta(self, column: str, dtype: str = None, lazy=False):
+    def add_metas(self, columns: Union[list[str], str],
+                  dtypes: Union[None, str, list[str]] = None,
+                  lazy=True):
+        """ Add a column to add as metadata OR a list of columns to add.
+
+        :param columns: The columns to add to the corpus.
+        :param dtypes: The dtypes to specify.
+        :param lazy: Keep series on disk until required.(Default: True)
+
+        If dtype is None, dtype is inferred by pandas.
+        """
+        if isinstance(columns, str):
+            columns = [columns]
+        if dtypes is not None and not isinstance(dtypes, str):
+            if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
+        if dtypes == 'datetime':
+            self._add_datetime_meta(columns, lazy)
+        else:
+            for i in range(len(columns)):
+                dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
+                self._add_meta(columns[i], dtype, lazy)
+
+    def _add_meta(self, column: str, dtype: str, lazy: bool):
         if column not in self._columns:
             raise ValueError(f"{column} column does not exist.")
-        col_dict = self._metas_configs.get(column, dict())
-        col_dict['dtype'] = dtype
-        col_dict['load_type'] = 'series' if not lazy else 'lazy'
-        self._metas_configs[column] = col_dict
+        meta_config = MetaConfig(column=column, dtype=dtype, lazy=lazy)
+        self._meta_configs[meta_config.column] = meta_config
+
+    def _add_datetime_meta(self, columns: Union[str, list[str]], lazy: bool):
+        if isinstance(columns, str):
+            columns = [columns]
+        for column in columns:
+            if column not in self._columns:
+                raise ValueError(f"{column} column does not exist.")
+        dt_meta_config = DateTimeMetaConfig(columns=columns, lazy=lazy)
+        self._meta_configs[dt_meta_config.column] = dt_meta_config
 
     def remove_meta(self, column: str):
-        del self._metas_configs[column]
+        # not sure why membership test isn't working with just string.
+        # https://docs.python.org/3.9/reference/expressions.html#membership-test-details
+        # according to the doc: any(x is e or x == e for e in y) is the underlying implementation.
+        # but `column in self._meta_configs` returns false while
+        # `any(column is e or column == e for e in self._meta_configs)` returns true.
+        # python version 3.9.13
+        # self._meta_configs.remove(MetaConfig(column, None, None))  -- decided not to use sets.
+        del self._meta_configs[column]
 
     def set_text_column(self, column: str):
         if column not in self._columns:
@@ -51,15 +144,18 @@ class CorpusBuilder(object):
         self._col_text = column
 
     def set_sep(self, sep: str):
+        """ Set the separator to use in parsing the file.
+        e.g.
+            set_sep(',') for csv            (default)
+            set_sep('\t') for tsv
+        """
         self._sep = sep
 
     def set_nrows(self, nrows: int):
+        """ Set the number of rows to load into the corpus."""
         if nrows < 0:
             raise ValueError("nrows must be a positive integer. Set as None to remove.")
         self._nrows = nrows
-
-    def set_corpus_type(self, type_: str):
-        self._corpus_type = type_
 
     def set_preprocessors(self, preprocess_callables: list[Callable]):
         """ Set a list of preprocessors for your text data.
@@ -74,83 +170,86 @@ class CorpusBuilder(object):
             text = preprocessor(text)
         return text
 
-    def build(self) -> 'Corpus':
-        # decide which corpus.
-        corpus_cls = Corpus
+    def _build_lazy_metas(self, metas: dict):
+        # build lazies
+        lazies = (mc for mc in self._meta_configs.values() if mc.lazy)
+        lazy: MetaConfig
+        for lazy in lazies:
+            if type(lazy) == DateTimeMetaConfig:
+                lazy: DateTimeMetaConfig
+                read_func = partial(pd.read_csv, parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
+            else:
+                read_func = partial(pd.read_csv, usecols=[lazy.column], sep=self._sep)
+            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, lazy.dtype, read_func))
 
-        metas = dict()
-        lazies = {col: col_dict for col, col_dict in self._metas_configs.items()
-                  if col_dict.get('load_type') == 'lazy'}
+        return metas
 
-        # note: usecols is actually buggy if used with lambda func. - see commit: 5369ad6
-        for col, col_dict in lazies.items():
-            read_func = partial(pd.read_csv, usecols=[col], sep=self._sep)
-            lazy_series = LazySeries(self._paths, self._nrows, col_dict.get('dtype'), read_func)
-            meta = SeriesMeta(col, lazy_series)
-            metas[col] = meta
+    def _build_series_meta_and_text(self, metas: dict):
+        series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
+                             if not mc.lazy and type(mc) != DateTimeMetaConfig}
+        series_and_dtypes[self._col_text] = pd.StringDtype('pyarrow')
 
-        series_cols = set(
-            (col for col, col_dict in self._metas_configs.items() if col_dict.get('load_type') == 'series')
-        )
-        datetime_cols = set((col for col in series_cols if self._metas_configs.get(col).get('dtype') == 'datetime'))
-
-        series_cols = series_cols.union([self._col_text])
+        all_cols = set(series_and_dtypes.keys())
+        parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME, False)
+        if parse_dates:
+            all_cols = all_cols.union(set(parse_dates.columns))
+            parse_dates: dict = parse_dates.get_parsed_dates()
         current = 0
         dfs = list()
         for path in self._paths:
             if self._nrows is None:
-                df = pd.read_csv(path, nrows=self._nrows, usecols=series_cols, sep=self._sep,
-                                 parse_dates=list(datetime_cols))
+                df = pd.read_csv(path, nrows=self._nrows, usecols=all_cols, sep=self._sep,
+                                 parse_dates=parse_dates, dtype=series_and_dtypes)
             else:
                 if current >= self._nrows:
                     break
-                df = pd.read_csv(path, nrows=self._nrows - current, usecols=series_cols, sep=self._sep,
-                                 parse_dates=list(datetime_cols))
+                df = pd.read_csv(path, nrows=self._nrows - current, usecols=all_cols, sep=self._sep,
+                                 parse_dates=parse_dates, dtype=series_and_dtypes)
                 current += len(df)
             dfs.append(df)
         df = pd.concat(dfs, axis=0)
 
-        # dtypes conversions
-        dtype_dict = {col: self._metas_configs.get(col).get('dtype')
-                      for col in series_cols.difference([self._col_text]).difference(datetime_cols)}
-        dtype_dict[self._col_text] = pd.StringDtype(storage='pyarrow')
-        df = df.astype(dtype_dict)
-
         if self._col_text not in df.columns:
-            raise KeyError(f"{self._col_text} column is missing. This column is compulsory.")
-        # 3. apply preprocessors if exist
-        df[self._col_text] = df.loc[:, self._col_text].apply(self._preprocess)
+            raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
+                           f"Did you call {self.set_text_column.__name__}?")
 
-        # 4. set up Corpus dependencies
+        # set up corpus dependencies here
         series_text = df.loc[:, self._col_text]
-        # 5. update the rest of the meta dictionary - build metas
-        series_cols.remove(self._col_text)
-        for col in series_cols:
+        del series_and_dtypes[self._col_text]
+        for col in series_and_dtypes.keys():
             series = df[col]
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please use a different column name.")
             metas[col] = SeriesMeta(col, series)
-        return corpus_cls(series_text, metas=metas)
+        return metas, series_text
+
+    def build(self) -> Corpus:
+        if self._col_text is None:
+            raise ValueError(f"You must set the text column. Try calling {self.set_text_column.__name__} first.")
+        metas = dict()
+        metas = self._build_lazy_metas(metas)
+        metas, texts = self._build_series_meta_and_text(metas)
+        texts = self._preprocess(texts)
+        return Corpus(texts, metas=metas)
 
 
 if __name__ == '__main__':
-    cb = CorpusBuilder(
-        # paths=['/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv']
-        paths=[pathlib.Path('~/Downloads/elonmusk_tweets.csv')]
-    )
-    cb.set_nrows(100)
-    cb.set_corpus_type('corpus')
-    cb.set_sep(',')
+    from pathlib import Path
+
+    builder = CorpusBuilder([Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'),
+                             Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')])
+    builder.set_nrows(100)
+    builder.set_sep(',')
     # cb.set_text_column('processed_text')
     # for col in ['year', 'day', 'tweet_lga', 'lga_code_2020']:
     #     cb.add_meta(col, lazy=True)
     # cb.add_meta('month', dtype='string', lazy=False)
 
-    cb.set_text_column('doc')
-    cb.add_meta('created_at', dtype='datetime', lazy=True)
+    builder.set_text_column('doc')
+    builder.add_metas('created_at', dtypes='datetime', lazy=True)
 
-    print(cb.show_columns())
-    corpus = cb.build()
+    print(builder.show_columns())
+    corpus = builder.build()
     print(corpus.metas())
 
     # print(corpus.get_meta('tweet_lga').preview(5))

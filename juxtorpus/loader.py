@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import pathlib
-from typing import Iterable
+from typing import Iterable, Union
 import pandas as pd
 
 
@@ -12,7 +12,7 @@ class LazyLoader(metaclass=ABCMeta):
 
 
 class LazySeries(LazyLoader):
-    def __init__(self, paths: list[pathlib.Path], nrows: int, dtype: str, pd_read_func):
+    def __init__(self, paths: list[pathlib.Path], nrows: int, dtype: Union[str, None], pd_read_func):
         """
         :param paths: paths of the csv
         :param nrows: max number of rows
