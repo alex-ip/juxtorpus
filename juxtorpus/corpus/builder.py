@@ -168,12 +168,23 @@ class CorpusBuilder(object):
         This is typically designed for basic preprocessing.
         Your preprocessor callables/functions will have the text passed down.
         """
+        if isinstance(preprocess_callables, Callable):
+            preprocess_callables = [preprocess_callables]
         self._preprocessors = preprocess_callables
 
     def _preprocess(self, text):
         for preprocessor in self._preprocessors:
             text = preprocessor(text)
         return text
+
+    def build(self) -> Corpus:
+        if self._col_text is None:
+            raise ValueError(f"You must set the text column. Try calling {self.set_text_column.__name__} first.")
+        metas = dict()
+        metas = self._build_lazy_metas(metas)
+        metas, texts = self._build_series_meta_and_text(metas)
+        texts = texts.apply(self._preprocess)
+        return Corpus(texts, metas=metas)
 
     def _build_lazy_metas(self, metas: dict):
         # build lazies
@@ -228,15 +239,6 @@ class CorpusBuilder(object):
                 raise KeyError(f"{col} already exists. Please use a different column name.")
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
-
-    def build(self) -> Corpus:
-        if self._col_text is None:
-            raise ValueError(f"You must set the text column. Try calling {self.set_text_column.__name__} first.")
-        metas = dict()
-        metas = self._build_lazy_metas(metas)
-        metas, texts = self._build_series_meta_and_text(metas)
-        texts = texts.apply(self._preprocess)
-        return Corpus(texts, metas=metas)
 
 
 if __name__ == '__main__':
