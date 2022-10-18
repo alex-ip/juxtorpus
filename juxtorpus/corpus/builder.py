@@ -85,10 +85,15 @@ class CorpusBuilder(object):
 
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
-        to_add = pd.Series((mc.column for mc in self._meta_configs.values()), name='Add')
-        to_ignore = pd.Series((col for col in self._columns if col not in to_add), name='Ignore')
-        df = pd.concat([all, to_ignore, to_add], axis=1).fillna('')
-        return df
+        df = pd.DataFrame(all)
+        to_add = list()
+        for mc in self._meta_configs.values():
+            if type(mc) == DateTimeMetaConfig and mc.is_multi_columned():
+                to_add.extend(mc.columns)
+            else:
+                to_add.append(mc.column)
+        df['Add'] = df['All Columns'].isin(to_add)
+        return df.sort_values(by='Add', ascending=False).reset_index(drop=True)
 
     def add_metas(self, columns: Union[list[str], str],
                   dtypes: Union[None, str, list[str]] = None,
