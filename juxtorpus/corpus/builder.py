@@ -108,6 +108,7 @@ class CorpusBuilder(object):
         """
         if dtypes == 'datetime':
             self._add_datetime_meta(columns, lazy)
+            return
         # non datetime columns
         if isinstance(columns, str):
             columns = [columns]
