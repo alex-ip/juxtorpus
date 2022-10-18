@@ -92,7 +92,6 @@ class CorpusBuilder(object):
                 to_add.extend(mc.columns)
             else:
                 to_add.append(mc.column)
-        # df['Add'] = df['All Columns'].isin(to_add)
         df['Add'] = df.index.isin(to_add)
         return df.sort_values(by='Add', ascending=False)
 
@@ -107,12 +106,13 @@ class CorpusBuilder(object):
 
         If dtype is None, dtype is inferred by pandas.
         """
+        if dtypes == 'datetime':
+            self._add_datetime_meta(columns, lazy)
+        # non datetime columns
         if isinstance(columns, str):
             columns = [columns]
         if dtypes is not None and not isinstance(dtypes, str):
             if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
-        if dtypes == 'datetime':
-            self._add_datetime_meta(columns, lazy)
         else:
             for i in range(len(columns)):
                 dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
@@ -125,11 +125,12 @@ class CorpusBuilder(object):
         self._meta_configs[meta_config.column] = meta_config
 
     def _add_datetime_meta(self, columns: Union[str, list[str]], lazy: bool):
-        if isinstance(columns, str):
-            columns = [columns]
-        for column in columns:
-            if column not in self._columns:
-                raise ValueError(f"{column} column does not exist.")
+        if isinstance(columns, list):
+            for column in columns:
+                if column not in self._columns:
+                    raise ValueError(f"{column} column does not exist.")
+            logger.info(f"You are using a multi-columned datetime. "
+                        f"These columns will combined into a single '{DateTimeMetaConfig.COL_DATETIME}' meta.")
         dt_meta_config = DateTimeMetaConfig(columns=columns, lazy=lazy)
         self._meta_configs[dt_meta_config.column] = dt_meta_config
 

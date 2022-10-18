@@ -24,24 +24,25 @@ class TestBuilder(unittest.TestCase):
         corpus = builder.build()
         assert len(corpus) == 10_000 + 1000, "Number of documents in corpus is not correct."
 
-    def test_add_datetime(self):
-        # test year.month.day
-        # test year, month, day columns combined
+    def test_add_datetime_multi(self):
         builder = self.builder
         builder.add_metas(['year', 'month', 'day'], dtypes='datetime')
-        print(builder._meta_configs)
-        builder.remove_meta('datetime')
-        print(builder._meta_configs)
-        builder.add_metas('year_month_day', dtypes='datetime')
-        print(builder._meta_configs)
         builder.set_text_column('processed_text')
         corpus = builder.build()
         assert corpus.metas().get('datetime', None) is not None
 
+    def test_add_datetime(self):
+        builder = self.builder
+        builder.add_metas('year_month_day', dtypes='datetime')
+        builder.set_text_column('processed_text')
+        corpus = builder.build()
+        year_month_day = corpus.metas().get('year_month_day', None)
+        assert year_month_day is not None
+
     def test_add_and_remove_meta(self):
         builder = self.builder
         builder.add_metas(['tweet_lga', 'geometry'])
-        builder.remove_meta('geometry')
+        builder.remove_metas('geometry')
         builder.set_text_column('processed_text')
         corpus = builder.build()
         assert 'geometry' not in corpus.metas().keys()
