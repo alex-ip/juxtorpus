@@ -66,7 +66,7 @@ class VocabTimeline(Viz):
         ax.set_xticks([])
         ax.set_yticks([])
 
-    def render(self, height, width):
+    def render(self, height=16, width=8):
         if len(self._labels) != len(self._dates): raise RuntimeError("Misaligned number of labels and dates.")
         fig, ax = plt.subplots(figsize=(height, width), constrained_layout=True)
         self._draw_hline(ax)
@@ -91,8 +91,15 @@ if __name__ == '__main__':
     # now i want to be able to slice the corpus into different years.
     from juxtorpus.corpus import CorpusSlicer
     import pandas as pd
+    from datetime import date
 
     slicer = CorpusSlicer(corpus)
     dt: pd.Timestamp
-    twenty_ninetine = slicer.filter_by_condition('datetime', lambda dt: dt.year == 2019)
-    twentytwenty = slicer.filter_by_condition('datetime', lambda dt: dt.year == 2020)
+
+    timeline_map = {
+        date(year=2019, month=1, day=1): slicer.filter_by_condition('datetime', lambda dt: dt.year == 2019),
+        date(year=2020, month=1, day=1): slicer.filter_by_condition('datetime', lambda dt: dt.year == 2020)
+    }
+
+    vtimeline = VocabTimeline(timeline_map)
+    vtimeline.render(height=16, width=8)
