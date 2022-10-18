@@ -177,7 +177,8 @@ class CorpusBuilder(object):
         for lazy in lazies:
             if type(lazy) == DateTimeMetaConfig:
                 lazy: DateTimeMetaConfig
-                read_func = partial(pd.read_csv, parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
+                read_func = partial(pd.read_csv, usecols=lazy.columns,
+                                    parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
             else:
                 read_func = partial(pd.read_csv, usecols=[lazy.column], sep=self._sep)
             metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, lazy.dtype, read_func))
@@ -229,7 +230,7 @@ class CorpusBuilder(object):
         metas = dict()
         metas = self._build_lazy_metas(metas)
         metas, texts = self._build_series_meta_and_text(metas)
-        texts = self._preprocess(texts)
+        texts = texts.apply(self._preprocess)
         return Corpus(texts, metas=metas)
 
 
