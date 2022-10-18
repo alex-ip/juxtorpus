@@ -56,7 +56,7 @@ class DateTimeMetaConfig(MetaConfig):
         else:
             column = self.COL_DATETIME
             self.columns = columns
-        super(DateTimeMetaConfig, self).__init__(column, None, lazy)
+        super(DateTimeMetaConfig, self).__init__(column, dtype='datetime', lazy=lazy)
 
     def is_multi_columned(self) -> bool:
         return self.columns is not None
@@ -85,15 +85,16 @@ class CorpusBuilder(object):
 
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
-        df = pd.DataFrame(all)
+        df = pd.DataFrame(index=all)
         to_add = list()
         for mc in self._meta_configs.values():
             if type(mc) == DateTimeMetaConfig and mc.is_multi_columned():
                 to_add.extend(mc.columns)
             else:
                 to_add.append(mc.column)
-        df['Add'] = df['All Columns'].isin(to_add)
-        return df.sort_values(by='Add', ascending=False).reset_index(drop=True)
+        # df['Add'] = df['All Columns'].isin(to_add)
+        df['Add'] = df.index.isin(to_add)
+        return df.sort_values(by='Add', ascending=False)
 
     def add_metas(self, columns: Union[list[str], str],
                   dtypes: Union[None, str, list[str]] = None,
@@ -132,7 +133,7 @@ class CorpusBuilder(object):
         dt_meta_config = DateTimeMetaConfig(columns=columns, lazy=lazy)
         self._meta_configs[dt_meta_config.column] = dt_meta_config
 
-    def remove_meta(self, column: str):
+    def remove_metas(self, columns: Union[str, list[str]]):
         # not sure why membership test isn't working with just string.
         # https://docs.python.org/3.9/reference/expressions.html#membership-test-details
         # according to the doc: any(x is e or x == e for e in y) is the underlying implementation.
@@ -140,7 +141,22 @@ class CorpusBuilder(object):
         # `any(column is e or column == e for e in self._meta_configs)` returns true.
         # python version 3.9.13
         # self._meta_configs.remove(MetaConfig(column, None, None))  -- decided not to use sets.
-        del self._meta_configs[column]
+        if isinstance(columns, str):
+            columns = [columns]
+        for col in columns:
+            if col in self._meta_configs.keys():
+                del self._meta_configs[col]
+            else:
+                dtmc: DateTimeMetaConfig
+                for dtmc in (mc for mc in self._meta_configs.values() if type(mc) == DateTimeMetaConfig):
+                    if dtmc.is_multi_columned() and col in dtmc.columns:
+                        del self._meta_configs[dtmc.column]
+
+    def update_metas(self, columns: Union[list[str], str],
+                     dtypes: Union[None, str, list[str]],
+                     lazy: bool):
+        self.remove_metas(columns)
+        self.add_metas(columns, dtypes, lazy)
 
     def set_text_column(self, column: str):
         if column not in self._columns:
