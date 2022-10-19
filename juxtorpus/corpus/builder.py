@@ -62,7 +62,10 @@ class DateTimeMetaConfig(MetaConfig):
         return self.columns is not None
 
     def get_parsed_dates(self):
-        return {self.column: self.columns}
+        if self.is_multi_columned():
+            return {self.column: self.columns}
+        else:
+            return [self.column]
 
 
 class CorpusBuilder(object):
