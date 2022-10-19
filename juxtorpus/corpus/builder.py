@@ -112,8 +112,8 @@ class CorpusBuilder(object):
         # non datetime columns
         if isinstance(columns, str):
             columns = [columns]
-        if dtypes is not None and not isinstance(dtypes, str):
-            if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
+        if isinstance(dtypes, list) and len(columns) != len(dtypes):
+            raise ValueError("Number of columns and dtypes must match.")
         else:
             for i in range(len(columns)):
                 dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
@@ -214,8 +214,8 @@ class CorpusBuilder(object):
                 read_func = partial(pd.read_csv, usecols=lazy.columns,
                                     parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
             else:
-                read_func = partial(pd.read_csv, usecols=[lazy.column], sep=self._sep)
-            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, lazy.dtype, read_func))
+                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype={lazy.column: lazy.dtype}, sep=self._sep)
+            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func))
 
         return metas
 
@@ -271,12 +271,12 @@ if __name__ == '__main__':
     #     cb.add_meta(col, lazy=True)
     # cb.add_meta('month', dtype='string', lazy=False)
 
-    builder.set_text_column('doc')
-    builder.add_metas('created_at', dtypes='datetime', lazy=True)
+    builder.set_text_column('processed_text')
+    # builder.add_metas('created_at', dtypes='datetime', lazy=True)
+    builder.add_metas(['geometry', 'state_name_2016'], dtypes=['object', 'str'])
 
     print(builder.show_columns())
     corpus = builder.build()
     print(corpus.metas())
-
     # print(corpus.get_meta('tweet_lga').preview(5))
-    print(corpus.get_meta('created_at').head(5))
+    # print(corpus.get_meta('created_at').head(5))
