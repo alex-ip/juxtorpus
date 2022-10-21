@@ -15,6 +15,7 @@ import numpy as np
 
 from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.matchers import no_stopwords, is_word, no_puncs_no_stopwords
+from juxtorpus.corpus.processors import SpacyProcessor
 
 
 class Keywords(metaclass=ABCMeta):
@@ -105,7 +106,7 @@ class TFKeywords(Keywords):
         super(TFKeywords, self).__init__(corpus)
         if type(corpus) != SpacyCorpus:
             raise TypeError(f"TFKeywords requires {SpacyCorpus.__name__}. "
-                            f"Please process it with {SpacyProcessor.__name__}")
+                            f"Please process it using {SpacyProcessor.__name__}.")
 
         self._vocab = corpus.vocab
         # config defaults
