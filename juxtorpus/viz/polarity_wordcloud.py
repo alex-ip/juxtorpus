@@ -57,12 +57,11 @@ class PolarityWordCloud(Viz):
         :param top: top
         :return: PolarityWordCloud
         """
-        wc = WC(background_color='white')
         df_A = pd.DataFrame(word_scores_A, columns=[PolarityWordCloud.COL_WORD, PolarityWordCloud.COL_SCORE])
         df_B = pd.DataFrame(word_scores_B, columns=[PolarityWordCloud.COL_WORD, PolarityWordCloud.COL_SCORE])
-        return PolarityWordCloud(wc, df_A, df_B)
+        return PolarityWordCloud(df_A, df_B)
 
-    def __init__(self, wordcloud: WC, word_scores_df_A: pd.DataFrame, word_scores_df_B: pd.DataFrame):
+    def __init__(self, word_scores_df_A: pd.DataFrame, word_scores_df_B: pd.DataFrame):
         """
         Initialise a PolarityWordCloud object to compare and visualise 2 sets of words and their scores.
 
@@ -70,7 +69,7 @@ class PolarityWordCloud(Viz):
         :param word_scores_df_A: DataFrame with 'word' and 'score' columns. (Do not use negative scores!)
         :param word_scores_df_B: DataFrame with 'word' and 'score' columns. (Do not use negative scores!)
         """
-        self.wc = wordcloud
+        self.wc = WC(background_color='white')
         self._wc_default_height = self.wc.height
         self._wc_default_width = self.wc.width
 
