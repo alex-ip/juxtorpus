@@ -82,9 +82,10 @@ class Zipf(Viz):
 
 
 if __name__ == '__main__':
+    from pathlib import Path
     from juxtorpus.corpus import CorpusBuilder
 
-    builder = CorpusBuilder('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
+    builder = CorpusBuilder(Path('./test/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
     builder.set_text_column('text')
     builder.set_nrows(100)
     corpus = builder.build()
