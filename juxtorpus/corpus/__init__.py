@@ -16,8 +16,12 @@ class Corpus:
     summary() provides a quick summary of your corpus.
     """
 
+    COL_TEXT: str = 'text'
+
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = 'text'):
+    def from_dataframe(cls, df: pd.DataFrame, col_text: str = COL_TEXT):
+        if col_text not in df.columns:
+            raise ValueError(f"Column {col_text} not found. You may set the col_text argument.")
         meta_df: pd.DataFrame = df.drop(col_text, axis=1)
         metas: dict[str, SeriesMeta] = dict()
         for col in meta_df.columns:
@@ -26,8 +30,6 @@ class Corpus:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
         return Corpus(df[col_text], metas)
-
-    COL_TEXT: str = 'text'
 
     def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
         text.name = self.COL_TEXT
@@ -46,7 +48,7 @@ class Corpus:
 
         # internals - word statistics
         self._counter: Union[Counter[str, int], None] = None
-        self.__num_tokens: int = -1
+        self._num_tokens: int = -1
         self._num_words: int = -1
 
     ### Meta data ###
