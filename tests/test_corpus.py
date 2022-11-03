@@ -37,5 +37,9 @@ class TestCorpus(unittest.TestCase):
         mask, num_trues = random_mask(self.corpus)
         cloned = self.corpus.cloned(mask)
         # check if the cloned corpus dtm have the correct document term vectors
-        idx = cloned.texts().index[0]
-        assert is_equal(self.corpus.dtm.matrix[idx, :], cloned.dtm.matrix[0, :])
+        # randomly chooses 5
+        texts = cloned.texts()
+        cloned_indices = np.random.randint(0, len(texts), size=5)
+        for cloned_idx in cloned_indices:
+            original_idx = texts.index[cloned_idx]
+            assert is_equal(self.corpus.dtm.matrix[original_idx, :], cloned.dtm.matrix[cloned_idx, :])
