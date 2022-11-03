@@ -43,3 +43,11 @@ class TestCorpus(unittest.TestCase):
         for cloned_idx in cloned_indices:
             original_idx = texts.index[cloned_idx]
             assert is_equal(self.corpus.dtm.matrix[original_idx, :], cloned.dtm.matrix[cloned_idx, :])
+
+        mask, num_trues = random_mask(cloned)
+        cloned_again = cloned.cloned(mask)
+        texts = cloned_again.texts()
+        cloned_indices = np.random.randint(0, len(texts), size=5)
+        for cloned_idx in cloned_indices:
+            original_idx = texts.index[cloned_idx]
+            assert is_equal(self.corpus.dtm.matrix[original_idx, :], cloned_again.dtm.matrix[cloned_idx, :])
