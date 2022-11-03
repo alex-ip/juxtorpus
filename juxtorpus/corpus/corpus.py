@@ -40,7 +40,7 @@ class Corpus:
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
-        self.parent: Optional[Corpus] = None
+        self._parent: Optional[Corpus] = None
 
         # meta data
         self._meta_registry = metas if metas is not None else dict()
@@ -57,6 +57,14 @@ class Corpus:
         self._num_words: int = -1
         self._num_uniqs: int = -1
 
+    @property
+    def parent(self):
+        return self._parent
+
+    @property
+    def is_root(self):
+        return self._parent is None
+
     ### Document Term Matrix ###
     @property
     def dtm(self):
@@ -66,10 +74,10 @@ class Corpus:
         return self._dtm
 
     def find_root(self):
-        parent = self.parent
-        if parent is None: return self
-        while parent is not None:
-            parent = parent.parent
+        if self.is_root: return self
+        parent = self._parent
+        while not parent.is_root:
+            parent = parent._parent
         return parent
 
     ### Meta data ###
@@ -189,7 +197,7 @@ class Corpus:
         cloned_metas = self._cloned_metas(mask)
 
         clone = Corpus(cloned_texts, cloned_metas)
-        clone.parent = self
+        clone._parent = self
 
         clone._dtm = self._cloned_dtm(cloned_texts.index)
         clone._processing_history = self._cloned_history()
@@ -245,7 +253,7 @@ class SpacyCorpus(Corpus):
         cloned_metas = self._cloned_metas(mask)
 
         clone = SpacyCorpus(cloned_texts, cloned_metas, self._vocab)
-        clone.parent = self
+        clone._parent = self
 
         clone._dtm = self._cloned_dtm(cloned_texts.index)
         clone._processing_history = self._cloned_history()
