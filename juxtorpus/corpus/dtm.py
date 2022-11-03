@@ -94,6 +94,7 @@ class DTM(object):
 
 
 if __name__ == '__main__':
+    from juxtorpus.corpus.corpus import Corpus
     df = pd.read_csv(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
 
