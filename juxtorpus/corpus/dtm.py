@@ -4,8 +4,6 @@ from typing import Union, Iterable
 
 from sklearn.feature_extraction.text import CountVectorizer
 
-from juxtorpus.corpus import Corpus
-
 """ Document Term Matrix DTM
 
 DTM is a container for the document term sparse matrix.
@@ -45,7 +43,7 @@ class DTM(object):
         return self.root._is_built
 
     @property
-    def dtm(self):
+    def matrix(self):
         if self.root is self:
             return self._matrix
         return self.root._matrix[self._row_indices, :]
@@ -75,7 +73,7 @@ class DTM(object):
             cols = self._term_to_idx(terms)
         else:
             cols = [self._term_to_idx(term) for term in terms]
-        return self.dtm[:, cols]
+        return self.matrix[:, cols]
 
     def doc_vector(self):  # TODO: from pandas index?
         """ Return the document vector represented by the terms. """
@@ -95,6 +93,7 @@ class DTM(object):
 
 if __name__ == '__main__':
     from juxtorpus.corpus.corpus import Corpus
+
     df = pd.read_csv(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
 
