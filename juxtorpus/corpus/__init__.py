@@ -50,6 +50,7 @@ class Corpus:
         self._counter: Union[Counter[str, int], None] = None
         self._num_tokens: int = -1
         self._num_words: int = -1
+        self._num_uniqs: int = -1
 
     ### Meta data ###
 
@@ -100,14 +101,6 @@ class Corpus:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
         return set(self._counter.keys())
-
-    @property
-    def token_stats(self) -> pd.DataFrame:
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
-        if self._vocab is None:
-            self._vocab = pd.DataFrame.from_dict(self._counter, orient='index', columns=['count'])
-        return self._vocab
 
     def word_counter(self) -> Counter:
         if not self._computed_word_statistics():
