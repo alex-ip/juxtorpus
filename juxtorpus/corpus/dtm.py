@@ -46,6 +46,10 @@ class DTM(object):
         return self.root._matrix[self._row_indices, :]
 
     @property
+    def vectorizer(self):
+        return self.root.vectorizer
+
+    @property
     def vocab(self):
         return list(self.root._vocab)
 
