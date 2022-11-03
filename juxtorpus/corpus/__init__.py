@@ -132,7 +132,7 @@ class Corpus:
             for word in words:
                 freqs[word] = self._counter.get(words, 0)
 
-    def most_common(self, n: int):
+    def most_common_words(self, n: int):
         if not self._computed_word_statistics():
             self._compute_word_statistics()
         return self._counter.most_common(n)
