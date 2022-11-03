@@ -1,26 +1,25 @@
-""" Document Term Matrix
-
-feature:
-1. always build dtm for corpus
-2. lazy dtm
-
-test: cloning works
-"""
-
 from pathlib import Path
 import pandas as pd
-import scipy.sparse
-from typing import Iterable, Union, Generator
+from typing import Union
 
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.metrics import pairwise_distances
 
 from juxtorpus.corpus import Corpus
 
 """ Document Term Matrix DTM
 
 DTM is a container for the document term sparse matrix.
-It is a component of the corpus class.
+This container allows you to access term vectors and document vectors.
+It also allows you to clone itself with a row index. In the cloned DTM,
+a reference to the root dtm is passed down and the row index is used to
+slice the child dtm each time.
+This serves 3 purposes:
+    1. preserve the original/root vocabulary.
+    2. performance reasons so that we don't need to rebuild a dtm each time.
+    3. indexing is a very inexpensive operation.
+
+Dependencies: 
+sklearn CountVectorizer
 """
 
 
@@ -74,7 +73,7 @@ class DTM(object):
         return self.root._term_idx_map.get(term)
 
     @classmethod
-    def cloned(cls, parent, row_indices: list[int]):
+    def cloned(cls, parent, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
         cloned = cls()
         cloned.root = parent.root
         cloned._row_indices = row_indices
@@ -89,18 +88,8 @@ if __name__ == '__main__':
     print(dtm.term_vector('the').shape)
     print(dtm.term_vector(['the', 'he', 'she']).shape)
 
-    child_dtm = dtm.cloned(dtm, [1, 5, 7, 8])
+    sub_df = df[df['processed_text'].str.contains('the')]
+
+    child_dtm = dtm.cloned(dtm, sub_df.index)
     print(child_dtm.term_vector('the').shape)
     print(child_dtm.term_vector(['the', 'he', 'she']).shape)
-
-    # PERF: child dtms slices root dtm each time -- seems negligible since its array access anyway.
-    from timeit import timeit
-
-    start = timeit()
-    for i in range(1000000):
-        dtm.term_vector('the')
-    print(f"Elapsed: {timeit() - start:.100f} s")
-    start = timeit()
-    for i in range(1000000):
-        child_dtm.term_vector('the')
-    print(f"Elapsed: {timeit() - start:.100f} s")
