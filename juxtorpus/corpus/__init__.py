@@ -47,7 +47,7 @@ class Corpus:
         # internals - word statistics
         self._counter: Union[Counter[str, int], None] = None
         self.__num_tokens: int = -1
-        self.__num_uniqs: int = -1
+        self._num_words: int = -1
 
     ### Meta data ###
 
@@ -76,22 +76,36 @@ class Corpus:
     ### Statistics ###
 
     @property
+    def num_tokens(self) -> int:
+        if self._num_tokens < 0:
+            self._num_tokens = sum((len(list(token_list)) for token_list in self.generate_tokens()))
+        return self._num_tokens
+
+    @property
     def num_words(self) -> int:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
-        return self.__num_tokens
+        return self._num_words
 
     @property
     def num_unique_words(self) -> int:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
-        return self.__num_uniqs
+        return self._num_uniqs
 
     @property
     def unique_words(self) -> set[str]:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
         return set(self._counter.keys())
+
+    @property
+    def token_stats(self) -> pd.DataFrame:
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
+        if self._vocab is None:
+            self._vocab = pd.DataFrame.from_dict(self._counter, orient='index', columns=['count'])
+        return self._vocab
 
     def word_counter(self) -> Counter:
         if not self._computed_word_statistics():
@@ -134,11 +148,25 @@ class Corpus:
     def _compute_word_statistics(self):
         self._counter = Counter()
         self.texts().apply(lambda text: self._counter.update(self._gen_words_from(text)))
-        self.__num_tokens = sum(self._counter.values())  # total() may be used for python >3.10
-        self.__num_uniqs = len(self._counter.keys())
+        self._num_words = sum(self._counter.values())  # total() may be used for python >3.10
+        self._num_uniqs = len(self._counter.keys())
+
+    def generate_words(self):
+        """ Generate list of words for each document in the corpus. """
+        texts = self.texts()
+        for i in range(len(texts)):
+            yield self._gen_words_from(texts.iloc[i])
 
     def _gen_words_from(self, text) -> Generator[str, None, None]:
         return (token.lower() for token in re.findall('[A-Za-z]+', text))
+
+    def generate_tokens(self):
+        texts = self.texts()
+        for i in range(len(texts)):
+            yield self._gen_tokens_from(texts.iloc[i])
+
+    def _gen_tokens_from(self, text) -> Generator[str, None, None]:
+        return (token.lower() for token in text.split(" "))
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
