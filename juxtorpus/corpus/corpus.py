@@ -1,4 +1,4 @@
-from typing import Union, Set, Dict, Generator
+from typing import Union, Set, Dict, Generator, Optional
 import pandas as pd
 import spacy.vocab
 from frozendict import frozendict
@@ -6,6 +6,7 @@ from collections import Counter
 import re
 
 from juxtorpus.corpus.meta import Meta, SeriesMeta
+from juxtorpus.corpus.dtm import DTM
 
 
 class Corpus:
@@ -31,17 +32,21 @@ class Corpus:
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
         return Corpus(df[col_text], metas)
 
-    def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
+    def __init__(self, text: pd.Series,
+                 metas: Dict[str, Meta] = None):
         text.name = self.COL_TEXT
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
         # ensure initiated object is well constructed.
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
+        self.parent: Optional[Corpus] = None
+
         # meta data
-        self._meta_registry = metas
-        if self._meta_registry is None:
-            self._meta_registry = dict()
+        self._meta_registry = metas if metas is not None else dict()
+
+        # document term matrix - DTM
+        self._dtm: Optional[DTM] = DTM()
 
         # processing
         self._processing_history = list()
@@ -51,6 +56,21 @@ class Corpus:
         self._num_tokens: int = -1
         self._num_words: int = -1
         self._num_uniqs: int = -1
+
+    ### Document Term Matrix ###
+    @property
+    def dtm(self):
+        if not self._dtm.is_built:
+            root = self.find_root()
+            root._dtm.build(root.generate_words())
+        return self._dtm
+
+    def find_root(self):
+        parent = self.parent
+        if parent is None: return self
+        while parent is not None:
+            parent = parent.parent
+        return parent
 
     ### Meta data ###
 
@@ -165,9 +185,15 @@ class Corpus:
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
-        corpus = Corpus(self._cloned_texts(mask), self._cloned_metas(mask))
-        self._clone_history(corpus)
-        return corpus
+        cloned_texts = self._cloned_texts(mask)
+        cloned_metas = self._cloned_metas(mask)
+
+        clone = Corpus(cloned_texts, cloned_metas)
+        clone.parent = self
+
+        clone._dtm = self._cloned_dtm(cloned_texts.index)
+        clone._processing_history = self._cloned_history()
+        return clone
 
     def _cloned_texts(self, mask):
         return self.texts()[mask]
@@ -178,9 +204,11 @@ class Corpus:
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return cloned_meta_registry
 
-    def _clone_history(self, corpus):
-        for h in self.history():
-            corpus.add_process_episode(h)
+    def _cloned_history(self):
+        return [h for h in self.history()]
+
+    def _cloned_dtm(self, indices):
+        return self.dtm.cloned(self.dtm, indices)
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
