@@ -16,13 +16,13 @@ class Corpus:
     summary() provides a quick summary of your corpus.
     """
 
-    @staticmethod
+    @classmethod
     def from_dataframe(df: pd.DataFrame, col_text: str = 'text'):
         meta_df: pd.DataFrame = df.drop(col_text, axis=1)
         metas: dict[str, SeriesMeta] = dict()
         for col in meta_df.columns:
             # create series meta
-            if metas.get(col, None) is None:
+            if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
         return Corpus(df[col_text], metas)
