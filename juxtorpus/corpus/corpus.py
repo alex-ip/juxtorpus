@@ -241,6 +241,12 @@ class SpacyCorpus(Corpus):
         return (text[start: end].text.lower() for _, start, end in self._is_word_matcher(text))
 
     def cloned(self, mask: 'pd.Series[bool]'):
-        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._vocab)
-        self._clone_history(corpus)
-        return corpus
+        cloned_texts = self._cloned_texts(mask)
+        cloned_metas = self._cloned_metas(mask)
+
+        clone = SpacyCorpus(cloned_texts, cloned_metas, self._vocab)
+        clone.parent = self
+
+        clone._dtm = self._cloned_dtm(cloned_texts.index)
+        clone._processing_history = self._cloned_history()
+        return clone
