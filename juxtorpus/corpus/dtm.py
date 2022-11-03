@@ -1,6 +1,6 @@
 from pathlib import Path
 import pandas as pd
-from typing import Union
+from typing import Union, Iterable
 
 from sklearn.feature_extraction.text import CountVectorizer
 
@@ -26,13 +26,13 @@ sklearn CountVectorizer
 class DTM(object):
 
     @classmethod
-    def from_wordlists(cls, wordlists: list[list[str]]):
+    def from_wordlists(cls, wordlists: Iterable[Iterable[str]]):
         return cls().build(wordlists)
 
     def __init__(self):
         self.root = self
-        self.vectorizer = CountVectorizer()
-        self._dtm = None
+        self._vectorizer = None
+        self._matrix = None
         self._vocab = None
         self._term_idx_map = None
 
@@ -42,16 +42,17 @@ class DTM(object):
     @property
     def dtm(self):
         if self.root is self:
-            return self._dtm
-        return self.root._dtm[self._row_indices, :]
+            return self._matrix
+        return self.root._matrix[self._row_indices, :]
 
     @property
     def vocab(self):
         return list(self.root._vocab)
 
-    def build(self, wordlists: list[list[str]]):
-        self._dtm = self.vectorizer.fit_transform((' '.join(words) for words in wordlists))
-        self._vocab = self.vectorizer.get_feature_names_out()
+    def build(self, wordlists: Iterable[Iterable[str]]):
+        self._vectorizer = CountVectorizer()
+        self._matrix = self._vectorizer.fit_transform((' '.join(words) for words in wordlists))
+        self._vocab = self._vectorizer.get_feature_names_out()
         self._term_idx_map = {self.vocab[idx]: idx for idx in range(len(self._vocab))}
         return self
 
