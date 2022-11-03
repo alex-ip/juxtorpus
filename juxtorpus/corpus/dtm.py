@@ -35,9 +35,14 @@ class DTM(object):
         self._matrix = None
         self._vocab = None
         self._term_idx_map = None
+        self._is_built = False
 
         # only used for child dtms
         self._row_indices = None
+
+    @property
+    def is_built(self) -> bool:
+        return self.root._is_built
 
     @property
     def dtm(self):
@@ -47,18 +52,21 @@ class DTM(object):
 
     @property
     def vectorizer(self):
-        return self.root.vectorizer
+        return self.root._vectorizer
 
     @property
     def vocab(self):
         return list(self.root._vocab)
 
     def build(self, wordlists: Iterable[Iterable[str]]):
-        self._vectorizer = CountVectorizer()
-        self._matrix = self._vectorizer.fit_transform((' '.join(words) for words in wordlists))
-        self._vocab = self._vectorizer.get_feature_names_out()
-        self._term_idx_map = {self.vocab[idx]: idx for idx in range(len(self._vocab))}
+        self.root._vectorizer = CountVectorizer()
+        self.root._matrix = self._vectorizer.fit_transform((' '.join(words) for words in wordlists))
+        self.root._vocab = self._vectorizer.get_feature_names_out()
+        self.root._term_idx_map = {self.vocab[idx]: idx for idx in range(len(self._vocab))}
+        self.root._is_built = True
         return self
+
+    # diassociate - set root as self, then run build again.
 
     def term_vector(self, terms: Union[str, list[str]]):
         """ Return the term vector represented by the documents. """
