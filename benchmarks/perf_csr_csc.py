@@ -44,8 +44,7 @@ if __name__ == '__main__':
     from juxtorpus.corpus import Corpus
 
     corpus = Corpus.from_dataframe(
-        # pd.read_csv("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"),
-        pd.read_csv("~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv"),
+        pd.read_csv("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"),
         col_text='processed_text'
     )
     csr = corpus.dtm.matrix
