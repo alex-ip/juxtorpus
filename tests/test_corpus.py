@@ -16,10 +16,12 @@ def is_equal(v1, v2):
     return not checks.data.any()
 
 
+df = pd.read_csv('tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
+                 usecols=['processed_text', 'tweet_lga'])
+
+
 class TestCorpus(unittest.TestCase):
     def setUp(self) -> None:
-        df = pd.read_csv('tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
-                         usecols=['processed_text', 'tweet_lga'])
         self.corpus = Corpus.from_dataframe(df, col_text='processed_text')
 
     def tearDown(self) -> None:
@@ -51,3 +53,15 @@ class TestCorpus(unittest.TestCase):
         for cloned_idx in cloned_indices:
             original_idx = texts.index[cloned_idx]
             assert is_equal(self.corpus.dtm.matrix[original_idx, :], cloned_again.dtm.matrix[cloned_idx, :])
+
+    def test_detach(self):
+        # detached corpus should be root, DTM should be rebuilt.
+        mask, _ = random_mask(self.corpus)
+        clone = self.corpus.cloned(mask)
+
+        orig_num_uniqs = self.corpus.dtm.shape[1]
+        assert orig_num_uniqs == clone.dtm.shape[1], "Precondition not met for downstream assertion."
+
+        clone.detached()
+        assert clone.is_root, "Clone is detached. It should be root."
+        assert clone.dtm.shape[1] != orig_num_uniqs

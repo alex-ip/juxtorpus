@@ -116,12 +116,14 @@ class Corpus:
     def num_words(self) -> int:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
+            self._num_words = sum(self._counter.values())  # total() may be used for python >3.10
         return self._num_words
 
     @property
     def num_unique_words(self) -> int:
         if not self._computed_word_statistics():
             self._compute_word_statistics()
+            self._num_uniqs = len(self._counter.keys())
         return self._num_uniqs
 
     @property
@@ -171,8 +173,6 @@ class Corpus:
     def _compute_word_statistics(self):
         self._counter = Counter()
         self.texts().apply(lambda text: self._counter.update(self._gen_words_from(text)))
-        self._num_words = sum(self._counter.values())  # total() may be used for python >3.10
-        self._num_uniqs = len(self._counter.keys())
 
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
@@ -225,6 +225,15 @@ class Corpus:
         col_text_idx = self._df.columns.get_loc('text')
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
+
+    def detached(self):
+        """ Detaches from corpus tree and becomes the root.
+
+        DTM will be regenerated when accessed - hence a different vocab.
+        """
+        self._parent = None
+        self._dtm = DTM()
+        return self
 
 
 from juxtorpus.matchers import is_word
