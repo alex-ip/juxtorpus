@@ -53,6 +53,10 @@ class DTM(object):
         return self.matrix.shape
 
     @property
+    def total_terms(self):
+        return self.matrix.sum()
+
+    @property
     def vectorizer(self):
         return self.root._vectorizer
 
@@ -67,8 +71,6 @@ class DTM(object):
         self.root._term_idx_map = {self.vocab[idx]: idx for idx in range(len(self._vocab))}
         self.root._is_built = True
         return self
-
-    # diassociate - set root as self, then run build again.
 
     def term_vector(self, terms: Union[str, list[str]]):
         """ Return the term vector represented by the documents. """
