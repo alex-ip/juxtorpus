@@ -49,6 +49,10 @@ class DTM(object):
         return self.root._matrix[self._row_indices, :]
 
     @property
+    def shape(self):
+        return self.matrix.shape
+
+    @property
     def vectorizer(self):
         return self.root._vectorizer
 
