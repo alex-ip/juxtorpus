@@ -2,9 +2,9 @@ from typing import Union, List, Set, Dict
 import pandas as pd
 from frozendict import frozendict
 from functools import partial
+from collections import Counter
 
-from juxtorpus import nlp
-from juxtorpus.meta import Meta, SeriesMeta, DocMeta
+from juxtorpus.meta import Meta, SeriesMeta
 
 
 class Corpus:
@@ -15,19 +15,18 @@ class Corpus:
     summary() provides a quick summary of your corpus.
     """
 
-    @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = 'text'):
-        meta_df: pd.DataFrame = df.drop(col_text)
+    @staticmethod
+    def from_dataframe(df: pd.DataFrame, col_text: str = 'text'):
+        meta_df: pd.DataFrame = df.drop(col_text, axis=1)
         metas: dict[str, SeriesMeta] = dict()
         for col in meta_df.columns:
             # create series meta
             if metas.get(col, None) is None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
-        return cls(df[col_text], metas)
+        return Corpus(df[col_text], metas)
 
     COL_TEXT: str = 'text'
-    __dtype_text = pd.StringDtype(storage='pyarrow')
 
     def __init__(self, text: pd.Series, metas: Dict[str, Meta] = None):
         text.name = self.COL_TEXT
@@ -36,15 +35,16 @@ class Corpus:
         assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
             f"More than 1 {self.COL_TEXT} column in dataframe."
 
-        # sets the default dtype for texts
-        self.__try_text_dtype_conversion(Corpus.__dtype_text)
-
         # meta data
         self._meta_registry = metas
         if self._meta_registry is None:
             self._meta_registry = dict()
 
-        # internals
+        # processing
+        self._processing_history = list()
+
+        # internals - word statistics
+        self._counter: Union[Counter, None] = None
         self.__num_tokens: int = -1
         self.__num_uniqs: int = -1
 
@@ -64,6 +64,14 @@ class Corpus:
     def get_meta(self, id_: str):
         return self._meta_registry.get(id_, None)
 
+    ### Processing ###
+    def history(self):
+        """ Returns a list of processing history. """
+        return self._processing_history.copy()
+
+    def add_process_episode(self, episode):
+        self._processing_history.append(episode)
+
     ### Statistics ###
 
     @property
@@ -79,70 +87,95 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
         return pd.Series({
-            "Number of words": self.num_words,
-            "Number of unique words": self.num_unique_words
-        }, name='frequency')  # todo: use uint32 dtype.
+            "Number of words": max(self.num_words, 0),
+            "Number of unique words": max(self.num_unique_words, 0),
+            "Number of documents": len(self)
+        }, name='frequency', dtype='uint64')  # supports up to ~4 billion
 
     def freq_of(self, words: Set[str]):
         """ Returns the frequency of a list of words. """
-        word_dict = dict()
-        for w in words:
-            word_dict[w] = 0
-        for i in range(len(self._df)):
-            _doc = self._df[self.COL_TEXT].iloc[i]
-            for t in _doc:
-                if word_dict.get(t, None) is not None:
-                    word_dict[t] += 1
-        return word_dict
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
+        freqs = dict()
+        if isinstance(words, str):
+            freqs[words] = self._counter.get(words, 0)
+            return freqs
+        else:
+            for word in words:
+                freqs[word] = self._counter.get(words, 0)
+
+    def most_common(self, n: int):
+        if not self._computed_word_statistics():
+            self._compute_word_statistics()
+        return self._counter.most_common(n)
+
+    def _computed_word_statistics(self):
+        return self._counter is not None
+
+    def _compute_word_statistics(self):
+        self._counter = Counter()
+        self.texts().apply(lambda text: self._counter.update(self._gen_words_from(text)))
+        self.__num_tokens = sum(self._counter.values())  # total() may be used for python >3.10
+        self.__num_uniqs = len(self._counter.keys())
+
+    def _gen_words_from(self, text) -> list[str]:
+        return (token.lower() for token in text.split())
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a clone of itself with the boolean mask applied. """
-        text_series = self._df.loc[:, self.COL_TEXT][mask]
+        corpus = Corpus(self._cloned_texts(mask), self._cloned_metas(mask))
+        self._clone_history(corpus)
+        return corpus
+
+    def _cloned_texts(self, mask):
+        return self.texts()[mask]
+
+    def _cloned_metas(self, mask):
         cloned_meta_registry = dict()
         for id_, meta in self._meta_registry.items():
-            # TODO: tight coupling here - DocMeta, spacy nlp
-            if isinstance(meta, DocMeta):
-                mask = partial(nlp.pipe, text_series)
-            cloned_meta_registry[id_] = meta.cloned(mask)
-        return Corpus(text_series, cloned_meta_registry)
+            cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
+        return cloned_meta_registry
+
+    def _clone_history(self, corpus):
+        for h in self.history():
+            corpus.add_process_episode(h)
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
 
-    def __try_text_dtype_conversion(self, dtype):
-        try:
-            if self._df.loc[:, self.COL_TEXT].dtype != self.__dtype_text:
-                self._df = self._df.astype(dtype={self.COL_TEXT: dtype})
-        except TypeError:
-            print(
-                f"[Warn] {self.COL_TEXT} column failed to convert to {dtype} dtype. \
-                There will possibly be higher memory consumption however you  may safely ignore this."
-            )
+    def __iter__(self):
+        col_text_idx = self._df.columns.get_loc('text')
+        for i in range(len(self)):
+            yield self._df.iat[i, col_text_idx]
 
 
-class TweetCorpus(Corpus):
-    # the features/attributes is a superset of corpus.
-    pass
+from spacy.matcher import Matcher
+from juxtorpus.matchers import no_puncs
 
 
-class DummyCorpus(Corpus):
-    dummy_texts = [
-        "The cafe is empty aside from an old man reading a book about Aristotle."
-        "In Australia, Burger King is called Hungry Jacks.",
-        "She is poor but quite respectable.",
-        "She was very tired and frustrated.",
-        "What's your address?",
-        "Man it is hot in Australia!"
-    ]
+class SpacyCorpus(Corpus):
 
-    def __init__(self):
-        super(DummyCorpus, self).__init__(pd.Series(self.dummy_texts), metas=None)
+    @classmethod
+    def from_corpus(cls, corpus: Corpus, docs, vocab):
+        _no_puncs = no_puncs(vocab)
+        return cls(docs, corpus._meta_registry, _no_puncs)
+
+    def __init__(self, docs, metas, no_puncs_matcher: Matcher):
+        super(SpacyCorpus, self).__init__(docs, metas)
+        self._no_puncs = no_puncs_matcher
+
+    def _gen_words_from(self, text):
+        return (t for t in self._no_puncs(text))
+
+    def cloned(self, mask: 'pd.Series[bool]'):
+        corpus = SpacyCorpus(self._cloned_texts(mask), self._cloned_metas(mask), self._no_puncs)
+        self._clone_history(corpus)
+        return corpus
 
 
-# aliases
+# import aliases
 from .builder import CorpusBuilder
 from .slicer import CorpusSlicer
-
-if __name__ == '__main__':
-    pass

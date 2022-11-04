@@ -2,14 +2,15 @@ from spacy import Language
 from spacy.tokens import Doc
 from spacy.matcher import Matcher
 
-from juxtorpus.components import Component
+from juxtorpus.corpus.processors.components import Component
 
 
 class HashtagComponent(Component):
-    def __init__(self, nlp: Language, name: str):
-        super().__init__(nlp, name)
-        if not Doc.has_extension("hashtags"):
-            Doc.set_extension("hashtags", default=[])  # doc._.hashtags is may now be accessed.
+    def __init__(self, nlp: Language, name: str, attr: str):
+        super().__init__(nlp, name, attr)
+        self._getter = lambda hashtags: [ht.text for ht in hashtags]
+        if not Doc.has_extension(self._attr):
+            Doc.set_extension(self._attr, default=[])  # doc._.hashtags is may now be accessed.
 
         self.matcher = Matcher(nlp.vocab)
         self.matcher.add("hashtag", patterns=[
@@ -19,7 +20,7 @@ class HashtagComponent(Component):
     def __call__(self, doc: Doc) -> Doc:
         for _, start, end in self.matcher(doc):
             span = doc[start: end]
-            doc._.hashtags.append(span)
+            getattr(getattr(doc, '_'), self._attr).append(span.text)
         return doc
 
 
@@ -44,7 +45,7 @@ if __name__ == '__main__':
     # using the custom component...
     @Language.factory('extract_hashtags')
     def create_hashtag_component(nlp: Language, name: str):
-        return HashtagComponent(nlp, name)
+        return HashtagComponent(nlp, name, 'hashtags')
 
 
     nlp.add_pipe('extract_hashtags')

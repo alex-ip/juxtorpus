@@ -45,49 +45,86 @@ Notes:
     + use 'senter' instead of 'parser' when dependency parsing is not required. Inference is ~10x faster.
 """
 
-from typing import List
+import spacy
 from spacy import Language
-from juxtorpus.components.hashtags import HashtagComponent
+from functools import partial
+from datetime import datetime
+import pandas as pd
+
+from juxtorpus.corpus import Corpus, SpacyCorpus
+from juxtorpus.corpus.processors import Processor, ProcessEpisode
+from juxtorpus.corpus.processors.components import Component
+from juxtorpus.corpus.processors.components.hashtags import HashtagComponent
+from juxtorpus.meta import DocMeta
 
 
 @Language.factory("extract_hashtags")
 def create_hashtag_component(nlp: Language, name: str):
-    return HashtagComponent(nlp, name)
+    return HashtagComponent(nlp, name, attr='hashtags')
 
 
-# todo: ordering of all components not handled here
-# todo: trainable components + modelling not entirely thought through here. (as these will use .cfg s)
+class SpacyProcessor(Processor):
+    built_in_component_attrs = {
+        'ner': 'ents'
+    }
 
+    def __init__(self, nlp: Language):
+        self._nlp = nlp
 
-def adjust_pipeline_with(nlp: Language, components: List[str]):
-    """ add pipes if not exist. """
-    for name in nlp.pipe_names:
-        nlp.disable_pipe(name)
+    @property
+    def nlp(self):
+        return self._nlp
 
-    from juxtorpus import out_of_the_box_components  # hacky
-    for c in nlp.component_names:
-        if c not in out_of_the_box_components:
-            nlp.remove_pipe(c)
+    def _process(self, corpus: Corpus) -> SpacyCorpus:
+        docs = pd.Series(self.nlp.pipe(corpus.texts()))
+        return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
 
-    for c in components:
-        if c in out_of_the_box_components:
-            nlp.enable_pipe(c)
-        else:
-            _ = nlp.add_pipe(factory_name=c)
+    def _add_metas(self, corpus: Corpus):
+        """ Add the relevant meta-objects into the Corpus class.
+
+        Note: attribute name can come from custom extensions OR spacy built in. see built_in_component_attrs.
+        """
+        for name, comp in self.nlp.pipeline:
+            _attr = comp.attr if isinstance(comp, Component) else self.built_in_component_attrs.get(name, None)
+            if _attr is None: continue
+            generator = corpus._df.loc[:, corpus.COL_TEXT]
+            meta = DocMeta(id_=name, attr=_attr, nlp=self.nlp, docs=generator)
+            corpus.add_meta(meta)
+
+    def _create_episode(self) -> ProcessEpisode:
+        return ProcessEpisode(
+            f"Spacy Processor processed on {datetime.now()} with pipeline components {', '.join(self.nlp.pipe_names)}."
+        )
 
 
 if __name__ == '__main__':
-    from juxtorpus import nlp
+    import pathlib
+    from juxtorpus.corpus import CorpusBuilder, CorpusSlicer
 
-    print(f"Currently enabled: {nlp.pipe_names}\tdisabled: {nlp.disabled}")
+    builder = CorpusBuilder(
+        pathlib.Path('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
+    )
+    builder.set_nrows(10000)
+    builder.set_text_column('text')
+    corpus = builder.build()
 
-    new_pipe_names = ['tok2vec', 'ner', 'extract_hashtags']
-    print(f"Adjust pipeline with: {new_pipe_names}")
-    adjust_pipeline_with(nlp, new_pipe_names)
-    print(f"Currently enabled: {nlp.pipe_names}\tdisabled: {nlp.disabled}")
-    print(f"nlp('hello #atap')._.hashtags: {nlp('hello #atap')._.hashtags}")
+    # Now to process the corpus...
 
-    new_pipe_names = ['ner']
-    print(f"Adjust pipeline with: {new_pipe_names}")
-    adjust_pipeline_with(nlp, new_pipe_names)
-    print(f"Currently enabled: {nlp.pipe_names}\tdisabled: {nlp.disabled}")
+    import spacy
+
+    nlp = spacy.load('en_core_web_sm')
+    nlp.add_pipe('extract_hashtags')
+
+    spacy_processor = SpacyProcessor(nlp)
+    corpus = spacy_processor.run(corpus)
+
+    print(corpus.history())
+
+    # Now to test with corpus slicer...
+
+    slicer = CorpusSlicer(corpus)
+    slice = slicer.filter_by_condition('extract_hashtags', lambda x: '#RiseofthePeople' in x)
+    print(len(slice))
+
+    slice = slicer.filter_by_item('extract_hashtags', '#RiseofthePeople')
+    print(len(slice))

@@ -35,5 +35,5 @@ else
 fi;
 
 echo "++ Done. Your virtual env is installed at $VENV_DIR"
-source $VENV_DIR/bin/activate
+echo "To activate your virtual env run: source $VENV_DIR/bin/activate"
 exit 0

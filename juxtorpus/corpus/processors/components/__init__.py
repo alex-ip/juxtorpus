@@ -18,9 +18,14 @@ from spacy.language import Language
 
 
 class Component(metaclass=ABCMeta):
-    def __init__(self, nlp: Language, name: str):
+    def __init__(self, nlp: Language, name: str, attr: str):
         self._nlp = nlp
         self._name = name
+        self._attr = attr
+
+    @property
+    def attr(self):
+        return self._attr
 
     # todo: see spaCy Language doc, nlp.pipe(as_tuples=True) - this allow context to be passed down i believe.
     @abstractmethod

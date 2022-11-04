@@ -1,14 +1,15 @@
 import pandas as pd
 import pathlib
 from functools import partial
+from typing import Union
 
-from juxtorpus.corpus import Corpus, TweetCorpus
+from juxtorpus.corpus import Corpus
 from juxtorpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
 
 
 class CorpusBuilder(object):
-    def __init__(self, paths: list[pathlib.Path]):
+    def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
         if isinstance(paths, str):
             paths = pathlib.Path(paths)
         if isinstance(paths, pathlib.Path):
@@ -21,10 +22,13 @@ class CorpusBuilder(object):
         self._col_text = 'text'
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
 
+    def head(self, n: int):
+        return pd.read_csv(self._paths[0], nrows=n).head(n)
+
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
         added = pd.Series((col for col in self._metas_configs.keys()), name='Added')
-        df = pd.concat([all, added], axis=1).fillna('')
+        df = pd.concat([all, added], axis=1).fillna('').T
         return df
 
     def add_meta(self, column: str, dtype: str = None, lazy=False):
@@ -39,12 +43,17 @@ class CorpusBuilder(object):
         del self._metas_configs[column]
 
     def set_text_column(self, column: str):
+        if column not in self._columns:
+            raise KeyError(
+                f"Column: '{column}' not found. Use show_columns() to preview the columns in the dataframe")
         self._col_text = column
 
     def set_sep(self, sep: str):
         self._sep = sep
 
     def set_nrows(self, nrows: int):
+        if nrows < 0:
+            raise ValueError("nrows must be a positive integer. Set as None to remove.")
         self._nrows = nrows
 
     def set_corpus_type(self, type_: str):
@@ -53,8 +62,8 @@ class CorpusBuilder(object):
     def build(self) -> 'Corpus':
         # decide which corpus.
         corpus_cls = Corpus
-        if self._corpus_type.upper() == 'TWEET':
-            corpus_cls = TweetCorpus
+        # if self._corpus_type.upper() == 'TWEET':
+        #     corpus_cls = TweetCorpus
 
         metas = dict()
         lazies = {col: col_dict for col, col_dict in self._metas_configs.items()
@@ -87,8 +96,11 @@ class CorpusBuilder(object):
                 current += len(df)
             dfs.append(df)
         df = pd.concat(dfs, axis=0)
+
+        # dtypes conversions
         dtype_dict = {col: self._metas_configs.get(col).get('dtype')
                       for col in series_cols.difference([self._col_text]).difference(datetime_cols)}
+        dtype_dict[self._col_text] = pd.StringDtype(storage='pyarrow')
         df = df.astype(dtype_dict)
 
         if self._col_text not in df.columns:
@@ -126,4 +138,4 @@ if __name__ == '__main__':
     print(corpus.metas())
 
     # print(corpus.get_meta('tweet_lga').preview(5))
-    print(corpus.get_meta('created_at').preview(5))
+    print(corpus.get_meta('created_at').head(5))
