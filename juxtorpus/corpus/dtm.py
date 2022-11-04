@@ -96,6 +96,9 @@ class DTM(object):
         cloned._row_indices = row_indices
         return cloned
 
+    def to_dataframe(self):
+        return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.vocab)
+
 
 if __name__ == '__main__':
     from juxtorpus.corpus.corpus import Corpus
@@ -112,3 +115,12 @@ if __name__ == '__main__':
     child_dtm = dtm.cloned(dtm, sub_df.index)
     print(child_dtm.term_vector('the').shape)
     print(child_dtm.term_vector(['the', 'he', 'she']).shape)
+
+    df = child_dtm.to_dataframe()
+    print(df.head())
+
+    print(f"Child DTM shape: {child_dtm.shape}")
+    print(f"Child DTM DF shape: {df.shape}")
+    print(f"Child DTM DF memory usage:")
+    df.info(memory_usage='deep')
+
