@@ -35,7 +35,7 @@ if __name__ == '__main__':
 
     # each word as a percentage over full corpus
     corpus_terms_percentages = corpus.dtm.matrix.sum(axis=0) / corpus_total_words
-    assert corpus_terms_percentages.sum() == 1.0  # total probability
+    assert corpus_terms_percentages.sum() >= 0.99  # total probability (with floating point precision)
     one_terms_expected_wc = one_total_words * corpus_terms_percentages  # -> vector of expected word count for one
     two_terms_expected_wc = two_total_words * corpus_terms_percentages  # -> vector of expected word count for two, now compare real word count with expected?
 
@@ -46,12 +46,12 @@ if __name__ == '__main__':
 
     def log_likelihood(raw_wc, expected_wc):
         non_zero_indices = raw_wc.nonzero()[1]  # [1] as its 2d matrix although it's only 1 vector.
-        raw_wc = raw_wc + 1  # add 1 for zeros for log later
-        raw_wc[:, non_zero_indices] -= 1  # minus 1 for non-zeros
+        raw_wc_log = raw_wc + 1  # add 1 for zeros for log later
+        raw_wc_log[:, non_zero_indices] -= 1  # minus 1 for non-zeros
         non_zero_indices = expected_wc.nonzero()[1]
-        expected_wc = expected_wc + 1
-        expected_wc[:, non_zero_indices] -= 1
-        return 2 * (np.log(raw_wc) - np.log(expected_wc))
+        expected_wc_log = expected_wc + 1
+        expected_wc_log[:, non_zero_indices] -= 1
+        return 2 * np.multiply(raw_wc, (np.log(raw_wc_log) - np.log(expected_wc_log)))
 
 
     subcorpus_terms_log_likelihood = np.vstack([log_likelihood(one_terms_raw_wc, one_terms_expected_wc),
@@ -65,3 +65,5 @@ if __name__ == '__main__':
     # min expected wc across all subcorpus
     corpus_terms_min_expected_wc = np.vstack([one_terms_expected_wc, two_terms_expected_wc]).min(axis=0)
     corpus_terms_ell = corpus_terms_log_likelihood / (corpus_total_words * np.log(corpus_terms_min_expected_wc))
+
+    print()
