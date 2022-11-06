@@ -70,7 +70,7 @@ class Corpus:
     def dtm(self):
         if not self._dtm.is_built:
             root = self.find_root()
-            root._dtm.build(root.generate_words())
+            root._dtm.build(root.texts())
         return self._dtm
 
     def find_root(self):
