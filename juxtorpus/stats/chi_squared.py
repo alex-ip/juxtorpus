@@ -6,6 +6,7 @@ total_word_by_source    num times 'obesity' is used in the corpus
 total_word_used         num times 'obesity' is used in all corpus
 total_word_in_corpus    number of words in the corpus
 """
+import time
 
 if __name__ == '__main__':
     from juxtorpus.corpus import Corpus, CorpusSlicer
@@ -14,6 +15,7 @@ if __name__ == '__main__':
 
     # 1. filter by tweet_lga into n sub-corpus
     # 2. get the expected word count per source     % word over all corpus
+    print("Creating corpus...")
     corpus = Corpus.from_dataframe(
         # pd.read_csv('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
         #             usecols=['processed_text', 'tweet_lga']),
@@ -22,10 +24,16 @@ if __name__ == '__main__':
         col_text='processed_text'
     )
 
+    print(f"Slicing {len(corpus)} documents...")
+    start = time.perf_counter()
     slicer = CorpusSlicer(corpus)
-    one = slicer.filter_by_item('tweet_lga', 'Sunshine Coast (R)')
-    two = slicer.filter_by_item('tweet_lga', 'Broken Hill (C)')
+    sliced = slicer.filter_by_item('tweet_lga', ['Sunshine Coast (R)', 'Broken Hill (C)'])
+    one = CorpusSlicer(sliced).filter_by_item('tweet_lga', 'Sunshine Coast (R)')
+    two = CorpusSlicer(sliced).filter_by_item('tweet_lga', 'Broken Hill (C)')
+    print(f"Elapsed: {time.perf_counter() - start}s")
 
+    start = time.perf_counter()
+    print("Computing statistics...")
     corpus_total_words = corpus.dtm.matrix.sum()
     one_total_words = one.dtm.matrix.sum()
     two_total_words = two.dtm.matrix.sum()
@@ -65,5 +73,7 @@ if __name__ == '__main__':
     # min expected wc across all subcorpus
     corpus_terms_min_expected_wc = np.vstack([one_terms_expected_wc, two_terms_expected_wc]).min(axis=0)
     corpus_terms_ell = corpus_terms_log_likelihood / (corpus_total_words * np.log(corpus_terms_min_expected_wc))
-
-    print()
+    print(f"Elapsed: {time.perf_counter() - start}s")
+    print(f"Log likelihood: {corpus_terms_log_likelihood}")
+    print(f"BIC: {corpus_terms_bic}")
+    print(f"ELL: {corpus_terms_ell}")
