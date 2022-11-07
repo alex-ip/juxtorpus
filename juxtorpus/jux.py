@@ -6,11 +6,6 @@ import pandas as pd
 import spacy
 
 
-class JuxViz:
-    def directionality(self):
-        print("This plots the directionality of the content.")
-
-
 class Jux:
     """ Jux
     This is the main class for Juxtorpus. It takes in 2 corpus and exposes numerous functions
