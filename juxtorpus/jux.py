@@ -55,9 +55,11 @@ class Jux:
         return extractor_A.extracted(), extractor_B.extracted()
 
     def lexical_diversity(self):
-        # number of uniq / number of words
-        # of course this will be a problem if the 2 corpus have different sizes. So maybe this is a log relationship.
-        pass
+        """ Return the lexical diversity comparison"""
+        # a smaller corpus will generally have better lexical diversity
+        ld_A = self._A.num_unique_words / self._A.num_words
+        ld_B = self._B.num_unique_words / self._B.num_words
+        return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}
 
     def log_likelihood_ratios(self):
         root = self._get_shared_root_corpus_or_raise_error()
