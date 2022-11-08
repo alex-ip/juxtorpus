@@ -61,7 +61,7 @@ class DTM(object):
         return self.matrix.shape[0]
 
     @property
-    def total_terms(self):
+    def total(self):
         return self.matrix.sum()
 
     @property
