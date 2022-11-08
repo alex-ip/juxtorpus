@@ -59,7 +59,7 @@ class Jux:
         # a smaller corpus will generally have better lexical diversity
         ld_A = self._A.num_unique_words / self._A.num_words
         ld_B = self._B.num_unique_words / self._B.num_words
-        return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}
+        return np.exp(ld_A) - np.exp(ld_B), {'corpusA': ld_A, 'corpusB': ld_B}
 
     def log_likelihood_ratios(self):
         root = self._get_shared_root_corpus_or_raise_error()
