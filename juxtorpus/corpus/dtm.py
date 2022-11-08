@@ -53,8 +53,21 @@ class DTM(object):
         return self.matrix.shape
 
     @property
+    def num_terms(self):
+        return self.matrix.shape[1]
+
+    @property
+    def num_docs(self):
+        return self.matrix.shape[0]
+
+    @property
     def total_terms(self):
         return self.matrix.sum()
+
+    @property
+    def total_terms_vector(self):
+        """ Returns a vector of term likelihoods """
+        return self.matrix.sum(axis=0)
 
     @property
     def vectorizer(self):
@@ -65,10 +78,10 @@ class DTM(object):
         return list(self.root._vocab)
 
     def build(self, wordlists: Iterable[Iterable[str]]):
-        self.root._vectorizer = CountVectorizer()
-        self.root._matrix = self._vectorizer.fit_transform((' '.join(words) for words in wordlists))
+        self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
+        self.root._matrix = self._vectorizer.fit_transform(wordlists)
         self.root._vocab = self._vectorizer.get_feature_names_out()
-        self.root._term_idx_map = {self.vocab[idx]: idx for idx in range(len(self._vocab))}
+        self.root._term_idx_map = {self._vocab[idx]: idx for idx in range(len(self._vocab))}
         self.root._is_built = True
         return self
 
@@ -123,4 +136,3 @@ if __name__ == '__main__':
     print(f"Child DTM DF shape: {df.shape}")
     print(f"Child DTM DF memory usage:")
     df.info(memory_usage='deep')
-
