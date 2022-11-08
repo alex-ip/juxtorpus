@@ -1,7 +1,7 @@
 from juxtorpus.corpus import Corpus
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
 
-from typing import Tuple, List
+from typing import Tuple, List, Union
 import pandas as pd
 import spacy
 import numpy as np
@@ -60,6 +60,17 @@ class Jux:
         ld_A = self._A.num_unique_words / np.log(self._A.num_words)
         ld_B = self._B.num_unique_words / np.log(self._B.num_words)
         return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}
+
+    def stats(self, keys: Union[str, set[str]]):
+        if isinstance(keys, str): keys = {keys}
+        results = dict()
+        if 'log likelihood ratios' in keys:
+            results['log likelihood ratios'] = self.log_likelihood_ratios()
+        if 'ell' in keys:
+            results['ell'] = self.ell()
+        if 'bic' in keys:
+            results['bic'] = self.bayes_factor_bic()
+        return results
 
     def log_likelihood_ratios(self):
         root = self._get_shared_root_corpus_or_raise_error()
