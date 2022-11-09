@@ -78,7 +78,7 @@ class DTM(object):
         return list(self.root._vocab)
 
     @property
-    def feature_names(self):
+    def term_names(self):
         return self.vectorizer.get_feature_names_out()
 
     def build(self, wordlists: Iterable[Iterable[str]]):
@@ -89,7 +89,7 @@ class DTM(object):
         self.root._is_built = True
         return self
 
-    def term_vector(self, terms: Union[str, list[str]]):
+    def terms_column_vectors(self, terms: Union[str, list[str]]):
         """ Return the term vector represented by the documents. """
         cols: Union[int, list[int]]
         if isinstance(terms, str):
@@ -124,14 +124,14 @@ if __name__ == '__main__':
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
 
     dtm = DTM.from_wordlists(corpus.generate_words())
-    print(dtm.term_vector('the').shape)
-    print(dtm.term_vector(['the', 'he', 'she']).shape)
+    print(dtm.terms_column_vectors('the').shape)
+    print(dtm.terms_column_vectors(['the', 'he', 'she']).shape)
 
     sub_df = df[df['processed_text'].str.contains('the')]
 
     child_dtm = dtm.cloned(dtm, sub_df.index)
-    print(child_dtm.term_vector('the').shape)
-    print(child_dtm.term_vector(['the', 'he', 'she']).shape)
+    print(child_dtm.terms_column_vectors('the').shape)
+    print(child_dtm.terms_column_vectors(['the', 'he', 'she']).shape)
 
     df = child_dtm.to_dataframe()
     print(df.head())
