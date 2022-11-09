@@ -254,8 +254,16 @@ class SpacyCorpus(Corpus):
     def vocab(self):
         return self._vocab
 
-    def _gen_words_from(self, text):
-        return (text[start: end].text.lower() for _, start, end in self._is_word_matcher(text))
+    def _gen_words_from(self, doc):
+        return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
+
+    def generate_lemmas(self):
+        texts = self.texts()
+        for i in range(len(texts)):
+            yield self._gen_lemmas_from(texts.iloc[i])
+
+    def _gen_lemmas_from(self, doc):
+        return (doc[start: end].lemma_ for _, start, end in self._is_word_matcher(doc))
 
     def cloned(self, mask: 'pd.Series[bool]'):
         cloned_texts = self._cloned_texts(mask)
