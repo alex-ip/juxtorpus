@@ -77,6 +77,10 @@ class DTM(object):
     def vocab(self):
         return list(self.root._vocab)
 
+    @property
+    def feature_names(self):
+        return self.vectorizer.get_feature_names_out()
+
     def build(self, wordlists: Iterable[Iterable[str]]):
         self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
         self.root._matrix = self._vectorizer.fit_transform(wordlists)
