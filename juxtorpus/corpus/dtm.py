@@ -1,5 +1,7 @@
+import contextlib
 from pathlib import Path
 import pandas as pd
+import numpy as np
 from typing import Union, Iterable
 
 from sklearn.feature_extraction.text import CountVectorizer
@@ -37,6 +39,7 @@ class DTM(object):
 
         # only used for child dtms
         self._row_indices = None
+        self._col_indices = None
 
     @property
     def is_built(self) -> bool:
@@ -44,9 +47,13 @@ class DTM(object):
 
     @property
     def matrix(self):
-        if self.root is self:
-            return self._matrix
-        return self.root._matrix[self._row_indices, :]
+        if self._row_indices is not None and self._col_indices is not None:
+            return self.root._matrix[self._row_indices, self._col_indices]
+        elif self._row_indices is not None:
+            return self.root._matrix[self._row_indices, :]
+        elif self._col_indices is not None:
+            return self.root._matrix[:, self._col_indices]
+        return self.root._matrix
 
     @property
     def shape(self):
@@ -74,12 +81,10 @@ class DTM(object):
         return self.root._vectorizer
 
     @property
-    def vocab(self):
-        return list(self.root._vocab)
-
-    @property
     def term_names(self):
-        return self.vectorizer.get_feature_names_out()
+        """ Return the terms in the current dtm. """
+        features = self.vectorizer.get_feature_names_out()
+        return features if self._col_indices is None else features[self._col_indices]
 
     def build(self, wordlists: Iterable[Iterable[str]]):
         self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
@@ -114,7 +119,18 @@ class DTM(object):
         return cloned
 
     def to_dataframe(self):
-        return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.vocab)
+        return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.term_names)
+
+    @contextlib.contextmanager
+    def remove_terms(self, terms: Union[list[str], set[str]]):
+        diff = set(terms).difference(set(self.term_names))
+        if len(diff) > 0: raise ValueError(f"Terms {diff} does not exist in this dtm.")
+        try:
+            features = self.vectorizer.get_feature_names_out()
+            self._col_indices = np.isin(features, list(terms), invert=True).nonzero()[0]
+            yield self
+        finally:
+            self._col_indices = None
 
 
 if __name__ == '__main__':
@@ -123,7 +139,7 @@ if __name__ == '__main__':
     df = pd.read_csv(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
 
-    dtm = DTM.from_wordlists(corpus.generate_words())
+    dtm = DTM().build(corpus.texts())
     print(dtm.terms_column_vectors('the').shape)
     print(dtm.terms_column_vectors(['the', 'he', 'she']).shape)
 
@@ -140,3 +156,9 @@ if __name__ == '__main__':
     print(f"Child DTM DF shape: {df.shape}")
     print(f"Child DTM DF memory usage:")
     df.info(memory_usage='deep')
+
+    # with remove_words context
+    prev = set(dtm.term_names)
+    with dtm.remove_terms({'hello'}) as subdtm:
+        print(subdtm.num_terms)
+        print(prev.difference(set(subdtm.term_names)))
