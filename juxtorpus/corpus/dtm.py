@@ -122,8 +122,8 @@ class DTM(object):
         return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.term_names)
 
     @contextlib.contextmanager
-    def remove_terms(self, terms: Union[list[str], set[str]]):
-        diff = set(terms).difference(set(self.term_names))
+    def without_terms(self, terms: Union[list[str], set[str]]):
+        """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
         if len(diff) > 0: raise ValueError(f"Terms {diff} does not exist in this dtm.")
         try:
             features = self.vectorizer.get_feature_names_out()
@@ -159,6 +159,6 @@ if __name__ == '__main__':
 
     # with remove_words context
     prev = set(dtm.term_names)
-    with dtm.remove_terms({'hello'}) as subdtm:
+    with dtm.without_terms({'hello'}) as subdtm:
         print(subdtm.num_terms)
         print(prev.difference(set(subdtm.term_names)))
