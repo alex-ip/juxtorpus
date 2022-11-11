@@ -86,9 +86,9 @@ class DTM(object):
         features = self.vectorizer.get_feature_names_out()
         return features if self._col_indices is None else features[self._col_indices]
 
-    def build(self, wordlists: Iterable[Iterable[str]]):
+    def build(self, texts: Iterable[str]):
         self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
-        self.root._matrix = self._vectorizer.fit_transform(wordlists)
+        self.root._matrix = self._vectorizer.fit_transform(texts)
         self.root._vocab = self._vectorizer.get_feature_names_out()
         self.root._term_idx_map = {self._vocab[idx]: idx for idx in range(len(self._vocab))}
         self.root._is_built = True
