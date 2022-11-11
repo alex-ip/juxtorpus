@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from typing import Union, Iterable
 
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
 """ Document Term Matrix DTM
 
@@ -36,6 +36,7 @@ class DTM(object):
         self._vocab = None
         self._term_idx_map = None
         self._is_built = False
+        self.derived_from = None  # for any dtms derived from word frequencies
 
         # only used for child dtms
         self._row_indices = None
@@ -53,7 +54,6 @@ class DTM(object):
         if self._col_indices is not None:
             matrix = matrix[:, self._col_indices]
         return matrix
-        return self.root._matrix
 
     @property
     def shape(self):
@@ -118,13 +118,28 @@ class DTM(object):
         cloned._row_indices = row_indices
         return cloned
 
+    def tfidf(self, smooth_idf=True, use_idf=True, norm=None):
+        """ Returns an un-normalised tfidf of the current matrix.
+
+        Args: see sklearn.TfidfTransformer
+        norm is set to None by default here.
+        """
+        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, use_idf=use_idf, norm=norm)
+        tfidf = DTM()
+        tfidf.derived_from = self
+        tfidf._vectorizer = tfidf_trans
+        tfidf._matrix = tfidf._vectorizer.fit_transform(self.matrix)
+        tfidf._vocab = tfidf._vectorizer.get_feature_names_out()
+        tfidf._term_idx_map = {tfidf._vocab[idx]: idx for idx in range(len(tfidf._vocab))}
+        tfidf._is_built = True
+        return tfidf
+
     def to_dataframe(self):
         return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.term_names)
 
     @contextlib.contextmanager
     def without_terms(self, terms: Union[list[str], set[str]]):
         """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
-        if len(diff) > 0: raise ValueError(f"Terms {diff} does not exist in this dtm.")
         try:
             features = self.vectorizer.get_feature_names_out()
             self._col_indices = np.isin(features, list(terms), invert=True).nonzero()[0]
