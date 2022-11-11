@@ -47,12 +47,12 @@ class DTM(object):
 
     @property
     def matrix(self):
-        if self._row_indices is not None and self._col_indices is not None:
-            return self.root._matrix[self._row_indices, self._col_indices]
-        elif self._row_indices is not None:
-            return self.root._matrix[self._row_indices, :]
-        elif self._col_indices is not None:
-            return self.root._matrix[:, self._col_indices]
+        matrix = self.root._matrix
+        if self._row_indices is not None:
+            matrix = matrix[self._row_indices, :]
+        if self._col_indices is not None:
+            matrix = matrix[:, self._col_indices]
+        return matrix
         return self.root._matrix
 
     @property
