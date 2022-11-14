@@ -51,7 +51,7 @@ class TestBuilder(unittest.TestCase):
         builder = self.builder
         builder.set_text_column('processed_text')
         pattern = re.compile("[ ]?<TWEET[/]>[ ]?")
-        builder.set_preprocessors([lambda text: pattern.sub(text, '')])
+        builder.set_text_preprocessors([lambda text: pattern.sub(text, '')])
         corpus = builder.build()
         assert '<TWEET>' not in corpus.texts().iloc[0]
 

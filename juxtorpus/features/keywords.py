@@ -220,7 +220,7 @@ if __name__ == '__main__':
     builder = CorpusBuilder('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
     builder.set_text_column('text')
     builder.set_nrows(10)
-    builder.set_preprocessors([lambda text: tweet_wrapper.sub('', text)])
+    builder.set_text_preprocessors([lambda text: tweet_wrapper.sub('', text)])
     corpus = builder.build()
 
     from juxtorpus.corpus.processors import SpacyProcessor

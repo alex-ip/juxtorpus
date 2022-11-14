@@ -69,7 +69,7 @@ if __name__ == '__main__':
     builder = CorpusBuilder('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv')
     builder.set_text_column('processed_text')
     builder.set_nrows(100)
-    builder.set_preprocessors([lambda text: tweet_wrapper.sub('', text)])
+    builder.set_text_preprocessors([lambda text: tweet_wrapper.sub('', text)])
     builder.add_metas('tweet_lga', dtypes='category')
     builder.add_metas(['year', 'month', 'day'], dtypes='datetime')
     corpus = builder.build()
