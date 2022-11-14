@@ -1,5 +1,7 @@
 from abc import ABC
 
+import pandas as pd
+
 from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.meta import *
 
@@ -99,9 +101,24 @@ class CorpusSlicer(object):
         """ TODO: basically runs filter by condition multiple times and organise into FrozenCorpusSlices. """
         raise NotImplementedError()
 
-    def group_by(self, id_):
+    def group_by(self, id_, grouper: pd.Grouper = None):
         """ TODO: retrieve the series and run pandas groupby. Only works for type: SeriesMeta. """
-        raise NotImplementedError()
+        meta = self._get_meta_or_raise_err(id_)
+        if not isinstance(meta, SeriesMeta):
+            raise NotImplementedError(f"Unable to groupby non SeriesMeta. "
+                                      f"Please use {self.group_by_conditions.__name__}.")
+        series = meta.series()
+        # using pd.Grouper on datetime requires it to be an index.
+        if grouper is not None:
+            by = grouper
+            if pd.api.types.is_datetime64_any_dtype(series):
+                by.level = series.name
+                series = self.corpus._df.set_index([self.corpus._df.index, series])
+                # note: var name series used here so that the same return function is used.
+        else:
+            by = series
+        return ((gid, self.corpus.cloned(g.index.droplevel(by.level)))
+                for gid, g in series.groupby(by, axis=0, group_keys=True))
 
     def _get_meta_or_raise_err(self, id_):
         meta = self.corpus.get_meta(id_)
