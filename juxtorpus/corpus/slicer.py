@@ -102,7 +102,11 @@ class CorpusSlicer(object):
         raise NotImplementedError()
 
     def group_by(self, id_, grouper: pd.Grouper = None):
-        """ TODO: retrieve the series and run pandas groupby. Only works for type: SeriesMeta. """
+        """ Return groups of the subcorpus based on their metadata.
+
+        :arg grouper: pd.Grouper - as you would in pandas
+        :return tuple[groupid, subcorpus]
+        """
         meta = self._get_meta_or_raise_err(id_)
         if not isinstance(meta, SeriesMeta):
             raise NotImplementedError(f"Unable to groupby non SeriesMeta. "
