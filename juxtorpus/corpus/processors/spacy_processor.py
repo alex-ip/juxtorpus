@@ -99,7 +99,7 @@ class SpacyProcessor(Processor):
         docs = pd.Series(doc_generator, index=texts.index)
         logger.info("Done.")
         logger.debug(f"Elapsed time: {datetime.now() - start}s.")
-        return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
+        return SpacyCorpus.from_corpus(corpus, docs, self.nlp)
 
     def _add_metas(self, corpus: Corpus):
         """ Add the relevant meta-objects into the Corpus class.

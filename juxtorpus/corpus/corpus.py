@@ -1,6 +1,7 @@
 from typing import Union, Set, Dict, Generator, Optional
 import pandas as pd
 import spacy.vocab
+from spacy.tokens import Doc
 from frozendict import frozendict
 from collections import Counter
 import re
@@ -22,7 +23,8 @@ class Corpus:
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, col_text: str = COL_TEXT):
         if col_text not in df.columns:
-            raise ValueError(f"Column {col_text} not found. You may set the col_text argument.")
+            raise ValueError(f"Column {col_text} not found. You must set the col_text argument.\n"
+                             f"Available columns: {df.columns}")
         meta_df: pd.DataFrame = df.drop(col_text, axis=1)
         metas: dict[str, SeriesMeta] = dict()
         for col in meta_df.columns:
@@ -245,14 +247,20 @@ class SpacyCorpus(Corpus):
     def from_corpus(cls, corpus: Corpus, docs, vocab):
         return cls(docs, corpus._meta_registry, vocab)
 
-    def __init__(self, docs, metas, vocab: spacy.vocab.Vocab):
+    def __init__(self, docs, metas, nlp: spacy.Language):
         super(SpacyCorpus, self).__init__(docs, metas)
-        self._vocab = vocab
-        self._is_word_matcher = is_word(vocab)
+        self._nlp = nlp
+        self._is_word_matcher = is_word(self._nlp.vocab)
 
     @property
-    def vocab(self):
-        return self._vocab
+    def nlp(self):
+        return self._nlp
+
+    def texts(self) -> 'pd.Series[str]':
+        return self._df.loc[:, self.COL_TEXT].map(lambda doc: doc.text)
+
+    def docs(self) -> 'pd.Series[Doc]':
+        return self._df.loc[:, self.COL_TEXT]
 
     def _gen_words_from(self, doc):
         return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
@@ -265,11 +273,14 @@ class SpacyCorpus(Corpus):
     def _gen_lemmas_from(self, doc):
         return (doc[start: end].lemma_ for _, start, end in self._is_word_matcher(doc))
 
+    def _cloned_texts(self, mask):
+        return self.docs().loc[mask]
+
     def cloned(self, mask: 'pd.Series[bool]'):
         cloned_texts = self._cloned_texts(mask)
         cloned_metas = self._cloned_metas(mask)
 
-        clone = SpacyCorpus(cloned_texts, cloned_metas, self._vocab)
+        clone = SpacyCorpus(cloned_texts, cloned_metas, self._nlp)
         clone._parent = self
 
         clone._dtm = self._cloned_dtm(cloned_texts.index)
