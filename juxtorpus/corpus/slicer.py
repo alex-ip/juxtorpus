@@ -116,7 +116,11 @@ class SpacyCorpusSlicer(CorpusSlicer, ABC):
 
     def filter_by_matcher(self, matcher: Matcher):
         cond_func = self._matcher_cond_func(matcher)
-        mask = self.corpus.docs().apply(cond_func).astype('boolean')
+        docs = self.corpus.docs()
+        if isinstance(docs, pd.Series):
+            mask = docs.apply(cond_func).astype('boolean')
+        else:
+            mask = map(cond_func, docs)  # inf corpus. Corpus class itself does not support this yet. placeholder.
         return self.corpus.cloned(mask)
 
     def _matcher_cond_func(self, matcher):
