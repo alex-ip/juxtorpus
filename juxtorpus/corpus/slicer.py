@@ -1,6 +1,11 @@
-from juxtorpus.corpus import Corpus
+from abc import ABC
+
+from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.meta import *
+
 from typing import Union, Callable
+from spacy.matcher import Matcher
+from spacy.tokens import Doc
 import weakref
 import re
 
@@ -90,7 +95,7 @@ class CorpusSlicer(object):
             raise TypeError("Does your condition function return booleans?")
         return mask
 
-    def slice_by_condition(self, id_, cond_func):
+    def group_by_conditions(self, id_, cond_funcs: list[Callable]):
         """ TODO: basically runs filter by condition multiple times and organise into FrozenCorpusSlices. """
         raise NotImplementedError()
 
@@ -102,6 +107,23 @@ class CorpusSlicer(object):
         meta = self.corpus.get_meta(id_)
         if meta is None: raise KeyError(f"{id_} metadata does not exist. Try calling metas().")
         return meta
+
+
+class SpacyCorpusSlicer(CorpusSlicer, ABC):
+    def __init__(self, corpus: SpacyCorpus):
+        if not isinstance(corpus, SpacyCorpus): raise ValueError(f"Must be a SpacyCorpus. Got {type(corpus)}.")
+        super(SpacyCorpusSlicer, self).__init__(corpus)
+
+    def filter_by_matcher(self, matcher: Matcher):
+        cond_func = self._matcher_cond_func(matcher)
+        mask = self.corpus.docs().apply(cond_func).astype('boolean')
+        return self.corpus.cloned(mask)
+
+    def _matcher_cond_func(self, matcher):
+        def _cond_func(doc: Doc):
+            return len(matcher(doc)) > 0
+
+        return _cond_func
 
 
 if __name__ == '__main__':
