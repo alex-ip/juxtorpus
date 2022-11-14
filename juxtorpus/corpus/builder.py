@@ -98,7 +98,7 @@ class CorpusBuilder(object):
         df['Add'] = df.index.isin(to_add)
         return df.sort_values(by='Add', ascending=False)
 
-    def add_metas(self, columns: Union[list[str], str],
+    def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
                   lazy=True):
         """ Add a column to add as metadata OR a list of columns to add.
@@ -183,7 +183,7 @@ class CorpusBuilder(object):
             raise ValueError("nrows must be a positive integer. Set as None to remove.")
         self._nrows = nrows
 
-    def set_preprocessors(self, preprocess_callables: list[Callable]):
+    def set_text_preprocessors(self, preprocess_callables: list[Callable]):
         """ Set a list of preprocessors for your text data.
 
         This is typically designed for basic preprocessing.
