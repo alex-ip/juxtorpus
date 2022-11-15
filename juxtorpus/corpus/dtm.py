@@ -123,13 +123,13 @@ class DTM(object):
         cloned._row_indices = row_indices
         return cloned
 
-    def tfidf(self, smooth_idf=True, use_idf=True, norm=None):
+    def tfidf(self, smooth_idf=True, norm=None):
         """ Returns an un-normalised tfidf of the current matrix.
 
         Args: see sklearn.TfidfTransformer
         norm is set to None by default here.
         """
-        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, use_idf=use_idf, norm=norm)
+        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, use_idf=True, norm=norm)
         tfidf = DTM()
         tfidf.derived_from = self
         tfidf._vectorizer = tfidf_trans
