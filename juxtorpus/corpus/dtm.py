@@ -86,6 +86,11 @@ class DTM(object):
         features = self.vectorizer.get_feature_names_out()
         return features if self._col_indices is None else features[self._col_indices]
 
+    @property
+    def vocab(self):
+        """ Returns a set of terms in the current dtm. """
+        return set(self.term_names)
+
     def build(self, texts: Iterable[str]):
         self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
         self.root._matrix = self._vectorizer.fit_transform(texts)
