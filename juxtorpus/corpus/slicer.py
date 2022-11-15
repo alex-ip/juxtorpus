@@ -117,12 +117,12 @@ class CorpusSlicer(object):
             by = grouper
             if pd.api.types.is_datetime64_any_dtype(series):
                 by.level = series.name
-                series = self.corpus._df.set_index([self.corpus._df.index, series])
-                # note: var name series used here so that the same return function is used.
+                df = self.corpus._df.set_index([self.corpus._df.index, series])
+                return ((gid, self.corpus.cloned(g.index.droplevel(by.level)))
+                        for gid, g in df.groupby(by, axis=0, group_keys=True))
         else:
             by = series
-        return ((gid, self.corpus.cloned(g.index.droplevel(by.level)))
-                for gid, g in series.groupby(by, axis=0, group_keys=True))
+        return ((gid, self.corpus.cloned(g.index)) for gid, g in series.groupby(by, axis=0, group_keys=True))
 
     def _get_meta_or_raise_err(self, id_):
         meta = self.corpus.get_meta(id_)
