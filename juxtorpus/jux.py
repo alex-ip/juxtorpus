@@ -1,5 +1,6 @@
 from juxtorpus.corpus import Corpus
 from juxtorpus.stats import Statistics
+from juxtorpus.features.similarity import Similarity
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
 
 import numpy as np
@@ -21,10 +22,15 @@ class Jux:
         self._A = corpus_a
         self._B = corpus_b
         self._stats = Statistics(self._A, self._B)
+        self._sim = Similarity(self._A, self._B)
 
     @property
     def stats(self):
         return self._stats
+
+    @property
+    def sim(self):
+        return self._sim
 
     @property
     def num_corpus(self):
