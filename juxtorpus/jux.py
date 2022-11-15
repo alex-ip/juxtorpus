@@ -1,10 +1,11 @@
 from juxtorpus.corpus import Corpus
+from juxtorpus.stats import Statistics
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
 
-from typing import Tuple, List, Union
-import pandas as pd
-import spacy
 import numpy as np
+from typing import TypeVar
+
+CorpusT = TypeVar('CorpusT', bound=Corpus)  # Corpus subclass
 
 
 class Jux:
@@ -16,20 +17,25 @@ class Jux:
     for your own further analysis.
     """
 
-    def __init__(self, corpusA: Corpus, corpusB: Corpus):
-        self._A = corpusA
-        self._B = corpusB
+    def __init__(self, corpus_a: CorpusT, corpus_b: CorpusT):
+        self._A = corpus_a
+        self._B = corpus_b
+        self._stats = Statistics(self._A, self._B)
+
+    @property
+    def stats(self):
+        return self._stats
 
     @property
     def num_corpus(self):
         return 2
 
     @property
-    def corpusA(self):
+    def corpus_a(self):
         return self._A
 
     @property
-    def corpusB(self):
+    def corpus_b(self):
         return self._B
 
     @property
@@ -60,80 +66,3 @@ class Jux:
         ld_A = self._A.num_unique_words / np.log(self._A.num_words)
         ld_B = self._B.num_unique_words / np.log(self._B.num_words)
         return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}
-
-    def stats(self, keys: Union[str, set[str]]):
-        if isinstance(keys, str): keys = {keys}
-        results = dict()
-        if 'log likelihood ratios' in keys:
-            results['log likelihood ratios'] = self.log_likelihood_ratios()
-        if 'ell' in keys:
-            results['ell'] = self.ell()
-        if 'bic' in keys:
-            results['bic'] = self.bayes_factor_bic()
-        return results
-
-    def log_likelihood_ratios(self):
-        root = self._get_shared_root_corpus_or_raise_error()
-        root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
-
-        A, B = self._A, self._B
-        expected_wc_A = root_term_likelihoods * A.dtm.total
-        expected_wc_B = root_term_likelihoods * B.dtm.total
-        A_loglikelihood = self._log_likelihood_ratio(A.dtm.total_terms_vector, expected_wc_A)
-        B_loglikelihood = self._log_likelihood_ratio(B.dtm.total_terms_vector, expected_wc_B)
-        return np.vstack([A_loglikelihood, B_loglikelihood]).sum(axis=0)
-
-    @staticmethod
-    def _log_likelihood_ratio(self, raw_wc, expected_wc):
-        """ Calculates the log likelihood ratio of the subcorpus as compared to its parent corpus.
-
-        implementation details:
-        1. if the raw freq or the expected freq is 0, it returns a 0 for that term.
-        The terms where there are 0 freqs are smoothed by adding 1. The non zero freq terms are then
-        decremented by 1 to preserve real count. This is so that when we log it, it'll return a 0.
-        Since raw_wc > 0 then expected_wc must be > 0. And if expected = 0, then raw_wc must be = 0.
-        # if raw_wc = 0, then raw_wc * np.log(...) = 0.
-        """
-        non_zero_indices = raw_wc.nonzero()[1]  # [1] as its 2d matrix although it's only 1 vector.
-        raw_wc_smoothed = raw_wc + 1  # add 1 for zeros for log later
-        raw_wc_smoothed[:, non_zero_indices] -= 1  # minus 1 for non-zeros
-        non_zero_indices = expected_wc.nonzero()[1]
-        expected_wc_smoothed = expected_wc + 1
-        expected_wc_smoothed[:, non_zero_indices] -= 1
-        return 2 * np.multiply(raw_wc, (np.log(raw_wc_smoothed) - np.log(expected_wc_smoothed)))
-
-    def bayes_factor_bic(self):
-        """ Calculates the Bayes Factor BIC
-
-        You can interpret the approximate Bayes Factor as degrees of evidence against the null hypothesis as follows:
-        0-2: not worth more than a bare mention
-        2-6: positive evidence against H0
-        6-10: strong evidence against H0
-        > 10: very strong evidence against H0
-        For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
-        """
-        log_likelihood_ratio = self.log_likelihood_ratios()
-        dof = self.num_corpus - 1
-        root = self._get_shared_root_corpus_or_raise_error()
-        return log_likelihood_ratio - (dof * np.log(root.dtm.total))
-
-    def ell(self):
-        """ Effect Size for Log Likelihood.
-
-        ELL varies between 0 and 1 (inclusive).
-        Johnston et al. say "interpretation is straightforward as the proportion of the maximum departure between the
-        observed and expected proportions".
-        """
-        root = self._get_shared_root_corpus_or_raise_error()
-        root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
-        A, B = self._A, self._B
-        expected_wc_A = root_term_likelihoods * A.dtm.total
-        expected_wc_B = root_term_likelihoods * B.dtm.total
-        root_term_min_expected_wc = np.vstack([expected_wc_A, expected_wc_B]).min(axis=0)
-        return root_term_likelihoods / (root.dtm.total * np.log(root_term_min_expected_wc))
-
-    def _get_shared_root_corpus_or_raise_error(self) -> Corpus:
-        if self.shares_parent:
-            return self._A.find_root()
-        else:
-            raise ValueError(f"{self._A} and {self._B} must share a parent corpus.")
