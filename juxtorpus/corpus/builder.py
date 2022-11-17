@@ -214,7 +214,7 @@ class CorpusBuilder(object):
         for lazy in lazies:
             if type(lazy) == DateTimeMetaConfig:
                 lazy: DateTimeMetaConfig
-                read_func = partial(pd.read_csv, usecols=lazy.columns,
+                read_func = partial(pd.read_csv, usecols=[lazy.column],
                                     parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
             else:
                 read_func = partial(pd.read_csv, usecols=[lazy.column], dtype={lazy.column: lazy.dtype}, sep=self._sep)
