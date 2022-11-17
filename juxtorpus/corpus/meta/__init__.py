@@ -60,7 +60,7 @@ class SeriesMeta(Meta):
             yield x
 
     def cloned(self, texts, mask):
-        return SeriesMeta(self._id, self.series()[mask])
+        return SeriesMeta(self._id, self.series().loc[mask])
 
     def head(self, n):
         return self.series().head(n)
