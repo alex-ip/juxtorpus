@@ -80,6 +80,7 @@ class CorpusBuilder(object):
         self._sep = ','
         self._col_text = None
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
+        # todo: check if column matches for multiple paths
 
         self._preprocessors = list()
 
@@ -245,7 +246,7 @@ class CorpusBuilder(object):
                                  parse_dates=parse_dates, dtype=series_and_dtypes)
                 current += len(df)
             dfs.append(df)
-        df = pd.concat(dfs, axis=0)
+        df = pd.concat(dfs, axis=0, ignore_index=True)
 
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
