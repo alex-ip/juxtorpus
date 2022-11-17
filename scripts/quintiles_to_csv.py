@@ -40,5 +40,5 @@ if __name__ == '__main__':
         rows = chain(*(read_rows(f) for f in files))
         df = pd.DataFrame(rows)
         save_path = quintile_dir.joinpath(Path(f"{quintile_dir.name}.csv"))
-        df.to_csv(save_path)
+        df.to_csv(save_path, index=False)
         print(f"Written to {save_path}. Size: {save_path.stat().st_size/1e6}Mb.")
