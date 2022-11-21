@@ -48,9 +48,10 @@ class FileUploadWidget(Viz):
 
     def _on_upload(self, change):
         with self._output:
-            new_files = change.get('new').keys()
-            for fname in new_files:
-                content = change.get('new').get(fname).get('content')
+            new_files = change.get('new')
+            for fdata in new_files:
+                content = fdata.get('content')
+                fname = fdata.get('name')
                 if fname.endswith('.zip'):
                     self._add_zip(content, fname)
                 else:
