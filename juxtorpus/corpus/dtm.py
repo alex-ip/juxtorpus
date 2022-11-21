@@ -93,9 +93,9 @@ class DTM(object):
 
     def build(self, texts: Iterable[str]):
         self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
-        self.root._matrix = self._vectorizer.fit_transform(texts)
-        self.root._vocab = self._vectorizer.get_feature_names_out()
-        self.root._term_idx_map = {self._vocab[idx]: idx for idx in range(len(self._vocab))}
+        self.root._matrix = self.root._vectorizer.fit_transform(texts)
+        self.root._vocab = self.root._vectorizer.get_feature_names_out()
+        self.root._term_idx_map = {self.root._vocab[idx]: idx for idx in range(len(self.root._vocab))}
         self.root._is_built = True
         return self
 
@@ -123,13 +123,13 @@ class DTM(object):
         cloned._row_indices = row_indices
         return cloned
 
-    def tfidf(self, smooth_idf=True, norm=None):
+    def tfidf(self, smooth_idf=True, sublinear_tf=False, norm=None):
         """ Returns an un-normalised tfidf of the current matrix.
 
         Args: see sklearn.TfidfTransformer
         norm is set to None by default here.
         """
-        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, use_idf=True, norm=norm)
+        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, sublinear_tf=sublinear_tf, use_idf=True, norm=norm)
         tfidf = DTM()
         tfidf.derived_from = self
         tfidf._vectorizer = tfidf_trans
