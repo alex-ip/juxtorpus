@@ -73,6 +73,7 @@ class Corpus:
         if not self._dtm.is_built:
             root = self.find_root()
             root._dtm.build(root.texts())
+            # self._dtm.build(root.texts())        # dtm tracks root and builds with root anyway
         return self._dtm
 
     def find_root(self):
@@ -116,16 +117,12 @@ class Corpus:
 
     @property
     def num_words(self) -> int:
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
-            self._num_words = sum(self._counter.values())  # total() may be used for python >3.10
+        self._num_words = sum(self._counter.values())  # total() may be used for python >3.10
         return self._num_words
 
     @property
     def num_unique_words(self) -> int:
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
-            self._num_uniqs = len(self._counter.keys())
+        self._num_uniqs = len(self._counter.keys())
         return self._num_uniqs
 
     @property
@@ -144,8 +141,8 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
+        # if not self._computed_word_statistics():
+        self._compute_word_statistics()
         return pd.Series({
             "Number of words": max(self.num_words, 0),
             "Number of unique words": max(self.num_unique_words, 0),
