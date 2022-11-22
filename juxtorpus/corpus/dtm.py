@@ -33,7 +33,7 @@ class DTM(object):
         self.root = self
         self._vectorizer = None
         self._matrix = None
-        self._vocab = None
+        self._feature_names_out = None
         self._term_idx_map = None
         self._is_built = False
         self.derived_from = None  # for any dtms derived from word frequencies
@@ -83,7 +83,7 @@ class DTM(object):
     @property
     def term_names(self):
         """ Return the terms in the current dtm. """
-        features = self.vectorizer.get_feature_names_out()
+        features = self.root._feature_names_out
         return features if self._col_indices is None else features[self._col_indices]
 
     @property
@@ -94,8 +94,9 @@ class DTM(object):
     def build(self, texts: Iterable[str]):
         self.root._vectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')
         self.root._matrix = self.root._vectorizer.fit_transform(texts)
-        self.root._vocab = self.root._vectorizer.get_feature_names_out()
-        self.root._term_idx_map = {self.root._vocab[idx]: idx for idx in range(len(self.root._vocab))}
+        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()
+        self.root._term_idx_map = {self.root._feature_names_out[idx]: idx
+                                   for idx in range(len(self.root._feature_names_out))}
         self.root._is_built = True
         return self
 
@@ -134,8 +135,8 @@ class DTM(object):
         tfidf.derived_from = self
         tfidf._vectorizer = tfidf_trans
         tfidf._matrix = tfidf._vectorizer.fit_transform(self.matrix)
-        tfidf._vocab = tfidf._vectorizer.get_feature_names_out()
-        tfidf._term_idx_map = {tfidf._vocab[idx]: idx for idx in range(len(tfidf._vocab))}
+        tfidf._feature_names_out = tfidf._vectorizer.get_feature_names_out()
+        tfidf._term_idx_map = {tfidf._feature_names_out[idx]: idx for idx in range(len(tfidf._feature_names_out))}
         tfidf._is_built = True
         return tfidf
 
@@ -146,8 +147,8 @@ class DTM(object):
     def without_terms(self, terms: Union[list[str], set[str]]):
         """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
         try:
-            features = self.vectorizer.get_feature_names_out()
-            self._col_indices = np.isin(features, list(terms), invert=True).nonzero()[0]
+            features = self.root._feature_names_out
+            self._col_indices = np.isin(features, set(terms), invert=True).nonzero()[0]
             yield self
         finally:
             self._col_indices = None
