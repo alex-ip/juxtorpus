@@ -48,7 +48,7 @@ class FileUploadWidget(Viz):
 
     def _on_upload(self, change):
         with self._output:
-            new_files = change.get('new')
+            new_files = self._get_files_data(change)
             for fdata in new_files:
                 content = fdata.get('content')
                 fname = fdata.get('name')
@@ -56,6 +56,16 @@ class FileUploadWidget(Viz):
                     self._add_zip(content, fname)
                 else:
                     self._add_file(content, fname)
+
+    def _get_files_data(self, change):
+        new = change.get('new')
+        if isinstance(new, dict):  # support v7.x
+            fdata_list = list()
+            for fname, fdata in new.items():
+                fdata['name'] = fname
+                fdata_list.append(fdata)
+            return fdata_list
+        return new  # support v8.x
 
     def _add_zip(self, content, fname):
         try:
