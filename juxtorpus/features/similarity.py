@@ -60,16 +60,17 @@ class Similarity(object):
     def _tf_cosine(self, dtm_0, dtm_1):
         a, b = dtm_0.total_terms_vector, dtm_1.total_terms_vector
         a, b = np.asarray(a).squeeze(axis=0), np.asarray(b).squeeze(axis=0)
-        # normalised with num terms.
-        if dtm_0.total > 0: a = a / dtm_0.total
-        if dtm_1.total > 0: a = a / dtm_1.total
-        # return np.multiply(a, b).sum() / (np.sqrt(np.square(a).sum()) * np.sqrt(np.square(b).sum()))
-        highest_similarity_words = np.argsort((a * b))[::-1][:10]  # top 10
-        terms = self._A.dtm.term_names[highest_similarity_words]
+        if not a.any() or not b.any():  # zero vectors
+            sim, top_terms = 1, None
+        else:
+            sim = 1 - distance.cosine(a, b)
+            highest_similarity_words = np.argsort(a * b)[::-1][:10]  # top 10, element-wise multiplication
+            top_terms = self._A.dtm.term_names[highest_similarity_words]
         return {
-            'similarity': 1 - distance.cosine(a, b),
-            'top_terms': terms
+            'similarity': sim,
+            'top_terms': top_terms
         }
+        # return np.multiply(a, b).sum() / (np.sqrt(np.square(a).sum()) * np.sqrt(np.square(b).sum()))
 
     def tfidf_cosine(self):
         """ Compute the cosine similarity between tfidf vectors of 2 corpus.
