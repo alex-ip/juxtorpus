@@ -31,3 +31,9 @@ class Processor(metaclass=ABCMeta):
 
 
 from .spacy_processor import SpacyProcessor
+
+
+def process(corpus, **kwargs):
+    if 'nlp' in kwargs.keys():
+        return SpacyProcessor(kwargs.get('nlp')).run(corpus)
+    raise ValueError(f"Only SpacyProcessor is supported at the moment. Please supply nlp argument.")
