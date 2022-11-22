@@ -124,6 +124,10 @@ class DTM(object):
         cloned = cls()
         cloned.root = parent.root
         cloned._row_indices = row_indices
+        try:
+            cloned.matrix
+        except Exception as e:
+            raise RuntimeError([RuntimeError("Failed to clone DTM."), e])
         return cloned
 
     def tfidf(self, smooth_idf=True, sublinear_tf=False, norm=None):
