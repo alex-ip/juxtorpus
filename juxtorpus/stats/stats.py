@@ -7,7 +7,7 @@ class Statistics(object):
         self._B = corpus_B
 
     def log_likelihood_ratios(self):
-        return log_likelihood([self._A, self._B])
+        return log_likelihood([self._A, self._B]).sum(axis=0)
 
     def bayes_factor_bic(self):
         return bayes_factor_bic([self._A, self._B])

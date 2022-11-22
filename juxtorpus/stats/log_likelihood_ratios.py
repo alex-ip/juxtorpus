@@ -40,7 +40,7 @@ def log_likelihood(corpora: list[Corpus]):
         observed_wc = corpus.dtm.total_terms_vector
         llr = log_likelihood_ratio(expected_wc, observed_wc)
         llrs.append(llr)
-    return np.vstack(llrs).sum(axis=0)
+    return np.vstack(llrs)
 
 
 def bayes_factor_bic(corpora: list[Corpus]):
@@ -53,7 +53,7 @@ def bayes_factor_bic(corpora: list[Corpus]):
     > 10: very strong evidence against H0
     For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
     """
-    llr_summed = log_likelihood(corpora)
+    llr_summed = log_likelihood(corpora).sum(axis=0)
     dof = len(corpora) - 1
     root = corpora[0].find_root()
     return llr_summed - (dof * np.log(root.dtm.total))
@@ -69,7 +69,7 @@ def log_likelihood_effect_size_ell(corpora: list[Corpus]):
     if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
     root = corpora[0].find_root()
     root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
-    llr_summed = log_likelihood(corpora)
+    llr_summed = log_likelihood(corpora).sum(axis=0)
     expected_wcs = list()
     for corpus in corpora:
         expected_wc = root_term_likelihoods * corpus.dtm.total
