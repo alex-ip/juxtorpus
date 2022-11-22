@@ -2,7 +2,7 @@ import contextlib
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from typing import Union, Iterable
+from typing import Union, Iterable, TypeVar
 
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
@@ -21,6 +21,8 @@ This serves 3 purposes:
 Dependencies: 
 sklearn CountVectorizer
 """
+
+TVectorizer = TypeVar('TVectorizer', bound=CountVectorizer)
 
 
 class DTM(object):
