@@ -93,7 +93,7 @@ class DTM(object):
         """ Returns a set of terms in the current dtm. """
         return set(self.term_names)
 
-    def build(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)b\w+\b')):
+    def build(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
         self.root._vectorizer = vectorizer
         self.root._matrix = self.root._vectorizer.fit_transform(texts)
         self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()
