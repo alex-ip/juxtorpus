@@ -283,3 +283,7 @@ class SpacyCorpus(Corpus):
         clone._dtm = self._cloned_dtm(cloned_texts.index)
         clone._processing_history = self._cloned_history()
         return clone
+
+    def _compute_word_statistics(self):
+        self._counter = Counter()
+        self.docs().apply(lambda text: self._counter.update(self._gen_words_from(text)))
