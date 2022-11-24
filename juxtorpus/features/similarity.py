@@ -53,9 +53,10 @@ class Similarity(object):
     def tf_cosine(self, without_terms: list[str] = None):
         if without_terms is None:
             return self._tf_cosine(self._A.dtm, self._B.dtm)
-        with self._A.dtm.without_terms(without_terms) as subdtm_A:
-            with self._B.dtm.without_terms(without_terms) as subdtm_B:
-                return self._tf_cosine(subdtm_A, subdtm_B)
+        else:
+            with self._A.dtm.without_terms(without_terms) as subdtm_A:
+                with self._B.dtm.without_terms(without_terms) as subdtm_B:
+                    return self._tf_cosine(subdtm_A, subdtm_B)
 
     def _tf_cosine(self, dtm_0, dtm_1):
         a, b = dtm_0.total_terms_vector, dtm_1.total_terms_vector
