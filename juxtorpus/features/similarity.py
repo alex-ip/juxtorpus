@@ -18,9 +18,9 @@ class Similarity(object):
         self._A: Corpus = corpus_A
         self._B: Corpus = corpus_B
 
-    def jaccard(self, lemmas: bool = False):
+    def jaccard(self, use_lemmas: bool = False):
         """ Return a similarity score between the 2 corpus."""
-        if lemmas:
+        if use_lemmas:
             # check if corpus are spacy corpus.
             raise NotImplementedError("To be implemented. Use unique lemmas instead of words.")
         _A_uniqs: set[str] = self._A.unique_words
