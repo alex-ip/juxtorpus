@@ -76,7 +76,7 @@ class DTM(object):
     @property
     def total_terms_vector(self):
         """ Returns a vector of term likelihoods """
-        return self.matrix.sum(axis=0)
+        return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
 
     @property
     def vectorizer(self):
