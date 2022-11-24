@@ -31,8 +31,13 @@ def log_likelihood_ratio(expected, observed):
 def log_likelihood(corpora: list[Corpus]):
     """ Calculate the sum of log likelihood ratios over the corpora. """
     if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
+
+    # todo: merge 2 corpus - not find root
+    # todo: check vocabulary matches
+
     root = corpora[0].find_root()
     root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
+    # todo: change this to expected
 
     llrs = list()
     for corpus in corpora:
@@ -40,7 +45,28 @@ def log_likelihood(corpora: list[Corpus]):
         observed_wc = corpus.dtm.total_terms_vector
         llr = log_likelihood_ratio(expected_wc, observed_wc)
         llrs.append(llr)
-    return np.vstack(llrs)
+    return np.vstack(llrs).sum(axis=0)
+
+
+def _merge_dtm(corpora: list[Corpus]):
+    dtm = corpora[0].dtm
+    # combine the vocabulary
+    # find overlapping terms and sum them, find non-overlapping terms and append them
+    # missing_terms = dtm.vocab(nonzero=True).difference(corpora[1].dtm.vocab(nonzero=True))
+    missing_terms = dtm.vocab(nonzero=False).difference(corpora[1].dtm.vocab(nonzero=False))
+    mask_missing = np.isin(corpora[1].dtm.term_names, corpora[0].dtm.term_names, assume_unique=True, invert=True)
+    indices = mask_missing.nonzero()[0]
+    # append the missing columns
+    m = dtm.matrix.copy()
+
+    freqs_missing = np.zeros(shape=(corpora[0].dtm.num_docs, len(mask_missing.nonzero()[0])))
+    block_missing = np.vstack(freqs_missing, corpora[1].dtm.matrix[:, mask_missing])
+
+    mask_overlap = np.isin(corpora[1].dtm.term_names, corpora[0].dtm.term_names, assume_unique=True, invert=False)
+    m = np.vstack(m, corpora[1].dtm.matrix[:, mask_overlap])
+    m = np.hstack(m, block_missing)
+
+    # todo: do this for all corpus in corpora.
 
 
 def bayes_factor_bic(corpora: list[Corpus]):
@@ -53,9 +79,9 @@ def bayes_factor_bic(corpora: list[Corpus]):
     > 10: very strong evidence against H0
     For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
     """
-    llr_summed = log_likelihood(corpora).sum(axis=0)
+    llr_summed = log_likelihood(corpora)
     dof = len(corpora) - 1
-    root = corpora[0].find_root()
+    root = corpora[0].find_root()  # todo: function to return expected
     return llr_summed - (dof * np.log(root.dtm.total))
 
 
@@ -67,9 +93,9 @@ def log_likelihood_effect_size_ell(corpora: list[Corpus]):
     observed and expected proportions".
     """
     if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
-    root = corpora[0].find_root()
+    root = corpora[0].find_root()  # todo: function to return expected
     root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
-    llr_summed = log_likelihood(corpora).sum(axis=0)
+    llr_summed = log_likelihood(corpora)
     expected_wcs = list()
     for corpus in corpora:
         expected_wc = root_term_likelihoods * corpus.dtm.total
