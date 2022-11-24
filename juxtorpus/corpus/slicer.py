@@ -130,7 +130,7 @@ class CorpusSlicer(object):
                         for gid, g in df.groupby(by, axis=0, group_keys=True))
         else:
             by = series
-        return ((gid, self.corpus.cloned(g.index)) for gid, g in series.groupby(by, axis=0, group_keys=True))
+        return ((gid, self.corpus.cloned(g.index)) for gid, g in series.groupby(by=by, axis=0, group_keys=True))
 
     def _get_meta_or_raise_err(self, id_):
         meta = self.corpus.get_meta(id_)
