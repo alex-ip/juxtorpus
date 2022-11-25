@@ -166,6 +166,10 @@ class DTM(object):
             self._col_indices = None
 
     @classmethod
+    def from_dtm(cls, dtm: 'DTM'):
+        return DTM.from_matrix(dtm.matrix, dtm.term_names)
+
+    @classmethod
     def from_matrix(cls, matrix: Union[np.ndarray, np.matrix], terms):
         num_terms: int
         if isinstance(terms, list): num_terms = len(terms)
