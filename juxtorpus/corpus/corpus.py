@@ -215,7 +215,7 @@ class Corpus:
         return [h for h in self.history()]
 
     def _cloned_dtm(self, indices):
-        return self._dtm.cloned(self._dtm, indices)
+        return self._dtm.cloned(indices)
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0

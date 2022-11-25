@@ -125,10 +125,9 @@ class DTM(object):
         if term not in self.root._term_idx_map.keys(): raise ValueError(f"'{term}' not found in document-term-matrix.")
         return self.root._term_idx_map.get(term)
 
-    @classmethod
-    def cloned(cls, parent, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
-        cloned = cls()
-        cloned.root = parent.root
+    def cloned(self, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
+        cloned = DTM()
+        cloned.root = self.root
         cloned._row_indices = row_indices
         if cloned.is_built:
             try:
@@ -181,12 +180,6 @@ class DTM(object):
         dtm._feature_names_out = terms
         dtm._is_built = True
         return dtm
-
-    # def merge(self, dtm: 'DTM'):
-    #     mask_missing = np.isin(dtm.term_names, self.term_names, assume_unique=True, invert=True)  # perf:assume_uniq
-    #     # we have what's missing from self but in dtm
-    #     mask_missing2 = np.isin(self.term_names, dtm.term_names, assume_unique=True, invert=True)
-    #     # we have what's missing from self but in dtm
 
     def merge(self, dtm: 'DTM'):
         """Merge DTM with current."""
