@@ -7,6 +7,7 @@ source: https://ucrel.lancs.ac.uk/llwizard.html
 import numpy as np
 
 from juxtorpus.corpus import Corpus
+from juxtorpus.corpus.dtm import DTM
 
 
 def log_likelihood_ratio(expected, observed):
@@ -19,54 +20,29 @@ def log_likelihood_ratio(expected, observed):
     Since raw_wc > 0 then expected_wc must be > 0. And if expected = 0, then raw_wc must be = 0.
     # if raw_wc = 0, then raw_wc * np.log(...) = 0.
     """
-    non_zero_indices = observed.nonzero()[1]  # [1] as its 2d matrix although it's only 1 vector.
+    non_zero_indices = observed.nonzero()[0]
     observed_smoothed = observed + 1  # add 1 for zeros for log later
-    observed_smoothed[:, non_zero_indices] -= 1  # minus 1 for non-zeros
-    non_zero_indices = expected.nonzero()[1]
+    observed_smoothed[non_zero_indices] -= 1  # minus 1 for non-zeros
+    non_zero_indices = expected.nonzero()[0]
     expected_smoothed = expected + 1
-    expected_smoothed[:, non_zero_indices] -= 1
+    expected_smoothed[non_zero_indices] -= 1
     return 2 * np.multiply(observed, (np.log(observed_smoothed) - np.log(expected_smoothed)))
 
 
 def log_likelihood(corpora: list[Corpus]):
     """ Calculate the sum of log likelihood ratios over the corpora. """
-    if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
-
-    # todo: merge 2 corpus - not find root
-    # todo: check vocabulary matches
-
-    root = corpora[0].find_root()
-    root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
-    # todo: change this to expected
+    dtm = DTM.from_dtm(corpora[0].dtm)
+    for corpus in corpora[1:]:
+        dtm.merge(corpus.dtm)
+    shared_term_likelihoods = dtm.total_terms_vector / dtm.total
 
     llrs = list()
     for corpus in corpora:
-        expected_wc = root_term_likelihoods * corpus.dtm.total
+        expected_wc = shared_term_likelihoods * corpus.dtm.total
         observed_wc = corpus.dtm.total_terms_vector
         llr = log_likelihood_ratio(expected_wc, observed_wc)
         llrs.append(llr)
     return np.vstack(llrs).sum(axis=0)
-
-
-def _merge_dtm(corpora: list[Corpus]):
-    dtm = corpora[0].dtm
-    # combine the vocabulary
-    # find overlapping terms and sum them, find non-overlapping terms and append them
-    # missing_terms = dtm.vocab(nonzero=True).difference(corpora[1].dtm.vocab(nonzero=True))
-    missing_terms = dtm.vocab(nonzero=False).difference(corpora[1].dtm.vocab(nonzero=False))
-    mask_missing = np.isin(corpora[1].dtm.term_names, corpora[0].dtm.term_names, assume_unique=True, invert=True)
-    indices = mask_missing.nonzero()[0]
-    # append the missing columns
-    m = dtm.matrix.copy()
-
-    freqs_missing = np.zeros(shape=(corpora[0].dtm.num_docs, len(mask_missing.nonzero()[0])))
-    block_missing = np.vstack(freqs_missing, corpora[1].dtm.matrix[:, mask_missing])
-
-    mask_overlap = np.isin(corpora[1].dtm.term_names, corpora[0].dtm.term_names, assume_unique=True, invert=False)
-    m = np.vstack(m, corpora[1].dtm.matrix[:, mask_overlap])
-    m = np.hstack(m, block_missing)
-
-    # todo: do this for all corpus in corpora.
 
 
 def bayes_factor_bic(corpora: list[Corpus]):
