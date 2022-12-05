@@ -233,10 +233,10 @@ class DTM(object):
         m = scipy.sparse.vstack((top, bottom))
         logger.debug(f"MERGE: merged matrix shape: {m.shape} type: {type(m)}.")
         assert m.shape[1] == num_terms_sm_and_bg, \
-            f"Terms incorrectly merged. Total unique terms: {num_terms_sm_and_bg}. Got {self._matrix.shape[1]}."
+            f"Terms incorrectly merged. Total unique terms: {num_terms_sm_and_bg}. Got {m.shape[1]}."
         num_docs_sm_and_bg = big.num_docs + small.num_docs
         assert m.shape[0] == num_docs_sm_and_bg, \
-            f"Documents incorrectly merged. Total documents: {num_docs_sm_and_bg}. Got {self._matrix.shape[0]}."
+            f"Documents incorrectly merged. Total documents: {num_docs_sm_and_bg}. Got {m.shape[0]}."
 
         # replace with new matrix.
         self._matrix = m
