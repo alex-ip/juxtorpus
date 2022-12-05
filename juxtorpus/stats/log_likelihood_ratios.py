@@ -31,9 +31,7 @@ def log_likelihood_ratio(expected, observed):
 
 def log_likelihood(corpora: list[Corpus]):
     """ Calculate the sum of log likelihood ratios over the corpora. """
-    dtm = DTM.from_dtm(corpora[0].dtm)
-    for corpus in corpora[1:]:
-        dtm.merge(corpus.dtm)
+    dtm = _merge_dtms(corpora)
     shared_term_likelihoods = dtm.total_terms_vector / dtm.total
 
     llrs = list()
@@ -57,8 +55,8 @@ def bayes_factor_bic(corpora: list[Corpus]):
     """
     llr_summed = log_likelihood(corpora)
     dof = len(corpora) - 1
-    root = corpora[0].find_root()  # todo: function to return expected
-    return llr_summed - (dof * np.log(root.dtm.total))
+    dtm = _merge_dtms(corpora)
+    return llr_summed - (dof * np.log(dtm.total))
 
 
 def log_likelihood_effect_size_ell(corpora: list[Corpus]):
@@ -68,16 +66,22 @@ def log_likelihood_effect_size_ell(corpora: list[Corpus]):
     Johnston et al. say "interpretation is straightforward as the proportion of the maximum departure between the
     observed and expected proportions".
     """
-    if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
-    root = corpora[0].find_root()  # todo: function to return expected
-    root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
+    dtm = _merge_dtms(corpora)
+    shared_term_likelihoods = dtm.total_terms_vector / dtm.total
     llr_summed = log_likelihood(corpora)
     expected_wcs = list()
     for corpus in corpora:
-        expected_wc = root_term_likelihoods * corpus.dtm.total
+        expected_wc = shared_term_likelihoods * corpus.dtm.total
         expected_wcs.append(expected_wc)
     min_expected_wc = np.vstack(expected_wcs).min(axis=0)
-    return llr_summed / (root.dtm.total * np.log(min_expected_wc))
+    denominator = dtm.total * np.log(min_expected_wc)
+    return np.divide(llr_summed, denominator, out=np.zeros(shape=llr_summed.shape), where=denominator != 0)
+
+
+def _merge_dtms(corpora: list[Corpus]):
+    dtm = DTM.from_dtm(corpora[0].dtm)
+    for corpus in corpora[1:]: dtm.merge(corpus.dtm)
+    return dtm
 
 
 def _shares_root(corpora: list[Corpus]):
