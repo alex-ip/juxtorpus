@@ -7,6 +7,7 @@ source: https://ucrel.lancs.ac.uk/llwizard.html
 import numpy as np
 
 from juxtorpus.corpus import Corpus
+from juxtorpus.corpus.dtm import DTM
 
 
 def log_likelihood_ratio(expected, observed):
@@ -19,28 +20,27 @@ def log_likelihood_ratio(expected, observed):
     Since raw_wc > 0 then expected_wc must be > 0. And if expected = 0, then raw_wc must be = 0.
     # if raw_wc = 0, then raw_wc * np.log(...) = 0.
     """
-    non_zero_indices = observed.nonzero()[1]  # [1] as its 2d matrix although it's only 1 vector.
+    non_zero_indices = observed.nonzero()[0]
     observed_smoothed = observed + 1  # add 1 for zeros for log later
-    observed_smoothed[:, non_zero_indices] -= 1  # minus 1 for non-zeros
-    non_zero_indices = expected.nonzero()[1]
+    observed_smoothed[non_zero_indices] -= 1  # minus 1 for non-zeros
+    non_zero_indices = expected.nonzero()[0]
     expected_smoothed = expected + 1
-    expected_smoothed[:, non_zero_indices] -= 1
+    expected_smoothed[non_zero_indices] -= 1
     return 2 * np.multiply(observed, (np.log(observed_smoothed) - np.log(expected_smoothed)))
 
 
 def log_likelihood(corpora: list[Corpus]):
     """ Calculate the sum of log likelihood ratios over the corpora. """
-    if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
-    root = corpora[0].find_root()
-    root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
+    dtm = _merge_dtms(corpora)
+    shared_term_likelihoods = dtm.total_terms_vector / dtm.total
 
     llrs = list()
     for corpus in corpora:
-        expected_wc = root_term_likelihoods * corpus.dtm.total
+        expected_wc = shared_term_likelihoods * corpus.dtm.total
         observed_wc = corpus.dtm.total_terms_vector
         llr = log_likelihood_ratio(expected_wc, observed_wc)
         llrs.append(llr)
-    return np.vstack(llrs)
+    return np.vstack(llrs).sum(axis=0)
 
 
 def bayes_factor_bic(corpora: list[Corpus]):
@@ -53,10 +53,10 @@ def bayes_factor_bic(corpora: list[Corpus]):
     > 10: very strong evidence against H0
     For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
     """
-    llr_summed = log_likelihood(corpora).sum(axis=0)
+    llr_summed = log_likelihood(corpora)
     dof = len(corpora) - 1
-    root = corpora[0].find_root()
-    return llr_summed - (dof * np.log(root.dtm.total))
+    dtm = _merge_dtms(corpora)
+    return llr_summed - (dof * np.log(dtm.total))
 
 
 def log_likelihood_effect_size_ell(corpora: list[Corpus]):
@@ -66,16 +66,22 @@ def log_likelihood_effect_size_ell(corpora: list[Corpus]):
     Johnston et al. say "interpretation is straightforward as the proportion of the maximum departure between the
     observed and expected proportions".
     """
-    if not _shares_root(corpora): raise ValueError("Corpora must be derived from the same root corpus.")
-    root = corpora[0].find_root()
-    root_term_likelihoods = root.dtm.total_terms_vector / root.dtm.total
-    llr_summed = log_likelihood(corpora).sum(axis=0)
+    dtm = _merge_dtms(corpora)
+    shared_term_likelihoods = dtm.total_terms_vector / dtm.total
+    llr_summed = log_likelihood(corpora)
     expected_wcs = list()
     for corpus in corpora:
-        expected_wc = root_term_likelihoods * corpus.dtm.total
+        expected_wc = shared_term_likelihoods * corpus.dtm.total
         expected_wcs.append(expected_wc)
     min_expected_wc = np.vstack(expected_wcs).min(axis=0)
-    return llr_summed / (root.dtm.total * np.log(min_expected_wc))
+    denominator = dtm.total * np.log(min_expected_wc)
+    return np.divide(llr_summed, denominator, out=np.zeros(shape=llr_summed.shape), where=denominator != 0)
+
+
+def _merge_dtms(corpora: list[Corpus]):
+    dtm = DTM.from_dtm(corpora[0].dtm)
+    for corpus in corpora[1:]: dtm.merge(corpus.dtm)
+    return dtm
 
 
 def _shares_root(corpora: list[Corpus]):

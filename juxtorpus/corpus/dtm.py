@@ -3,8 +3,12 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from typing import Union, Iterable, TypeVar
+import logging
 
+import scipy.sparse
 from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+
+logger = logging.getLogger(__name__)
 
 """ Document Term Matrix DTM
 
@@ -76,7 +80,7 @@ class DTM(object):
     @property
     def total_terms_vector(self):
         """ Returns a vector of term likelihoods """
-        return self.matrix.sum(axis=0)
+        return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
 
     @property
     def vectorizer(self):
@@ -88,10 +92,12 @@ class DTM(object):
         features = self.root._feature_names_out
         return features if self._col_indices is None else features[self._col_indices]
 
-    @property
-    def vocab(self):
+    def vocab(self, nonzero: bool = False):
         """ Returns a set of terms in the current dtm. """
-        return set(self.term_names)
+        if nonzero:
+            return set(self.term_names[self.total_terms_vector.nonzero()[0]])
+        else:
+            return set(self.term_names)
 
     def build(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
         self.root._vectorizer = vectorizer
@@ -119,10 +125,9 @@ class DTM(object):
         if term not in self.root._term_idx_map.keys(): raise ValueError(f"'{term}' not found in document-term-matrix.")
         return self.root._term_idx_map.get(term)
 
-    @classmethod
-    def cloned(cls, parent, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
-        cloned = cls()
-        cloned.root = parent.root
+    def cloned(self, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
+        cloned = DTM()
+        cloned.root = self.root
         cloned._row_indices = row_indices
         if cloned.is_built:
             try:
@@ -159,6 +164,86 @@ class DTM(object):
             yield self
         finally:
             self._col_indices = None
+
+    @classmethod
+    def from_dtm(cls, dtm: 'DTM'):
+        return DTM.from_matrix(dtm.matrix, dtm.term_names)
+
+    @classmethod
+    def from_matrix(cls, matrix: Union[np.ndarray, np.matrix], terms):
+        num_terms: int
+        if isinstance(terms, list): num_terms = len(terms)
+        elif isinstance(terms, np.ndarray) and len(terms.shape) == 1: num_terms = terms.shape[0]
+        elif isinstance(terms, np.ndarray) and len(terms.shape) == 2: num_terms = terms.shape[1]
+        else: raise ValueError(f"Expecting terms to be either list or array but got {type(terms)}.")
+        assert matrix.shape[1] == num_terms, f"Mismatched terms. Matrix shape {matrix.shape} and {num_terms} terms."
+        if not scipy.sparse.issparse(matrix):
+            logger.warning(f"Accepted a non sparse matrix as DTM, this may be expensive in memory.")
+        dtm = cls()
+        dtm._matrix = matrix
+        dtm._feature_names_out = terms
+        dtm._is_built = True
+        return dtm
+
+    def merge(self, dtm: 'DTM'):
+        """Merge DTM with current."""
+        if len(dtm.term_names) >= len(self.term_names): big, small = dtm, self
+        else: big, small = self, dtm
+
+        top_right, indx_missing = self._merge_top_right_matrix(big, small)
+        top_left = self._merge_top_left_matrix(small)
+        top = scipy.sparse.hstack((top_left, top_right))
+
+        num_terms_sm_and_bg = small.num_terms + indx_missing.shape[0]
+        assert top.shape[0] == small.num_docs and top.shape[1] == num_terms_sm_and_bg, \
+            f"Top matrix incorrect shape: Expecting ({small.num_docs, num_terms_sm_and_bg}. Got {top.shape}."
+
+        bottom_left = self._merge_bottom_left(big, small)  # shape=(big.num_docs, small.num_terms)
+        bottom_right = self._merge_bottom_right(big, indx_missing)  # shape=(big.num_docs, missing terms from big)
+        bottom = scipy.sparse.hstack((bottom_left, bottom_right))
+        logger.debug(f"MERGE: merged bottom matrix shape: {bottom.shape} type: {type(bottom)}.")
+        assert bottom.shape[0] == big.num_docs and bottom_left.shape[1] == small.num_terms, \
+            f"Bottom matrix incorrect shape: Expecting ({big.num_docs}, {num_terms_sm_and_bg}). Got {bottom.shape}."
+
+        m = scipy.sparse.vstack((top, bottom))
+        logger.debug(f"MERGE: merged matrix shape: {m.shape} type: {type(m)}.")
+        assert m.shape[1] == num_terms_sm_and_bg, \
+            f"Terms incorrectly merged. Total unique terms: {num_terms_sm_and_bg}. Got {m.shape[1]}."
+        num_docs_sm_and_bg = big.num_docs + small.num_docs
+        assert m.shape[0] == num_docs_sm_and_bg, \
+            f"Documents incorrectly merged. Total documents: {num_docs_sm_and_bg}. Got {m.shape[0]}."
+
+        # replace with new matrix.
+        self._matrix = m
+        self._feature_names_out = np.concatenate([small.term_names, big.term_names[indx_missing]])
+
+    def _merge_top_right_matrix(self, big, small):
+        # 1. build top matrix: shape = (small.num_docs, small.num_terms + missing terms from big)
+        # perf: assume_uniq - improves performance and terms are unique.
+        mask_missing = np.isin(big.term_names, small.term_names, assume_unique=True, invert=True)
+        indx_missing = mask_missing.nonzero()[0]
+        # create zero matrix in top right since small doesn't have these terms in their documents.
+        top_right = scipy.sparse.csr_matrix((small.num_docs, indx_missing.shape[0]), dtype=small.matrix.dtype)
+        return top_right, indx_missing
+
+    def _merge_top_left_matrix(self, small):
+        return small.matrix
+
+    def _merge_bottom_left(self, big, small):
+        # 2. build bottom matrix: shape = (big.num_docs, small.num_terms + missing terms from big)
+        # bottom-left: shape = (big.num_docs, small.num_terms)
+        #   align overlapping term indices from big with small term indices
+        intersect = np.intersect1d(big.term_names, small.term_names, assume_unique=True, return_indices=True)
+        intersect_terms, bg_intersect_indx, sm_intersect_indx = intersect
+        bottom_left = scipy.sparse.lil_matrix((big.num_docs, small.num_terms))  # perf: lil for column replacement
+        for i, idx in enumerate(sm_intersect_indx):
+            bottom_left[:, idx] = big.matrix[:, bg_intersect_indx[i]]
+        logger.debug(f"MERGE: bottom left matrix shape: {bottom_left.shape}")
+        bottom_left = bottom_left.tocsr(copy=False)  # convert to csr to match with rest of submatrices
+        return bottom_left
+
+    def _merge_bottom_right(self, big, indx_missing):
+        return big.matrix[:, indx_missing]
 
 
 if __name__ == '__main__':
