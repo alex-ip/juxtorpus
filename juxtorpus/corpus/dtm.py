@@ -207,13 +207,17 @@ class DTM(object):
         # bottom-left: shape = (big.num_docs, small.num_terms)
         #   align overlapping term indices from big with small term indices
         bottom_left = scipy.sparse.lil_matrix((big.num_docs, small.num_terms))  # perf: lil for column replacement
+        bl_bg_aligned_num_terms = 0
         for i, term in enumerate(small.term_names):
             where = np.where(big.term_names == term)[0]
-            if len(where) > 0: bottom_left[:, i] = big.matrix[:, where[0]]
-        indx_overlap = np.isin(big.term_names, small.term_names, assume_unique=True, invert=False).nonzero()[0]
-
-        bl_bg_aligned_num_terms = bottom_left.sum(axis=0).nonzero()[1].shape[0]
-        num_terms_overlapped = indx_overlap.shape[0]
+            if len(where) > 0:
+                bottom_left[:, i] = big.matrix[:, where[0]]
+                bl_bg_aligned_num_terms += 1
+        # intersection of big and small terms
+        # - only intersect_terms used at the moment, indices could be useful to replace above for loop block. (todo)
+        intersect = np.intersect1d(big.term_names, small.term_names, assume_unique=True, return_indices=True)
+        intersect_terms, bg_intersect_indx, sm_intersect_indx = intersect
+        num_terms_overlapped = intersect_terms.shape[0]
         logger.debug(f"MERGE: bottom left aligned {bl_bg_aligned_num_terms} terms. Expecting {num_terms_overlapped}.")
         assert bl_bg_aligned_num_terms == num_terms_overlapped, \
             "Column alignment failed to correctly align terms for bottom left of merged matrix."
@@ -222,7 +226,7 @@ class DTM(object):
         # bottom-right: shape=(big.num_docs, missing terms from big)
         bottom_right = big.matrix[:, indx_missing]
         bottom = scipy.sparse.hstack((bottom_left, bottom_right))
-        logger.debug(f"MERGE: merged bottom matrix shape: {self._matrix.shape} type: {type(self._matrix)}.")
+        logger.debug(f"MERGE: merged bottom matrix shape: {bottom.shape} type: {type(bottom)}.")
         assert bottom.shape[0] == big.num_docs and bottom_left.shape[1] == small.num_terms, \
             f"Bottom matrix incorrect shape: Expecting ({big.num_docs}, {num_terms_sm_and_bg}). Got {bottom.shape}."
 
