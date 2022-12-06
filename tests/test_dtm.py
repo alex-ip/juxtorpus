@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 
 from juxtorpus.corpus import Corpus
-from juxtorpus.corpus.dtm import DTM
 
 
 class TestDTM(unittest.TestCase):
@@ -17,8 +16,7 @@ class TestDTM(unittest.TestCase):
         pass
 
     def test_merge(self):
-        dtm = DTM.from_matrix(self.c.dtm.matrix, self.c.dtm.term_names)
-        dtm.merge(self.c2.dtm)
+        dtm = self.c.dtm.merged(self.c2.dtm)
 
         shared_vocab = np.unique(np.concatenate((self.c.dtm.term_names, self.c2.dtm.term_names)))
         assert dtm.shape[1] == len(shared_vocab), "Merged number of terms mismatched."

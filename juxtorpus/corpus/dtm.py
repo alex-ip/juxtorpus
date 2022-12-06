@@ -206,16 +206,16 @@ class DTM(object):
             else:
                 big, small = self, dtm
 
-            top_right, indx_missing = self._merge_top_right_matrix(big, small)
-            top_left = self._merge_top_left_matrix(small)
+            top_right, indx_missing = self._build_top_right_merged_matrix(big, small)
+            top_left = self._build_top_left_merged_matrix(small)
             top = scipy.sparse.hstack((top_left, top_right))
 
             num_terms_sm_and_bg = small.num_terms + indx_missing.shape[0]
             assert top.shape[0] == small.num_docs and top.shape[1] == num_terms_sm_and_bg, \
                 f"Top matrix incorrect shape: Expecting ({small.num_docs, num_terms_sm_and_bg}. Got {top.shape}."
 
-            bottom_left = self._merge_bottom_left(big, small)  # shape=(big.num_docs, small.num_terms)
-            bottom_right = self._merge_bottom_right(big, indx_missing)  # shape=(big.num_docs, missing terms from big)
+            bottom_left = self._build_bottom_left_merged_matrix(big, small)  # shape=(big.num_docs, small.num_terms)
+            bottom_right = self._build_bottom_right_merged_matrix(big, indx_missing)  # shape=(big.num_docs, missing terms from big)
             bottom = scipy.sparse.hstack((bottom_left, bottom_right))
             logger.debug(f"MERGE: merged bottom matrix shape: {bottom.shape} type: {type(bottom)}.")
             assert bottom.shape[0] == big.num_docs and bottom_left.shape[1] == small.num_terms, \
@@ -236,7 +236,7 @@ class DTM(object):
         dtm._feature_names_out = feature_names_out
         return dtm
 
-    def _merge_top_right_matrix(self, big, small):
+    def _build_top_right_merged_matrix(self, big, small):
         # 1. build top matrix: shape = (small.num_docs, small.num_terms + missing terms from big)
         # perf: assume_uniq - improves performance and terms are unique.
         mask_missing = np.isin(big.term_names, small.term_names, assume_unique=True, invert=True)
@@ -245,10 +245,10 @@ class DTM(object):
         top_right = scipy.sparse.csr_matrix((small.num_docs, indx_missing.shape[0]), dtype=small.matrix.dtype)
         return top_right, indx_missing
 
-    def _merge_top_left_matrix(self, small):
+    def _build_top_left_merged_matrix(self, small):
         return small.matrix
 
-    def _merge_bottom_left(self, big, small):
+    def _build_bottom_left_merged_matrix(self, big, small):
         # 2. build bottom matrix: shape = (big.num_docs, small.num_terms + missing terms from big)
         # bottom-left: shape = (big.num_docs, small.num_terms)
         #   align overlapping term indices from big with small term indices
@@ -261,7 +261,7 @@ class DTM(object):
         bottom_left = bottom_left.tocsr(copy=False)  # convert to csr to match with rest of submatrices
         return bottom_left
 
-    def _merge_bottom_right(self, big, indx_missing):
+    def _build_bottom_right_merged_matrix(self, big, indx_missing):
         return big.matrix[:, indx_missing]
 
 
