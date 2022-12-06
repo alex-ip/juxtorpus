@@ -92,10 +92,9 @@ def _log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, logl
 def _merge_dtms(corpora: list[Corpus]):
     if _shares_root_and_is_full_dtm(corpora):
         return corpora[0].find_root().dtm  # perf: always most performant using root
-    dtm = DTM.from_dtm(corpora[0].dtm)
-    for corpus in corpora[1:]: dtm.merge(corpus.dtm)
+    dtm = corpora[0].dtm
+    for corpus in corpora[1:]: dtm = dtm.merged(corpus.dtm)
     return dtm
-
 
 def _shares_root(corpora: list[Corpus]):
     """ Checks if all corpus shares a common root corpus. """
