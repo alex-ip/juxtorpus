@@ -4,13 +4,28 @@ Implementations of log likelihood ratios and effect size.
 
 source: https://ucrel.lancs.ac.uk/llwizard.html
 """
+import time
+
 import numpy as np
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.dtm import DTM
 
 
-def log_likelihood_ratio(expected, observed):
+def log_likelihood_and_effect_size(corpora: list[Corpus]):
+    """ Calculate the sum of log likelihood ratios over the corpora. """
+    dtm = _merge_dtms(corpora)
+    llr = _log_likelihood_ratios(corpora, merged_dtm=dtm)
+    bic = _bayes_factor_bic(corpora, merged_dtm=dtm, llr=llr)
+    ell = log_likelihood_effect_size_ell(corpora, merged_dtm=dtm, llr=llr)
+    return {
+        'log likelihood ratios': llr,
+        'bayes factor bic': bic,
+        'effect size ell': ell
+    }
+
+
+def _log_likelihood_ratio(expected, observed):
     """ Calculates the log likelihood ratio of the expected vs the observed.
 
     implementation details:
@@ -29,21 +44,20 @@ def log_likelihood_ratio(expected, observed):
     return 2 * np.multiply(observed, (np.log(observed_smoothed) - np.log(expected_smoothed)))
 
 
-def log_likelihood(corpora: list[Corpus]):
-    """ Calculate the sum of log likelihood ratios over the corpora. """
-    dtm = _merge_dtms(corpora)
+def _log_likelihood_ratios(corpora: list[Corpus], merged_dtm: DTM):
+    dtm = merged_dtm
     shared_term_likelihoods = dtm.total_terms_vector / dtm.total
 
     llrs = list()
     for corpus in corpora:
         expected_wc = shared_term_likelihoods * corpus.dtm.total
         observed_wc = corpus.dtm.total_terms_vector
-        llr = log_likelihood_ratio(expected_wc, observed_wc)
+        llr = _log_likelihood_ratio(expected_wc, observed_wc)
         llrs.append(llr)
     return np.vstack(llrs).sum(axis=0)
 
 
-def bayes_factor_bic(corpora: list[Corpus]):
+def _bayes_factor_bic(corpora: list[Corpus], merged_dtm: DTM, llr):
     """ Calculates the Bayes Factor BIC
 
     You can interpret the approximate Bayes Factor as degrees of evidence against the null hypothesis as follows:
@@ -53,32 +67,31 @@ def bayes_factor_bic(corpora: list[Corpus]):
     > 10: very strong evidence against H0
     For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
     """
-    llr_summed = log_likelihood(corpora)
     dof = len(corpora) - 1
-    dtm = _merge_dtms(corpora)
-    return llr_summed - (dof * np.log(dtm.total))
+    return llr - (dof * np.log(merged_dtm.total))
 
 
-def log_likelihood_effect_size_ell(corpora: list[Corpus]):
+def log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, llr):
     """ Effect Size for Log Likelihood.
 
     ELL varies between 0 and 1 (inclusive).
     Johnston et al. say "interpretation is straightforward as the proportion of the maximum departure between the
     observed and expected proportions".
     """
-    dtm = _merge_dtms(corpora)
+    dtm = merged_dtm
     shared_term_likelihoods = dtm.total_terms_vector / dtm.total
-    llr_summed = log_likelihood(corpora)
     expected_wcs = list()
     for corpus in corpora:
         expected_wc = shared_term_likelihoods * corpus.dtm.total
         expected_wcs.append(expected_wc)
     min_expected_wc = np.vstack(expected_wcs).min(axis=0)
     denominator = dtm.total * np.log(min_expected_wc)
-    return np.divide(llr_summed, denominator, out=np.zeros(shape=llr_summed.shape), where=denominator != 0)
+    return np.divide(llr, denominator, out=np.zeros(shape=llr.shape), where=denominator != 0)
 
 
 def _merge_dtms(corpora: list[Corpus]):
+    if _shares_root_and_is_full_dtm(corpora):
+        return corpora[0].find_root().dtm   # perf: always most performant using root
     dtm = DTM.from_dtm(corpora[0].dtm)
     for corpus in corpora[1:]: dtm.merge(corpus.dtm)
     return dtm
@@ -99,3 +112,11 @@ def _shares_vocab(corpora: list[Corpus]):
     for i in range(1, len(corpora)):
         if corpora[i].dtm.vocab.difference(vocab) > 0: return False
     return True
+
+
+def _shares_root_and_is_full_dtm(corpora: list[Corpus]):
+    if not _shares_root(corpora): return False
+    # check if corpora makes up full dtm
+    num_docs = 0
+    for corpus in corpora: num_docs += corpus.dtm.num_docs
+    return num_docs == corpora[0].find_root().dtm.num_docs

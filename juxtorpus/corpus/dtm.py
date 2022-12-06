@@ -185,37 +185,54 @@ class DTM(object):
         dtm._is_built = True
         return dtm
 
+    def shares_vocab(self, dtm: 'DTM') -> bool:
+        this, other = self.vocab(nonzero=True), dtm.vocab(nonzero=True)
+        if not len(this) == len(other): return False
+        return this.difference(other) == 0
+
+    def terms_aligned(self, dtm: 'DTM') -> bool:
+        this, other = self.term_names, dtm.term_names
+        if not len(this) == len(other): return False
+        return (this == other).all()
+
     def merge(self, dtm: 'DTM'):
         """Merge DTM with current."""
-        if len(dtm.term_names) >= len(self.term_names): big, small = dtm, self
-        else: big, small = self, dtm
+        if self.terms_aligned(dtm):
+            m = scipy.sparse.vstack((self.matrix, dtm.matrix))
+            feature_names_out = self._feature_names_out  # unchanged since terms are shared
+        else:
+            if len(dtm.term_names) >= len(self.term_names):
+                big, small = dtm, self
+            else:
+                big, small = self, dtm
 
-        top_right, indx_missing = self._merge_top_right_matrix(big, small)
-        top_left = self._merge_top_left_matrix(small)
-        top = scipy.sparse.hstack((top_left, top_right))
+            top_right, indx_missing = self._merge_top_right_matrix(big, small)
+            top_left = self._merge_top_left_matrix(small)
+            top = scipy.sparse.hstack((top_left, top_right))
 
-        num_terms_sm_and_bg = small.num_terms + indx_missing.shape[0]
-        assert top.shape[0] == small.num_docs and top.shape[1] == num_terms_sm_and_bg, \
-            f"Top matrix incorrect shape: Expecting ({small.num_docs, num_terms_sm_and_bg}. Got {top.shape}."
+            num_terms_sm_and_bg = small.num_terms + indx_missing.shape[0]
+            assert top.shape[0] == small.num_docs and top.shape[1] == num_terms_sm_and_bg, \
+                f"Top matrix incorrect shape: Expecting ({small.num_docs, num_terms_sm_and_bg}. Got {top.shape}."
 
-        bottom_left = self._merge_bottom_left(big, small)  # shape=(big.num_docs, small.num_terms)
-        bottom_right = self._merge_bottom_right(big, indx_missing)  # shape=(big.num_docs, missing terms from big)
-        bottom = scipy.sparse.hstack((bottom_left, bottom_right))
-        logger.debug(f"MERGE: merged bottom matrix shape: {bottom.shape} type: {type(bottom)}.")
-        assert bottom.shape[0] == big.num_docs and bottom_left.shape[1] == small.num_terms, \
-            f"Bottom matrix incorrect shape: Expecting ({big.num_docs}, {num_terms_sm_and_bg}). Got {bottom.shape}."
+            bottom_left = self._merge_bottom_left(big, small)  # shape=(big.num_docs, small.num_terms)
+            bottom_right = self._merge_bottom_right(big, indx_missing)  # shape=(big.num_docs, missing terms from big)
+            bottom = scipy.sparse.hstack((bottom_left, bottom_right))
+            logger.debug(f"MERGE: merged bottom matrix shape: {bottom.shape} type: {type(bottom)}.")
+            assert bottom.shape[0] == big.num_docs and bottom_left.shape[1] == small.num_terms, \
+                f"Bottom matrix incorrect shape: Expecting ({big.num_docs}, {num_terms_sm_and_bg}). Got {bottom.shape}."
 
-        m = scipy.sparse.vstack((top, bottom))
-        logger.debug(f"MERGE: merged matrix shape: {m.shape} type: {type(m)}.")
-        assert m.shape[1] == num_terms_sm_and_bg, \
-            f"Terms incorrectly merged. Total unique terms: {num_terms_sm_and_bg}. Got {m.shape[1]}."
-        num_docs_sm_and_bg = big.num_docs + small.num_docs
-        assert m.shape[0] == num_docs_sm_and_bg, \
-            f"Documents incorrectly merged. Total documents: {num_docs_sm_and_bg}. Got {m.shape[0]}."
+            m = scipy.sparse.vstack((top, bottom))
+            logger.debug(f"MERGE: merged matrix shape: {m.shape} type: {type(m)}.")
+            assert m.shape[1] == num_terms_sm_and_bg, \
+                f"Terms incorrectly merged. Total unique terms: {num_terms_sm_and_bg}. Got {m.shape[1]}."
+            num_docs_sm_and_bg = big.num_docs + small.num_docs
+            assert m.shape[0] == num_docs_sm_and_bg, \
+                f"Documents incorrectly merged. Total documents: {num_docs_sm_and_bg}. Got {m.shape[0]}."
+            feature_names_out = np.concatenate([small.term_names, big.term_names[indx_missing]])
 
         # replace with new matrix.
         self._matrix = m
-        self._feature_names_out = np.concatenate([small.term_names, big.term_names[indx_missing]])
+        self._feature_names_out = feature_names_out
 
     def _merge_top_right_matrix(self, big, small):
         # 1. build top matrix: shape = (small.num_docs, small.num_terms + missing terms from big)
