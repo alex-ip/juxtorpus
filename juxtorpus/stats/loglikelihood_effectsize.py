@@ -15,13 +15,13 @@ from juxtorpus.corpus.dtm import DTM
 def log_likelihood_and_effect_size(corpora: list[Corpus]):
     """ Calculate the sum of log likelihood ratios over the corpora. """
     dtm = _merge_dtms(corpora)
-    llr = _log_likelihood_ratios(corpora, merged_dtm=dtm)
-    bic = _bayes_factor_bic(corpora, merged_dtm=dtm, llr=llr)
-    ell = log_likelihood_effect_size_ell(corpora, merged_dtm=dtm, llr=llr)
+    llv = _log_likelihood_value(corpora, merged_dtm=dtm)
+    bic = _bayes_factor_bic(corpora, merged_dtm=dtm, loglikelihood=llv)
+    ell = log_likelihood_effect_size_ell(corpora, merged_dtm=dtm, loglikelihood=llv)
     return {
-        'log likelihood ratios': llr,
-        'bayes factor bic': bic,
-        'effect size ell': ell
+        'log likelihood values': llv,
+        'bayes factors': bic,
+        'effect sizes': ell
     }
 
 
@@ -44,7 +44,7 @@ def _log_likelihood_ratio(expected, observed):
     return 2 * np.multiply(observed, (np.log(observed_smoothed) - np.log(expected_smoothed)))
 
 
-def _log_likelihood_ratios(corpora: list[Corpus], merged_dtm: DTM):
+def _log_likelihood_value(corpora: list[Corpus], merged_dtm: DTM):
     dtm = merged_dtm
     shared_term_likelihoods = dtm.total_terms_vector / dtm.total
 
@@ -57,7 +57,7 @@ def _log_likelihood_ratios(corpora: list[Corpus], merged_dtm: DTM):
     return np.vstack(llrs).sum(axis=0)
 
 
-def _bayes_factor_bic(corpora: list[Corpus], merged_dtm: DTM, llr):
+def _bayes_factor_bic(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
     """ Calculates the Bayes Factor BIC
 
     You can interpret the approximate Bayes Factor as degrees of evidence against the null hypothesis as follows:
@@ -68,10 +68,10 @@ def _bayes_factor_bic(corpora: list[Corpus], merged_dtm: DTM, llr):
     For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
     """
     dof = len(corpora) - 1
-    return llr - (dof * np.log(merged_dtm.total))
+    return loglikelihood - (dof * np.log(merged_dtm.total))
 
 
-def log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, llr):
+def log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
     """ Effect Size for Log Likelihood.
 
     ELL varies between 0 and 1 (inclusive).
@@ -86,12 +86,12 @@ def log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, llr):
         expected_wcs.append(expected_wc)
     min_expected_wc = np.vstack(expected_wcs).min(axis=0)
     denominator = dtm.total * np.log(min_expected_wc)
-    return np.divide(llr, denominator, out=np.zeros(shape=llr.shape), where=denominator != 0)
+    return np.divide(loglikelihood, denominator, out=np.zeros(shape=loglikelihood.shape), where=denominator != 0)
 
 
 def _merge_dtms(corpora: list[Corpus]):
     if _shares_root_and_is_full_dtm(corpora):
-        return corpora[0].find_root().dtm   # perf: always most performant using root
+        return corpora[0].find_root().dtm  # perf: always most performant using root
     dtm = DTM.from_dtm(corpora[0].dtm)
     for corpus in corpora[1:]: dtm.merge(corpus.dtm)
     return dtm

@@ -27,20 +27,15 @@ class TestJux(TestCase):
     def tearDown(self) -> None:
         pass
 
-    def test_jux_stats_log_likelihoods(self):
-        # assert self.jux.stats.log_likelihood_ratios().sum() == 3971.287933119202      - before merge dtm, used root
-        llr_sum = self.jux.stats.log_likelihood_ratios().sum()
+    def test_jux_stats_loglikelihood_effect_size(self):
+        results = self.jux.stats.log_likelihood_and_effect_size()
+        llr_sum = results.get('log likelihood values').sum()
+        bic_sum = results.get('bayes factors').sum()
+        ell_sum = results.get('effect sizes').sum()
+
         expected_sum = 808.895226825335
         assert np.isclose(llr_sum, expected_sum), f"Expecting {expected_sum}. Got {llr_sum}"
-
-    def test_jux_stats_bic(self):
-        # assert self.jux.stats.bayes_factor_bic().sum() == -274825.34931918373 - before merge dtm, used root
-        bic_sum = self.jux.stats.bayes_factor_bic().sum()
         expected_sum = -155398.31153063354
         assert np.isclose(bic_sum, expected_sum), f"Expecting {expected_sum}. Got {bic_sum}"
-
-    def test_jux_stats_ell(self):
-        # assert self.jux.stats.log_likelihood_effect_size_ell().sum() == 0.0014906672331040536 - used root
-        ell = self.jux.stats.log_likelihood_effect_size_ell().sum()
         expected_sum = -2.169271475633721
-        assert np.isclose(ell, expected_sum), f"Expecting {expected_sum}. Got {ell}"
+        assert np.isclose(ell_sum, expected_sum), f"Expecting {expected_sum}. Got {ell_sum}"
