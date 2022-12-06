@@ -17,7 +17,7 @@ def log_likelihood_and_effect_size(corpora: list[Corpus]):
     dtm = _merge_dtms(corpora)
     llv = _log_likelihood_value(corpora, merged_dtm=dtm)
     bic = _bayes_factor_bic(corpora, merged_dtm=dtm, loglikelihood=llv)
-    ell = log_likelihood_effect_size_ell(corpora, merged_dtm=dtm, loglikelihood=llv)
+    ell = _log_likelihood_effect_size_ell(corpora, merged_dtm=dtm, loglikelihood=llv)
     return {
         'log likelihood values': llv,
         'bayes factors': bic,
@@ -33,7 +33,7 @@ def _log_likelihood_ratio(expected, observed):
     The terms where there are 0 freqs are smoothed by adding 1. The nonzero freq terms are then
     decremented by 1 to preserve real count. This is so that when we log it, it'll return a 0.
     Since raw_wc > 0 then expected_wc must be > 0. And if expected = 0, then raw_wc must be = 0.
-    # if raw_wc = 0, then raw_wc * np.log(...) = 0.
+    2. if raw_wc = 0, then raw_wc * np.log(...) = 0.
     """
     non_zero_indices = observed.nonzero()[0]
     observed_smoothed = observed + 1  # add 1 for zeros for log later
@@ -71,7 +71,7 @@ def _bayes_factor_bic(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
     return loglikelihood - (dof * np.log(merged_dtm.total))
 
 
-def log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
+def _log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
     """ Effect Size for Log Likelihood.
 
     ELL varies between 0 and 1 (inclusive).
