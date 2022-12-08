@@ -38,3 +38,8 @@ class FreqTable(object):
                 raise ValueError(f"You must use term freq pairs. Not {self.__class__.__name__}.")
             other = FreqTable(other, freqs)
         self._df = pd.concat([self._df, other.df], axis=1).fillna(0).sum(axis=1)
+
+    def remove(self, terms: Union[str, list[str]]):
+        """ Remove terms from frequency table. Ignored if not exist."""
+        terms = list(terms)
+        self.df.drop(terms, errors='ignore', inplace=True)
