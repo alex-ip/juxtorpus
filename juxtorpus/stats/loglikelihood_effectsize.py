@@ -4,118 +4,41 @@ Implementations of log likelihood ratios and effect size.
 
 source: https://ucrel.lancs.ac.uk/llwizard.html
 """
-import time
-
 import numpy as np
+import pandas as pd
 
 from juxtorpus.corpus import Corpus
-from juxtorpus.corpus.dtm import DTM
 
 
 def log_likelihood_and_effect_size(corpora: list[Corpus]):
     """ Calculate the sum of log likelihood ratios over the corpora. """
-    dtm = _merge_dtms(corpora)
-    llv = _log_likelihood_value(corpora, merged_dtm=dtm)
-    bic = _bayes_factor_bic(corpora, merged_dtm=dtm, loglikelihood=llv)
-    ell = _log_likelihood_effect_size_ell(corpora, merged_dtm=dtm, loglikelihood=llv)
-    return {
-        'log likelihood values': llv,
-        'bayes factors': bic,
-        'effect sizes': ell
-    }
+    res = pd.concat((corpus.dtm.freq_table(nonzero=True).df for corpus in corpora), axis=1)
+
+    corpora_freqs = res.sum(axis=1)
+    corpora_freq_total = corpora_freqs.sum(axis=0)
+    shared_likelihoods = corpora_freqs / corpora_freq_total
+
+    res['corpora_likelihoods'] = shared_likelihoods
+    for i, corpus in enumerate(corpora):
+        observed = res[i]
+        res[f"expected_freq_corpus_{i}"] = res['corpora_likelihoods'] * observed.sum(axis=0)
+        res[f"log_likelihood_corpus_{i}"] = _loglikelihood_ratios(res[f"expected_freq_corpus_{i}"], observed)
+
+    res['log_likelihood_llv'] = res.filter(regex=r'log_likelihood_corpus_[0-9]+').sum(axis=1)
+    res['bayes_factor_bic'] = _bayes_factor_bic(len(corpora), corpora_freq_total, res['log_likelihood_llv'])
+    min_expected = res.filter(regex=r'expected_freq_corpus_[0-9]+').min(axis=1)
+    res['effect_size_ell'] = _effect_size_ell(min_expected, corpora_freq_total, res['log_likelihood_llv'])
+    return res
 
 
-def _log_likelihood_ratio(expected, observed):
-    """ Calculates the log likelihood ratio of the expected vs the observed.
-
-    implementation details:
-    1. if the raw freq or the expected freq is 0, it returns a 0 for that term.
-    The terms where there are 0 freqs are smoothed by adding 1. The nonzero freq terms are then
-    decremented by 1 to preserve real count. This is so that when we log it, it'll return a 0.
-    Since raw_wc > 0 then expected_wc must be > 0. And if expected = 0, then raw_wc must be = 0.
-    2. if raw_wc = 0, then raw_wc * np.log(...) = 0.
-    """
-    non_zero_indices = observed.nonzero()[0]
-    observed_smoothed = observed + 1  # add 1 for zeros for log later
-    observed_smoothed[non_zero_indices] -= 1  # minus 1 for non-zeros
-    non_zero_indices = expected.nonzero()[0]
-    expected_smoothed = expected + 1
-    expected_smoothed[non_zero_indices] -= 1
-    return 2 * np.multiply(observed, (np.log(observed_smoothed) - np.log(expected_smoothed)))
+def _bayes_factor_bic(corpora_size: int, corpora_freq_total: int, log_likelihood: pd.Series):
+    dof = corpora_size - 1
+    return log_likelihood - (dof * np.log(corpora_freq_total))
 
 
-def _log_likelihood_value(corpora: list[Corpus], merged_dtm: DTM):
-    dtm = merged_dtm
-    shared_term_likelihoods = dtm.total_terms_vector / dtm.total
-
-    llrs = list()
-    for corpus in corpora:
-        expected_wc = shared_term_likelihoods * corpus.dtm.total
-        observed_wc = corpus.dtm.total_terms_vector
-        llr = _log_likelihood_ratio(expected_wc, observed_wc)
-        llrs.append(llr)
-    return np.vstack(llrs).sum(axis=0)
+def _effect_size_ell(min_expected, corpora_freq_total: int, log_likelihood: pd.Series):
+    return log_likelihood / (corpora_freq_total * np.log(min_expected))
 
 
-def _bayes_factor_bic(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
-    """ Calculates the Bayes Factor BIC
-
-    You can interpret the approximate Bayes Factor as degrees of evidence against the null hypothesis as follows:
-    0-2: not worth more than a bare mention
-    2-6: positive evidence against H0
-    6-10: strong evidence against H0
-    > 10: very strong evidence against H0
-    For negative scores, the scale is read as "in favour of" instead of "against" (Wilson, personal communication).
-    """
-    dof = len(corpora) - 1
-    return loglikelihood - (dof * np.log(merged_dtm.total))
-
-
-def _log_likelihood_effect_size_ell(corpora: list[Corpus], merged_dtm: DTM, loglikelihood):
-    """ Effect Size for Log Likelihood.
-
-    ELL varies between 0 and 1 (inclusive).
-    Johnston et al. say "interpretation is straightforward as the proportion of the maximum departure between the
-    observed and expected proportions".
-    """
-    dtm = merged_dtm
-    shared_term_likelihoods = dtm.total_terms_vector / dtm.total
-    expected_wcs = list()
-    for corpus in corpora:
-        expected_wc = shared_term_likelihoods * corpus.dtm.total
-        expected_wcs.append(expected_wc)
-    min_expected_wc = np.vstack(expected_wcs).min(axis=0)
-    denominator = dtm.total * np.log(min_expected_wc)
-    return np.divide(loglikelihood, denominator, out=np.zeros(shape=loglikelihood.shape), where=denominator != 0)
-
-
-def _merge_dtms(corpora: list[Corpus]):
-    if _shares_root_and_is_full_dtm(corpora):
-        return corpora[0].find_root().dtm  # perf: always most performant using root
-    dtm = corpora[0].dtm
-    for corpus in corpora[1:]: dtm = dtm.merged(corpus.dtm)
-    return dtm
-
-def _shares_root(corpora: list[Corpus]):
-    """ Checks if all corpus shares a common root corpus. """
-    root = corpora[0].find_root()
-    for i in range(1, len(corpora)):
-        if corpora[i].find_root() != root: return False
-    return True
-
-
-def _shares_vocab(corpora: list[Corpus]):
-    """ Checks if all corpus share the same vocab. """
-    if _shares_root(corpora): return True
-    vocab = corpora[0].dtm.vocab
-    for i in range(1, len(corpora)):
-        if corpora[i].dtm.vocab.difference(vocab) > 0: return False
-    return True
-
-
-def _shares_root_and_is_full_dtm(corpora: list[Corpus]):
-    if not _shares_root(corpora): return False
-    # check if corpora makes up full dtm
-    num_docs = 0
-    for corpus in corpora: num_docs += corpus.dtm.num_docs
-    return num_docs == corpora[0].find_root().dtm.num_docs
+def _loglikelihood_ratios(expected: pd.Series, observed: pd.Series):
+    return 2 * np.multiply(observed, (np.log(observed) - np.log(expected)))
