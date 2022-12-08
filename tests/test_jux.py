@@ -27,15 +27,3 @@ class TestJux(TestCase):
     def tearDown(self) -> None:
         pass
 
-    def test_jux_stats_loglikelihood_effect_size(self):
-        results = self.jux.stats.log_likelihood_and_effect_size()
-        llr_sum = results.get('log likelihood values').sum()
-        bic_sum = results.get('bayes factors').sum()
-        ell_sum = results.get('effect sizes').sum()
-
-        expected_sum = 808.895226825335
-        assert np.isclose(llr_sum, expected_sum), f"Expecting {expected_sum}. Got {llr_sum}"
-        expected_sum = -155398.31153063354
-        assert np.isclose(bic_sum, expected_sum), f"Expecting {expected_sum}. Got {bic_sum}"
-        expected_sum = -2.169271475633721
-        assert np.isclose(ell_sum, expected_sum), f"Expecting {expected_sum}. Got {ell_sum}"
