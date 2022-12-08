@@ -3,12 +3,13 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from typing import Union, Iterable, TypeVar
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
+import scipy.sparse
 import logging
 
-import scipy.sparse
-from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
-
 logger = logging.getLogger(__name__)
+
+from juxtorpus.corpus.freqtable import FreqTable
 
 """ Document Term Matrix DTM
 
@@ -215,7 +216,8 @@ class DTM(object):
                 f"Top matrix incorrect shape: Expecting ({small.num_docs, num_terms_sm_and_bg}. Got {top.shape}."
 
             bottom_left = self._build_bottom_left_merged_matrix(big, small)  # shape=(big.num_docs, small.num_terms)
-            bottom_right = self._build_bottom_right_merged_matrix(big, indx_missing)  # shape=(big.num_docs, missing terms from big)
+            bottom_right = self._build_bottom_right_merged_matrix(big,
+                                                                  indx_missing)  # shape=(big.num_docs, missing terms from big)
             bottom = scipy.sparse.hstack((bottom_left, bottom_right))
             logger.debug(f"MERGE: merged bottom matrix shape: {bottom.shape} type: {type(bottom)}.")
             assert bottom.shape[0] == big.num_docs and bottom_left.shape[1] == small.num_terms, \
@@ -263,6 +265,13 @@ class DTM(object):
 
     def _build_bottom_right_merged_matrix(self, big, indx_missing):
         return big.matrix[:, indx_missing]
+
+    def freq_table(self, nonzero=True):
+        terms, freqs = self.term_names, self.total_terms_vector
+        if nonzero:
+            indices = np.nonzero(self.total_terms_vector)[0]
+            terms, freqs = self.term_names[indices], self.total_terms_vector[indices]
+        return FreqTable(terms, freqs)
 
 
 if __name__ == '__main__':
