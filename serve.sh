@@ -20,5 +20,5 @@ fi
 jupyter notebook \
   --config "$PATH_CONFIG" \
   --NotebookApp.browser='safari' \
-  $@
+  $@ \
   $DIR_NOTEBOOKS
