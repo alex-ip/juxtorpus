@@ -266,7 +266,8 @@ class DTM(object):
     def _build_bottom_right_merged_matrix(self, big, indx_missing):
         return big.matrix[:, indx_missing]
 
-    def freq_table(self, nonzero=True):
+    def freq_table(self, nonzero=True) -> FreqTable:
+        """ Create a frequency table of the dataframe."""
         terms, freqs = self.term_names, self.total_terms_vector
         if nonzero:
             indices = np.nonzero(self.total_terms_vector)[0]
