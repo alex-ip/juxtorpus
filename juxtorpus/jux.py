@@ -22,7 +22,7 @@ class Jux:
         self._A = corpus_a
         self._B = corpus_b
         self._stats = Statistics(self)
-        self._sim = Similarity(self._A, self._B)
+        self._sim = Similarity(self)
 
     @property
     def stats(self):
