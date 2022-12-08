@@ -23,8 +23,10 @@ def _cos_sim(v0: Union[np.ndarray, pd.Series], v1: Union[np.ndarray, pd.Series])
     if isinstance(v0, np.ndarray) and isinstance(v1, np.ndarray):
         assert v0.ndim == 1 and v1.ndim == 1, "Must be 1d array."
         assert v0.shape[0] == v1.shape[0], f"Mismatched shape {v0.shape=} {v1.shape=}"
+        if v0.shape[0] == 0: return 0
     elif isinstance(v0, pd.Series) and isinstance(v1, pd.Series):
         assert len(v0) == len(v1), f"Mismatched shape {len(v0)=} {len(v1)=}"
+        if len(v0) == 0: return 0
     else:
         raise ValueError(f"They must both be either "
                          f"{np.ndarray.__class__.__name__} or "
