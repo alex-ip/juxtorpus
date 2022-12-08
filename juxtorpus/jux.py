@@ -21,7 +21,7 @@ class Jux:
     def __init__(self, corpus_a: CorpusT, corpus_b: CorpusT):
         self._A = corpus_a
         self._B = corpus_b
-        self._stats = Statistics(self._A, self._B)
+        self._stats = Statistics(self)
         self._sim = Similarity(self._A, self._B)
 
     @property
