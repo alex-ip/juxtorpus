@@ -4,10 +4,12 @@ import spacy.vocab
 from spacy.tokens import Doc
 from frozendict import frozendict
 from collections import Counter
+from sklearn.feature_extraction.text import CountVectorizer
 import re
 
 from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
+from juxtorpus.matchers import is_word
 
 
 class Corpus:
@@ -235,9 +237,6 @@ class Corpus:
         return self
 
 
-from juxtorpus.matchers import is_word
-
-
 class SpacyCorpus(Corpus):
 
     @classmethod
@@ -252,6 +251,15 @@ class SpacyCorpus(Corpus):
     @property
     def nlp(self):
         return self._nlp
+
+    @property
+    def dtm(self):
+        if not self._dtm.is_built:
+            root = self.find_root()
+            root._dtm.build(root.docs(),
+                            vectorizer=CountVectorizer(preprocessor=lambda x: x,
+                                                       tokenizer=self._gen_words_from))
+        return self._dtm
 
     def texts(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT].map(lambda doc: doc.text)
