@@ -2,9 +2,10 @@ import tempfile
 
 from ipywidgets import FileUpload, Output, VBox, widgets
 from IPython.display import display
-from typing import Union
 import pathlib
-import os
+import logging.config
+
+logger = logging.getLogger(__name__)
 
 from juxtorpus.viz import Viz
 from juxtorpus.utils import DeduplicatedDirectory
@@ -69,20 +70,20 @@ class FileUploadWidget(Viz):
 
     def _add_zip(self, content, fname):
         try:
-            print(f"++ Extracting {fname} to disk. Please wait...")
+            logger.info(f"Extracting {fname} to disk. Please wait...")
             tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
-            self._dir.add_zip(tmp_zip_file, verbose=True)
-            print("++ Finished.")
+            num_added = self._dir.add_zip(tmp_zip_file, verbose=True)
+            logger.info(f"Done. Extracted {num_added} files.")
         except Exception as e:
-            print(f"Failed. Reason: {e}")
+            logger.info(f"Failed. Reason: {e}")
 
     def _add_file(self, content, fname):
         try:
-            print(f"++ Writing {fname} to disk...", end='')
+            logger.info(f"Writing {fname} to disk...")
             self._dir.add_content(content, fname)
-            print("Success.")
+            logger.info("Success.")
         except Exception as e:
             print(f"Failed. Reason: {e}")
