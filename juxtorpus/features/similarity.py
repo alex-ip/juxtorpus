@@ -78,11 +78,11 @@ class Similarity(object):
         elif metric == 'tfidf':
             return self._cos_sim_tfidf(**kwargs)
         elif metric == 'loglikelihood':
-            return self._cos_sim_llv()
+            return self._cos_sim_llv(**kwargs)
 
-    def _cos_sim_llv(self):
-        res = self._jux.stats.log_likelihood_and_effect_size().filter(regex=r'log_likelihood_*').fillna(0)
-        return _cos_sim(res['log_likelihood_corpus_a'], res['log_likelihood_corpus_b'])
+    def _cos_sim_llv(self, baseline: FreqTable):
+        res = self._jux.stats.log_likelihood_and_effect_size(baseline=baseline).fillna(0)
+        return _cos_sim(res['corpus_a_log_likelihood_llv'], res['corpus_b_log_likelihood_llv'])
 
     def _cos_sim_tf(self, without: list[str] = None) -> float:
         ft_a: FreqTable = self._jux.corpus_a.dtm.freq_table(nonzero=True)

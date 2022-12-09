@@ -8,26 +8,32 @@ import numpy as np
 import pandas as pd
 
 from juxtorpus.corpus import Corpus
+from juxtorpus.corpus.freqtable import FreqTable
 
 
-def log_likelihood_and_effect_size(corpora: list[Corpus]):
+def log_likelihood_and_effect_size(freq_tables: list[FreqTable], baseline: FreqTable = None):
     """ Calculate the sum of log likelihood ratios over the corpora. """
-    res = pd.concat((corpus.dtm.freq_table(nonzero=True).df for corpus in corpora), axis=1)
+    # res = pd.concat((corpus.dtm.freq_table(nonzero=True).df for corpus in corpora), axis=1)
+    res = pd.concat((ft.df for ft in freq_tables), axis=1)
 
-    corpora_freqs = res.sum(axis=1)
-    corpora_freq_total = corpora_freqs.sum(axis=0)
-    shared_likelihoods = corpora_freqs / corpora_freq_total
+    if baseline is None:
+        baseline_freqs = res.sum(axis=1)
+        baseline_freqs_total = baseline_freqs.sum(axis=0)
+        res['expected_likelihoods'] = baseline_freqs / baseline_freqs_total
+    else:
+        baseline_freqs = baseline.df
+        baseline_freqs_total = baseline_freqs.sum(axis=0)
+        res['expected_likelihoods'] = baseline_freqs / baseline_freqs_total
 
-    res['corpora_likelihoods'] = shared_likelihoods
-    for i, corpus in enumerate(corpora):
+    for i, ftable in enumerate(freq_tables):
         observed = res[i]
-        res[f"expected_freq_corpus_{i}"] = res['corpora_likelihoods'] * observed.sum(axis=0)
+        res[f"expected_freq_corpus_{i}"] = res['expected_likelihoods'] * observed.sum(axis=0)
         res[f"log_likelihood_corpus_{i}"] = _loglikelihood_ratios(res[f"expected_freq_corpus_{i}"], observed)
 
     res['log_likelihood_llv'] = res.filter(regex=r'log_likelihood_corpus_[0-9]+').sum(axis=1)
-    res['bayes_factor_bic'] = _bayes_factor_bic(len(corpora), corpora_freq_total, res['log_likelihood_llv'])
+    res['bayes_factor_bic'] = _bayes_factor_bic(len(freq_tables), baseline_freqs_total, res['log_likelihood_llv'])
     min_expected = res.filter(regex=r'expected_freq_corpus_[0-9]+').min(axis=1)
-    res['effect_size_ell'] = _effect_size_ell(min_expected, corpora_freq_total, res['log_likelihood_llv'])
+    res['effect_size_ell'] = _effect_size_ell(min_expected, baseline_freqs_total, res['log_likelihood_llv'])
     return res
 
 
