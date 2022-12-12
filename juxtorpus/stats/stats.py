@@ -15,13 +15,14 @@ class Statistics(object):
     def log_likelihood_and_effect_size(self, baseline: FreqTable = None):
         ftables = [self._jux.corpus_a.dtm.freq_table(nonzero=True),
                    self._jux.corpus_b.dtm.freq_table(nonzero=True)]
+
         if baseline is None:
             res = log_likelihood_and_effect_size(ftables)
             res = res.filter(regex=r'(log_likelihood_llv|bayes_factor_bic|effect_size_ell)')
         else:
             res_list = list()
             for corpus_id, ft in zip(['a', 'b'], ftables):
-                res = log_likelihood_and_effect_size([ft], baseline=baseline)
+                res = log_likelihood_and_effect_size([ft, baseline])
                 res = res.filter(regex=r'(log_likelihood_llv|bayes_factor_bic|effect_size_ell)')
 
                 mapper = dict()
