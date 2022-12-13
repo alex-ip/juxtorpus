@@ -59,12 +59,6 @@ class Corpus:
         # processing
         self._processing_history = list()
 
-        # internals - word statistics
-        self._counter: Union[Counter[str, int], None] = None
-        self._num_tokens: int = -1
-        self._num_words: int = -1
-        self._num_uniqs: int = -1
-
     @property
     def parent(self):
         return self._parent
