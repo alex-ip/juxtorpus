@@ -191,7 +191,7 @@ class TFKeywords(Keywords):
             else:
                 continue
 
-        num_words = corpus.num_words - threshold_diff_to_adjust
+        num_words = corpus.num_terms - threshold_diff_to_adjust
         freq_counter = dict(freq_counter)
         if log:
             for k in freq_counter.keys():

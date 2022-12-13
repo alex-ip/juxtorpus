@@ -43,8 +43,8 @@ class Similarity(object):
         if use_lemmas:
             # check if corpus are spacy corpus.
             raise NotImplementedError("To be implemented. Use unique lemmas instead of words.")
-        _A_uniqs: set[str] = self._jux.corpus_a.unique_words
-        _B_uniqs: set[str] = self._jux.corpus_b.unique_words
+        _A_uniqs: set[str] = self._jux.corpus_a.unique_terms
+        _B_uniqs: set[str] = self._jux.corpus_b.unique_terms
         return len(_A_uniqs.intersection(_B_uniqs)) / len(_A_uniqs.union(_B_uniqs))
 
     def lsa_pairwise_cosine(self, n_components: int = 100, verbose=False):

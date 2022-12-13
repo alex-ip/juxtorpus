@@ -11,6 +11,10 @@ from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
 from juxtorpus.matchers import is_word
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class Corpus:
     """ Corpus
@@ -112,26 +116,12 @@ class Corpus:
     ### Statistics ###
 
     @property
-    def num_tokens(self) -> int:
-        if self._num_tokens < 0:
-            self._num_tokens = sum((len(list(token_list)) for token_list in self.generate_tokens()))
-        return self._num_tokens
+    def num_terms(self) -> int:
+        return self.dtm.total
 
     @property
-    def num_words(self) -> int:
-        self._num_words = sum(self._counter.values())  # total() may be used for python >3.10
-        return self._num_words
-
-    @property
-    def num_unique_words(self) -> int:
-        self._num_uniqs = len(self._counter.keys())
-        return self._num_uniqs
-
-    @property
-    def unique_words(self) -> set[str]:
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
-        return set(self._counter.keys())
+    def unique_terms(self) -> set[str]:
+        return set(self.dtm.vocab(nonzero=True))
 
     def word_counter(self) -> Counter:
         if not self._computed_word_statistics():
@@ -143,37 +133,18 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        # if not self._computed_word_statistics():
-        self._compute_word_statistics()
-        return pd.Series({
-            "Number of words": max(self.num_words, 0),
-            "Number of unique words": max(self.num_unique_words, 0),
-            "Number of documents": len(self)
-        }, name='frequency', dtype='uint64')  # supports up to ~4 billion
+        docs_info = pd.Series(self.dtm.total_docs_vector).describe()
+        # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
+        mapper = dict()
+        for row_idx in docs_info.index: mapper[row_idx] = f"Terms {row_idx}"
+        docs_info.rename(index=mapper, inplace=True)
 
-    def freq_of(self, words: Set[str]):
-        """ Returns the frequency of a list of words. """
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
-        freqs = dict()
-        if isinstance(words, str):
-            freqs[words] = self._counter.get(words, 0)
-            return freqs
-        else:
-            for word in words:
-                freqs[word] = self._counter.get(word, 0)
-
-    def most_common_words(self, n: int):
-        if not self._computed_word_statistics():
-            self._compute_word_statistics()
-        return self._counter.most_common(n)
-
-    def _computed_word_statistics(self):
-        return self._counter is not None
-
-    def _compute_word_statistics(self):
-        self._counter = Counter()
-        self.texts().apply(lambda text: self._counter.update(self._gen_words_from(text)))
+        other_info = pd.Series({
+            "Corpus Type": self.__class__.__name__,
+            "Number of documents": len(self),
+            "Number of unique terms": len(self.dtm.vocab(nonzero=True)),
+        })
+        return pd.concat([other_info, docs_info])
 
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
@@ -219,14 +190,6 @@ class Corpus:
     def _cloned_dtm(self, indices):
         return self._dtm.cloned(indices)
 
-    def __len__(self):
-        return len(self._df) if self._df is not None else 0
-
-    def __iter__(self):
-        col_text_idx = self._df.columns.get_loc('text')
-        for i in range(len(self)):
-            yield self._df.iat[i, col_text_idx]
-
     def detached(self):
         """ Detaches from corpus tree and becomes the root.
 
@@ -235,6 +198,14 @@ class Corpus:
         self._parent = None
         self._dtm = DTM()
         return self
+
+    def __len__(self):
+        return len(self._df) if self._df is not None else 0
+
+    def __iter__(self):
+        col_text_idx = self._df.columns.get_loc('text')
+        for i in range(len(self)):
+            yield self._df.iat[i, col_text_idx]
 
 
 class SpacyCorpus(Corpus):

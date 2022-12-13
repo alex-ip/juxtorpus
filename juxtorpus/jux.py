@@ -69,6 +69,6 @@ class Jux:
     def lexical_diversity(self):
         """ Return the lexical diversity comparison"""
         # a smaller corpus will generally have better lexical diversity
-        ld_A = self._A.num_unique_words / np.log(self._A.num_words)
-        ld_B = self._B.num_unique_words / np.log(self._B.num_words)
+        ld_A = len(self._A.unique_terms) / np.log(self._A.num_terms)
+        ld_B = len(self._B.unique_terms) / np.log(self._B.num_terms)
         return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}

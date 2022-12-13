@@ -80,8 +80,13 @@ class DTM(object):
 
     @property
     def total_terms_vector(self):
-        """ Returns a vector of term likelihoods """
+        """ Returns a vector of term counts for each term. """
         return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
+
+    @property
+    def total_docs_vector(self):
+        """ Returns a vector of term counts for each document. """
+        return np.asarray(self.matrix.sum(axis=1)).squeeze(axis=1)
 
     @property
     def vectorizer(self):
@@ -165,10 +170,6 @@ class DTM(object):
             yield self
         finally:
             self._col_indices = None
-
-    @classmethod
-    def from_dtm(cls, dtm: 'DTM'):
-        return DTM.from_matrix(dtm.matrix, dtm.term_names)
 
     @classmethod
     def from_matrix(cls, matrix: Union[np.ndarray, np.matrix], terms):
@@ -274,12 +275,16 @@ class DTM(object):
             terms, freqs = self.term_names[indices], self.total_terms_vector[indices]
         return FreqTable(terms, freqs)
 
+    def __repr__(self):
+        return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
+
 
 if __name__ == '__main__':
     from juxtorpus.corpus.corpus import Corpus
 
     df = pd.read_csv(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
+    corpus.summary()
 
     dtm = DTM().build(corpus.texts())
     print(dtm.terms_column_vectors('the').shape)
