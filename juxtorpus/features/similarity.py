@@ -80,7 +80,11 @@ class Similarity(object):
         elif metric == 'loglikelihood':
             return self._cos_sim_llv(**kwargs)
 
-    def _cos_sim_llv(self, baseline: FreqTable):
+    def _cos_sim_llv(self, baseline: FreqTable = None):
+        if baseline is None:
+            baseline = FreqTable.from_freq_tables([self._jux.corpus_a.dtm.freq_table(nonzero=True),
+                                                   self._jux.corpus_b.dtm.freq_table(nonzero=True)])
+
         res = self._jux.stats.log_likelihood_and_effect_size(baseline=baseline).fillna(0)
         return _cos_sim(res['corpus_a_log_likelihood_llv'], res['corpus_b_log_likelihood_llv'])
 
@@ -90,9 +94,6 @@ class Similarity(object):
         if without: ft_a.remove(without), ft_b.remove(without)
 
         res = pd.concat([ft_a.df, ft_b.df], axis=1).fillna(0)
-        # todo: top terms?
-        # highest_similarity_words = np.argsort(a * b)[::-1][:10]  # top 10, element-wise multiplication
-        # top_terms = self._A.dtm.term_names[highest_similarity_words]
         return _cos_sim(res[0], res[1])
 
     def _cos_sim_tfidf(self, **kwargs):

@@ -1,5 +1,6 @@
 import pandas as pd
 from typing import Union, Optional
+from collections import Counter
 
 
 class FreqTable(object):
@@ -7,6 +8,16 @@ class FreqTable(object):
     The frequency table is an abstraction on top of the DTM.
     It is motivated by the
     """
+
+    @classmethod
+    def from_counter(cls, counter: Counter):
+        return cls(terms=counter.keys(), freqs=counter.values())
+
+    @classmethod
+    def from_freq_tables(cls, freq_tables: list['FreqTable']):
+        merged = FreqTable(list(), list())
+        for ft in freq_tables: merged.merge(ft)
+        return merged
 
     def __init__(self, terms, freqs):
         if len(terms) != len(freqs): raise ValueError(f"Mismatched terms and freqs. {terms=} {freqs=}.")

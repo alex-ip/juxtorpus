@@ -24,7 +24,6 @@ class Statistics(object):
             for corpus_id, ft in zip(['a', 'b'], ftables):
                 res = log_likelihood_and_effect_size([ft, baseline])
                 res = res.filter(regex=r'(log_likelihood_llv|bayes_factor_bic|effect_size_ell)')
-
                 mapper = dict()
                 for col in res.columns:
                     mapper[col] = f"corpus_{corpus_id}_{col}"
