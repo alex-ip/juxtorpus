@@ -78,7 +78,7 @@ class SeriesMeta(Meta):
         # uniques
         if self._show_uniqs(series):
             uniqs = series.unique()
-            info['uniqs'] = ', '.join((str(u) for u in uniqs))
+            info['uniqs'] = [uniqs]
             info['num_uniqs'] = len(uniqs)
             vc = series.value_counts(ascending=False).head(1)
             info['top'] = str(vc.index.values[0])
