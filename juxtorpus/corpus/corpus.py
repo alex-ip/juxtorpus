@@ -123,8 +123,8 @@ class Corpus:
 
         other_info = pd.Series({
             "Corpus Type": self.__class__.__name__,
-            "Number of documents": len(self),
-            "Number of unique terms": len(self.dtm.vocab(nonzero=True)),
+            "Documents count": len(self),
+            "Uniques count": len(self.dtm.vocab(nonzero=True)),
         })
         return pd.concat([other_info, docs_info])
 
@@ -244,3 +244,13 @@ class SpacyCorpus(Corpus):
         clone._dtm = self._cloned_dtm(cloned_texts.index)
         clone._processing_history = self._cloned_history()
         return clone
+
+    def summary(self, spacy: bool = False):
+        df = super(SpacyCorpus, self).summary()
+        if spacy:
+            spacy_info = {
+                'lang': self.nlp.meta.get('lang'),
+                'model': self.nlp.meta.get('name')
+            }
+            return df, pd.DataFrame.from_dict(spacy_info, orient='index')
+        return df
