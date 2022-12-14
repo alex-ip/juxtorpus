@@ -112,7 +112,7 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        docs_info = pd.Series(self.dtm.total_docs_vector).describe()
+        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop("count")
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
         mapper = {row_idx: f"Terms {row_idx}" for row_idx in docs_info.index}
@@ -122,6 +122,7 @@ class Corpus:
             "Corpus Type": self.__class__.__name__,
             "Documents count": len(self),
             "Uniques count": len(self.dtm.vocab(nonzero=True)),
+            "Terms count": self.dtm.total
         })
         return pd.concat([other_info, docs_info])
 
