@@ -111,7 +111,7 @@ class SpacyProcessor(Processor):
             if _attr is None: continue
             generator = corpus._df.loc[:, corpus.COL_TEXT]
             meta = DocMeta(id_=name, attr=_attr, nlp=self.nlp, docs=generator)
-            corpus.add_meta(meta)
+            corpus._meta_registry[meta.id] = meta
 
     def _create_episode(self) -> ProcessEpisode:
         return ProcessEpisode(

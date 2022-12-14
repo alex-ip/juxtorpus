@@ -92,17 +92,6 @@ class Corpus:
     def metas(self):
         return self._meta_registry.copy()
 
-    def add_meta(self, meta: Meta):
-        if self._meta_registry.get(meta.id, None) is not None:
-            raise ValueError("Meta id must be unique. Try calling .metas() method to view existing metas.")
-        self._meta_registry[meta.id] = meta
-
-    def remove_meta(self, id_: str):
-        del self._meta_registry[id_]
-
-    def get_meta(self, id_: str):
-        return self._meta_registry.get(id_, None)
-
     ### Processing ###
     def history(self):
         """ Returns a list of processing history. """

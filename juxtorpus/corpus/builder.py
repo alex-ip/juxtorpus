@@ -281,6 +281,6 @@ if __name__ == '__main__':
 
     print(builder.show_columns())
     corpus = builder.build()
-    print(corpus.metas())
+    print(corpus.meta)
     # print(corpus.get_meta('tweet_lga').preview(5))
     # print(corpus.get_meta('created_at').head(5))
