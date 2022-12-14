@@ -108,9 +108,9 @@ class TFKeywords(Keywords):
             raise TypeError(f"TFKeywords requires {SpacyCorpus.__name__}. "
                             f"Please process it using {SpacyProcessor.__name__}.")
 
-        self._vocab = corpus.vocab
+        self._vocab = corpus.nlp.vocab
         # config defaults
-        self._threshold = None
+        self._threshold = -1
         self._normalise = True
         self._use_lemmas = True
         self._log = False
@@ -120,7 +120,7 @@ class TFKeywords(Keywords):
 
         self._filtered_words = dict()
 
-    def freq_threshold(self, threshold: int):
+    def set_max_term_freq_per_doc(self, threshold: int):
         self._threshold = threshold
         return self
 
@@ -157,13 +157,13 @@ class TFKeywords(Keywords):
     def filtered(self):
         return self._filtered_words.copy()
 
-    def _count(self, corpus: Corpus, normalise: bool, log: bool):
+    def _count(self, corpus: SpacyCorpus, normalise: bool, log: bool):
         doc_freq_counter = Counter()
         freq_counter = Counter()
         threshold_diff_to_adjust = 0
 
         _no_puncs_no_stopwords = no_puncs_no_stopwords(self._vocab)
-        for d in corpus.texts():
+        for d in corpus.docs():
             per_doc_freqs = dict()
             for token in self._find_matches(d, _no_puncs_no_stopwords, lemma_only=self._use_lemmas):
                 current = per_doc_freqs.get(token, 0)
@@ -232,15 +232,15 @@ if __name__ == '__main__':
 
     # TF Keywords
     tf = TFKeywords(corpus)
-    tf.freq_threshold(3).normalise().log_freqs(False)
+    tf.set_max_term_freq_per_doc(3).normalise().log_freqs(False)
     tf.set_df_range(0.01, 0.5)
     print('\n'.join((str(x) for x in tf.extracted()[:10])))
     print('\n'.join((str(x) for x in tf.filtered().items())))
 
     tf = TFKeywords(corpus)
-    tf.freq_threshold(3).normalise().log_freqs(False).use_lemmas(True)
+    tf.set_max_term_freq_per_doc(3).normalise().log_freqs(False).use_lemmas(True)
     lemmas = tf.extracted()[:10]
-    tf.freq_threshold(3).normalise().log_freqs(False).use_lemmas(False)
+    tf.set_max_term_freq_per_doc(3).normalise().log_freqs(False).use_lemmas(False)
     no_lemmas = tf.extracted()[:10]
 
     import pandas as pd
