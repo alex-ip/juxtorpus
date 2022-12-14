@@ -250,7 +250,8 @@ class SpacyCorpus(Corpus):
         if spacy:
             spacy_info = {
                 'lang': self.nlp.meta.get('lang'),
-                'model': self.nlp.meta.get('name')
+                'model': self.nlp.meta.get('name'),
+                'pipeline': ', '.join(self.nlp.pipe_names)
             }
             return df, pd.DataFrame.from_dict(spacy_info, orient='index')
         return df
