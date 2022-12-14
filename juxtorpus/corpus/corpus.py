@@ -7,7 +7,7 @@ from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
-from juxtorpus.corpus.meta import Meta, SeriesMeta
+from juxtorpus.corpus.meta import MetaRegistry, Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
 from juxtorpus.matchers import is_word
 
@@ -51,7 +51,7 @@ class Corpus:
         self._parent: Optional[Corpus] = None
 
         # meta data
-        self._meta_registry = metas if metas is not None else dict()
+        self._meta_registry = MetaRegistry(metas)
 
         # document term matrix - DTM
         self._dtm: Optional[DTM] = DTM()
@@ -85,8 +85,12 @@ class Corpus:
 
     ### Meta data ###
 
+    @property
+    def meta(self):
+        return self._meta_registry.copy()
+
     def metas(self):
-        return frozendict(self._meta_registry)
+        return self._meta_registry.copy()
 
     def add_meta(self, meta: Meta):
         if self._meta_registry.get(meta.id, None) is not None:
@@ -124,8 +128,8 @@ class Corpus:
         """ Basic summary statistics of the corpus. """
         docs_info = pd.Series(self.dtm.total_docs_vector).describe()
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
-        mapper = dict()
-        for row_idx in docs_info.index: mapper[row_idx] = f"Terms {row_idx}"
+
+        mapper = {row_idx: f"Terms {row_idx}" for row_idx in docs_info.index}
         docs_info.rename(index=mapper, inplace=True)
 
         other_info = pd.Series({

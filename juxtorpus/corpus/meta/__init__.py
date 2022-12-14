@@ -36,6 +36,10 @@ class Meta(metaclass=ABCMeta):
     def head(self, n: int):
         raise NotImplementedError()
 
+    @abstractmethod
+    def summary(self) -> pd.DataFrame:
+        raise NotImplementedError()
+
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} [Id: {self.id}]>"
 
@@ -64,6 +68,42 @@ class SeriesMeta(Meta):
 
     def head(self, n):
         return self.series().head(n)
+
+    def summary(self) -> pd.DataFrame:
+        series = self.series()
+
+        # dtype
+        info = {'dtype': series.dtype}
+
+        # uniques
+        if self._show_uniqs(series):
+            uniqs = series.unique()
+            info['uniqs'] = ', '.join((str(u) for u in uniqs))
+            info['num_uniqs'] = len(uniqs)
+            vc = series.value_counts(ascending=False).head(1)
+            info['top'] = str(vc.index.values[0])
+            info['top_freq'] = vc.values[0]
+
+        # mean, min, max, quantiles
+        if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_datetime64_any_dtype(series):
+            info['mean'] = series.mean()
+            info['std'] = series.std()
+            info['min'] = series.min()
+            info['25%'] = series.quantile(0.25)
+            info['50%'] = series.quantile(0.5)
+            info['75%'] = series.quantile(0.75)
+            info['max'] = series.max()
+
+        df = pd.DataFrame(info, index=[self.id])
+        return df
+
+    def _show_uniqs(self, series) -> bool:
+        uniqs = series.unique()
+        if pd.api.types.is_datetime64_any_dtype(series): return False
+        if series.dtype == 'category': return True
+        if len(uniqs) < 6: return True
+        if len(uniqs) < 0.5 * len(series): return True
+        return False
 
 
 class DelimitedStrSeriesMeta(SeriesMeta):
@@ -136,3 +176,25 @@ class DocMeta(Meta):
 
     def __repr__(self):
         return f"{super(DocMeta, self).__repr__()[:-2]}, Attribute: {self._attr}]"
+
+    def summary(self) -> pd.DataFrame:
+        # todo: return empty dataframe for now
+        return pd.DataFrame(index=[self.id])
+
+
+class MetaRegistry(dict):
+    def __init__(self, *args, **kwargs):
+        super(MetaRegistry, self).__init__(*args, **kwargs)
+
+    def __setitem__(self, key, value):
+        if not isinstance(value, Meta): raise ValueError(f"MetaRegistry only holds {Meta.__name__} objects.")
+        super(MetaRegistry, self).__setitem__(key, value)
+
+    def summary(self):
+        """ Returns a summary of the metadata information. """
+        infos = (meta.summary() for meta in self.values())
+        df = pd.concat(infos, axis=0)
+        return df
+
+    def copy(self):
+        return MetaRegistry(self)
