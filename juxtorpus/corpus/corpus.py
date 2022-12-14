@@ -89,9 +89,6 @@ class Corpus:
     def meta(self):
         return self._meta_registry.copy()
 
-    def metas(self):
-        return self._meta_registry.copy()
-
     ### Processing ###
     def history(self):
         """ Returns a list of processing history. """
