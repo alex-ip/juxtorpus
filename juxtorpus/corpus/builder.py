@@ -218,7 +218,8 @@ class CorpusBuilder(object):
                 read_func = partial(pd.read_csv, usecols=[lazy.column],
                                     parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
             else:
-                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype={lazy.column: lazy.dtype}, sep=self._sep)
+                dtype = {lazy.column: lazy.dtype} if lazy.dtype is not None else None
+                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype=dtype, sep=self._sep)
             metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func))
 
         return metas
