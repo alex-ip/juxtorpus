@@ -5,7 +5,7 @@ import pandas as pd
 from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.meta import *
 
-from typing import Union, Callable
+from typing import Union, Callable, Optional
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
 import weakref
@@ -94,6 +94,25 @@ class CorpusSlicer(object):
         pattern = re.compile(regex, flags=flags)
 
         cond_func = lambda any_: pattern.search(any_) is not None
+        mask = self._mask_by_condition(meta, cond_func)
+        return self.corpus.cloned(mask)
+
+    def filter_by_datetime(self, id_, after: Optional[str] = None, before: Optional[str] = None):
+        """ Filter by datetime
+        :arg after - any datetime string recognised by pandas.
+        :arg before - any datetime string recognised by pandas.
+        You must provide either 'after' or 'before' or both.
+        """
+        meta = self._get_meta_or_raise_err(id_)
+        if after is None and before is None: raise ValueError("You must either set 'after' or 'before' or both.")
+        if after is not None: after = pd.to_datetime(after)
+        if before is not None: before = pd.to_datetime(before)
+        if after is not None and before is not None:
+            cond_func = lambda dt: after < dt < before
+        elif after is not None and before is None:
+            cond_func = lambda dt: after < dt
+        else:
+            cond_func = lambda dt: dt < before
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
 
