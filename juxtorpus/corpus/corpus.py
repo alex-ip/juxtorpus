@@ -72,6 +72,9 @@ class Corpus:
     def slicer(self):
         from juxtorpus.corpus import CorpusSlicer
         return CorpusSlicer(self)
+
+    # document term matrix
+    @property
     def dtm(self):
         if not self._dtm.is_built:
             root = self.find_root()
@@ -86,13 +89,12 @@ class Corpus:
             parent = parent._parent
         return parent
 
-    ### Meta data ###
-
+    # meta data
     @property
     def meta(self):
         return self._meta_registry.copy()
 
-    ### Processing ###
+    # processing
     def history(self):
         """ Returns a list of processing history. """
         return self._processing_history.copy()
@@ -100,7 +102,7 @@ class Corpus:
     def add_process_episode(self, episode):
         self._processing_history.append(episode)
 
-    ### Statistics ###
+    # statistics
 
     @property
     def num_terms(self) -> int:
@@ -123,11 +125,15 @@ class Corpus:
 
         other_info = pd.Series({
             "Corpus Type": self.__class__.__name__,
-            "Documents count": len(self),
-            "Uniques count": len(self.dtm.vocab(nonzero=True)),
-            "Terms count": self.dtm.total
+            "Number of documents": len(self),
+            "Number of terms": self.dtm.total,
+            "Vocabulary size": len(self.dtm.vocab(nonzero=True)),
         })
-        return pd.concat([other_info, docs_info])
+
+        meta_info = pd.Series({
+            "metas": ', '.join(self.meta.keys())
+        })
+        return pd.concat([other_info, docs_info, meta_info])
 
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
@@ -210,6 +216,7 @@ class SpacyCorpus(Corpus):
     def slicer(self):
         from juxtorpus.corpus import SpacyCorpusSlicer
         return SpacyCorpusSlicer(self)
+
     @property
     def dtm(self):
         if not self._dtm.is_built:
