@@ -6,7 +6,7 @@
 # + allow 2GB websocket window size   (allows for uploads < 2GB using fileupload ipywidget)
 # + use Safari, firefox and chrome tested to crash with large file uploads despite increased window size.
 
-PATH_CONFIG="./jupyter_notbook_config.py"
+PATH_CONFIG="./jupyter_notebook_config.py"
 DIR_NOTEBOOKS="./notebooks"
 
 if [[ ! -f $PATH_CONFIG ]]; then
