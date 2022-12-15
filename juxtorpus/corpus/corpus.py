@@ -67,8 +67,11 @@ class Corpus:
     def is_root(self):
         return self._parent is None
 
-    ### Document Term Matrix ###
+    # slicing
     @property
+    def slicer(self):
+        from juxtorpus.corpus import CorpusSlicer
+        return CorpusSlicer(self)
     def dtm(self):
         if not self._dtm.is_built:
             root = self.find_root()
@@ -203,6 +206,10 @@ class SpacyCorpus(Corpus):
     def nlp(self):
         return self._nlp
 
+    @property
+    def slicer(self):
+        from juxtorpus.corpus import SpacyCorpusSlicer
+        return SpacyCorpusSlicer(self)
     @property
     def dtm(self):
         if not self._dtm.is_built:
