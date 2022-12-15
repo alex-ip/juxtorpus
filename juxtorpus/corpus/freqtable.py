@@ -1,6 +1,7 @@
 import pandas as pd
 from typing import Union, Optional
 from collections import Counter
+import numpy as np
 
 
 class FreqTable(object):
@@ -24,7 +25,7 @@ class FreqTable(object):
         if len(set(terms)) != len(terms): raise ValueError(f"Terms must be unique.")
 
         self._COL_FREQ = 'freq'
-        self._df = pd.Series(freqs, index=terms)
+        self._df = pd.Series(freqs, index=terms, dtype=np.int)
 
     @property
     def df(self):
