@@ -17,6 +17,9 @@ custom_hashtags_atap_regex = {"_": {
     "hashtag": {"REGEX": r'^#[Aa][Tt][Aa][Pp]'}
 }}
 
+is_noun = {"POS": "NOUN"}
+is_verb = {"POS": "VERB"}
+
 
 def hashtags(vocab: Vocab):
     _hashtags = Matcher(vocab)
@@ -64,4 +67,3 @@ def no_stopwords(vocab: Vocab):
         [{"IS_STOP": False}]
     ])
     return _no_stopwords
-
