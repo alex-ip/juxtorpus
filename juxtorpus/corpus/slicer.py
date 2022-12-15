@@ -116,6 +116,11 @@ class CorpusSlicer(object):
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
 
+    def sample(self, n: int, rand_stat=None):
+        mask = self.corpus._df.isna().squeeze() # Return a mask of all False
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        return self.corpus.cloned(mask)
+
     def _mask_by_condition(self, meta, cond_func):
         mask = meta.apply(cond_func)
         try:
