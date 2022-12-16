@@ -4,6 +4,7 @@ from juxtorpus.features.similarity import Similarity
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
 
 import numpy as np
+import pandas as pd
 from typing import TypeVar
 
 CorpusT = TypeVar('CorpusT', bound=Corpus)  # Corpus subclass
@@ -43,6 +44,13 @@ class Jux:
     @property
     def corpus_b(self):
         return self._B
+
+    @property
+    def corpora(self):
+        return [self._A, self._B]
+
+    def summary(self):
+        return pd.concat([self._A.summary().rename('corpus_a'), self._B.summary().rename('corpus_b')], axis=1)
 
     @property
     def shares_parent(self) -> bool:
