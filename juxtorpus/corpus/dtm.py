@@ -106,12 +106,14 @@ class DTM(object):
             return set(self.term_names)
 
     def build(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
+        logger.info("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
         self.root._matrix = self.root._vectorizer.fit_transform(texts)
-        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()
+        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()    # expensive operation - cached.
         self.root._term_idx_map = {self.root._feature_names_out[idx]: idx
                                    for idx in range(len(self.root._feature_names_out))}
         self.root._is_built = True
+        logger.info("Done.")
         return self
 
     def terms_column_vectors(self, terms: Union[str, list[str]]):
