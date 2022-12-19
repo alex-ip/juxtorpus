@@ -155,7 +155,7 @@ class DTM(object):
         tfidf.derived_from = self
         tfidf._vectorizer = tfidf_trans
         tfidf._matrix = tfidf._vectorizer.fit_transform(self.matrix)
-        tfidf._feature_names_out = tfidf._vectorizer.get_feature_names_out()
+        tfidf._feature_names_out = self.term_names
         tfidf._term_idx_map = {tfidf._feature_names_out[idx]: idx for idx in range(len(tfidf._feature_names_out))}
         tfidf._is_built = True
         return tfidf
