@@ -144,13 +144,16 @@ class DTM(object):
                 raise RuntimeError([RuntimeError("Failed to clone DTM."), e])
         return cloned
 
-    def tfidf(self, smooth_idf=True, sublinear_tf=False, norm=None):
+    def tfidf(self, **kwargs):
         """ Returns an un-normalised tfidf of the current matrix.
 
         Args: see sklearn.TfidfTransformer
         norm is set to None by default here.
         """
-        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, sublinear_tf=sublinear_tf, use_idf=True, norm=norm)
+        kwargs['use_idf'] = kwargs.get('use_idf', True)
+        kwargs['smooth_idf'] = kwargs.get('use_idf', True)
+        kwargs['sublinear_tf'] = kwargs.get('sublinear_tf', False)
+        tfidf_trans = TfidfTransformer(**kwargs)
         tfidf = DTM()
         tfidf.derived_from = self
         tfidf._vectorizer = tfidf_trans
