@@ -109,7 +109,7 @@ class DTM(object):
         logger.info("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
         self.root._matrix = self.root._vectorizer.fit_transform(texts)
-        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()    # expensive operation - cached.
+        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()  # expensive operation - cached.
         self.root._term_idx_map = {self.root._feature_names_out[idx]: idx
                                    for idx in range(len(self.root._feature_names_out))}
         self.root._is_built = True
@@ -192,7 +192,7 @@ class DTM(object):
     def shares_vocab(self, dtm: 'DTM') -> bool:
         this, other = self.vocab(nonzero=True), dtm.vocab(nonzero=True)
         if not len(this) == len(other): return False
-        return this.difference(other) == 0
+        return len(this.difference(other)) == 0
 
     def terms_aligned(self, dtm: 'DTM') -> bool:
         this, other = self.term_names, dtm.term_names
