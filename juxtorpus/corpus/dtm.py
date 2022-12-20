@@ -106,12 +106,14 @@ class DTM(object):
             return set(self.term_names)
 
     def build(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
+        logger.info("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
         self.root._matrix = self.root._vectorizer.fit_transform(texts)
-        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()
+        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()  # expensive operation - cached.
         self.root._term_idx_map = {self.root._feature_names_out[idx]: idx
                                    for idx in range(len(self.root._feature_names_out))}
         self.root._is_built = True
+        logger.info("Done.")
         return self
 
     def terms_column_vectors(self, terms: Union[str, list[str]]):
@@ -142,18 +144,21 @@ class DTM(object):
                 raise RuntimeError([RuntimeError("Failed to clone DTM."), e])
         return cloned
 
-    def tfidf(self, smooth_idf=True, sublinear_tf=False, norm=None):
+    def tfidf(self, **kwargs):
         """ Returns an un-normalised tfidf of the current matrix.
 
         Args: see sklearn.TfidfTransformer
         norm is set to None by default here.
         """
-        tfidf_trans = TfidfTransformer(smooth_idf=smooth_idf, sublinear_tf=sublinear_tf, use_idf=True, norm=norm)
+        kwargs['use_idf'] = kwargs.get('use_idf', True)
+        kwargs['smooth_idf'] = kwargs.get('use_idf', True)
+        kwargs['sublinear_tf'] = kwargs.get('sublinear_tf', False)
+        tfidf_trans = TfidfTransformer(**kwargs)
         tfidf = DTM()
         tfidf.derived_from = self
         tfidf._vectorizer = tfidf_trans
         tfidf._matrix = tfidf._vectorizer.fit_transform(self.matrix)
-        tfidf._feature_names_out = tfidf._vectorizer.get_feature_names_out()
+        tfidf._feature_names_out = self.term_names
         tfidf._term_idx_map = {tfidf._feature_names_out[idx]: idx for idx in range(len(tfidf._feature_names_out))}
         tfidf._is_built = True
         return tfidf
@@ -190,7 +195,7 @@ class DTM(object):
     def shares_vocab(self, dtm: 'DTM') -> bool:
         this, other = self.vocab(nonzero=True), dtm.vocab(nonzero=True)
         if not len(this) == len(other): return False
-        return this.difference(other) == 0
+        return len(this.difference(other)) == 0
 
     def terms_aligned(self, dtm: 'DTM') -> bool:
         this, other = self.term_names, dtm.term_names

@@ -49,45 +49,33 @@ class PolarityWordCloud(Viz):
     _COL_REL_DIV_SUMMED: str = 'relative_div_summed_'
     _COL_REL_MUL_SUMMED: str = 'relative_mul_summed_'
 
-    @staticmethod
-    def from_(word_scores_A: List[Tuple[str, float]], word_scores_B: List[Tuple[str, float]]) -> 'PolarityWordCloud':
-        """
-        :param word_scores_A: List of (word, score) tuples in corpus A. (Do not use negative scores!)
-        :param word_scores_B: List of (word, score) tuples in corpus B. (Do not use negative scores!)
-        :param top: top
-        :return: PolarityWordCloud
-        """
-        df_A = pd.DataFrame(word_scores_A, columns=[PolarityWordCloud.COL_WORD, PolarityWordCloud.COL_SCORE])
-        df_B = pd.DataFrame(word_scores_B, columns=[PolarityWordCloud.COL_WORD, PolarityWordCloud.COL_SCORE])
-        return PolarityWordCloud(df_A, df_B)
-
-    def __init__(self, word_scores_df_A: pd.DataFrame, word_scores_df_B: pd.DataFrame):
+    def __init__(self, df: pd.DataFrame, col_polarity, col_size):
         """
         Initialise a PolarityWordCloud object to compare and visualise 2 sets of words and their scores.
 
-        :param wordcloud: wordcloud (see https://amueller.github.io/word_cloud/)
-        :param word_scores_df_A: DataFrame with 'word' and 'score' columns. (Do not use negative scores!)
-        :param word_scores_df_B: DataFrame with 'word' and 'score' columns. (Do not use negative scores!)
+        :param df DataFrame with words as index
         """
         self.wc = WC(background_color='white')
         self._wc_default_height = self.wc.height
         self._wc_default_width = self.wc.width
 
-        df_A = word_scores_df_A.rename(columns={PolarityWordCloud.COL_SCORE: PolarityWordCloud._COL_SCORE_A})
-        df_B = word_scores_df_B.rename(columns={PolarityWordCloud.COL_SCORE: PolarityWordCloud._COL_SCORE_B})
-        df_A[PolarityWordCloud.COL_WORD] = df_A[PolarityWordCloud.COL_WORD].str.lower()
-        df_B[PolarityWordCloud.COL_WORD] = df_B[PolarityWordCloud.COL_WORD].str.lower()
-        df_A = df_A.set_index(PolarityWordCloud.COL_WORD)
-        df_B = df_B.set_index(PolarityWordCloud.COL_WORD)
-
-        df = df_A.join(df_B, on=None, how='outer')
-        self._COL_SCORE_A = PolarityWordCloud._COL_SCORE_A
-        self._COL_SCORE_B = PolarityWordCloud._COL_SCORE_B
-        df.fillna(value={self._COL_SCORE_A: 0, self._COL_SCORE_B: 0}, inplace=True)
-
         self._df = df  # full df
         self._df_top_tmp = df  # df to generate wordcloud from
+        assert sum(map(lambda i: not isinstance(i, str), self._df.index)) == 0, "df index must be strings."
 
+
+        # Polarity score: colouring
+        self._col_polarity = col_polarity
+        self._col_polarity_norm = f"{self._col_polarity}_normalised_"
+        self._df[self._col_polarity_norm] = self._min_max_normalise(col_rel=self._col_polarity)
+
+        # Word size score
+        self._col_word_size_score = col_size
+        assert df[self._col_word_size_score].min() >= 0, "col_size column must not have negative values."
+
+        self._col_words_to_show = col_size
+
+        """ Archived - refactor/polarity_word_cloud_decoupling 16.12.22
         # Scoring
         # relative, summed, abs(relative), abs(relative)/summed, abs(relative)*summed
         derived_columns = self._derive_wordcloud_scores(col_score_A=self._COL_SCORE_A,
@@ -110,6 +98,7 @@ class PolarityWordCloud(Viz):
         # used to render word cloud.
         self._col_words_to_show = self._COL_SUMMED  # determines which words to show using top()
         self._col_word_size_score = self._COL_REL_DIV_SUMMED  # determines word size
+        """
 
         # Colouring
         # used in both methods:
@@ -183,11 +172,11 @@ class PolarityWordCloud(Viz):
         return set(hsv_color_degrees.keys())
 
     def gradate(self, polar_A_colour: str, polar_B_colour: str):
-        """ Puts the word cloud in gradient in accordance to the relative score. """
+        """ Puts the word cloud in gradient in accordance to the polarity score. """
         _colour_word_map: Dict[str, Callable] = dict()
         for i in range(len(self._df_top_tmp)):
             word = self._df_top_tmp.iloc[i].name
-            norm_score = self._df_top_tmp.iloc[i][self._COL_REL_NORM]
+            norm_score = self._df_top_tmp.iloc[i][self._col_polarity_norm]
 
             # since > 1.5 means A is more dominant than B. And vice versa.
             colour = polar_A_colour if norm_score > 1.5 else polar_B_colour
@@ -218,7 +207,7 @@ class PolarityWordCloud(Viz):
             self.wc.height = self._wc_default_height * resolution_scale
             self.wc.width = self._wc_default_width * resolution_scale
             self.wc.generate_from_frequencies(
-                {self._df_top_tmp.iloc[i].name: self._df_top_tmp[self._col_word_size_score].iloc[i] for i in
+                {self._df_top_tmp.iloc[i].name: np.abs(self._df_top_tmp.iloc[i][self._col_word_size_score]) for i in
                  range(len(self._df_top_tmp))}
             )
         self.wc.recolor(color_func=self._colour_func, random_state=42)
@@ -259,7 +248,7 @@ class PolarityWordCloud(Viz):
     For detailed explanation of how this is calculated, see doc for _add_normalised_score
     """
 
-    def _add_normalised_relative_scores(self, col_rel, col_name_rel_norm):
+    def _min_max_normalise(self, col_rel):
         """ Normalises the values of the relative scores to be between 1 and 2 from -X to 0 to +X.
         where X can be any value dependent the scores the class is initiated with.
 
@@ -274,8 +263,7 @@ class PolarityWordCloud(Viz):
         """
         _max = max(abs(self._df[col_rel].min()),
                    abs(self._df[col_rel].max()))
-        self._df[col_name_rel_norm] = ((self._df[col_rel] - -_max) / (2 * _max)) + 1
-        return col_name_rel_norm
+        return ((self._df[col_rel] - -_max) / (2 * _max)) + 1
 
     # Used for gradate()
     @staticmethod
