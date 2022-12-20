@@ -22,9 +22,10 @@ class TestSimilarity(TestCase):
     def test_cosine_similarity(self):
         sim = self.jux.sim.cosine_similarity('tf')
         assert np.isclose(sim, 0.7995949747260624)
-        sim = self.jux.sim.cosine_similarity('tfidf')
+        sim = self.jux.sim.cosine_similarity('tfidf', {'use_idf': True, 'smooth_idf': True,
+                                                       'sublinear_tf': False, 'norm': None})
         assert np.isclose(sim, 0.5975876077300428)
-        sim = self.jux.sim.cosine_similarity('loglikelihood')
+        sim = self.jux.sim.cosine_similarity('log_likelihood')
         assert np.isclose(sim, 0.5453081685880243)
 
         from nltk.corpus import nps_chat
@@ -34,5 +35,5 @@ class TestSimilarity(TestCase):
         counts = Counter((token for tokens in nps_chat.posts() for token in tokens))
         from juxtorpus.corpus.freqtable import FreqTable
         baseline = FreqTable(terms=counts.keys(), freqs=counts.values())
-        sim = self.jux.sim.cosine_similarity('loglikelihood', baseline=baseline)
+        sim = self.jux.sim.cosine_similarity('log_likelihood', baseline=baseline)
         assert np.isclose(sim, 0.8382516978991882)

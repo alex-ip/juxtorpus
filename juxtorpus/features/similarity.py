@@ -11,9 +11,11 @@ import numpy as np
 import pandas as pd
 import nltk
 from typing import TYPE_CHECKING, Union
+import weakref as wr
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.freqtable import FreqTable
+from juxtorpus.constants import CORPUS_ID_COL_NAME_FORMAT
 
 if TYPE_CHECKING:
     from juxtorpus import Jux
@@ -36,16 +38,16 @@ def _cos_sim(v0: Union[np.ndarray, pd.Series], v1: Union[np.ndarray, pd.Series])
 
 class Similarity(object):
     def __init__(self, jux: 'Jux'):
-        self._jux = jux
+        self._jux = wr.ref(jux)
 
     def jaccard(self, use_lemmas: bool = False):
         """ Return a similarity score between the 2 corpus."""
         if use_lemmas:
             # check if corpus are spacy corpus.
             raise NotImplementedError("To be implemented. Use unique lemmas instead of words.")
-        _A_uniqs: set[str] = self._jux.corpus_0.unique_terms
-        _B_uniqs: set[str] = self._jux.corpus_1.unique_terms
-        return len(_A_uniqs.intersection(_B_uniqs)) / len(_A_uniqs.union(_B_uniqs))
+        u0: set[str] = self._jux().corpus_0.unique_terms
+        u1: set[str] = self._jux().corpus_1.unique_terms
+        return len(u0.intersection(u1)) / len(u0.union(u1))
 
     def lsa_pairwise_cosine(self, n_components: int = 100, verbose=False):
         """ Decompose DTM to SVD and return the pairwise cosine similarity of the right singular matrix.
@@ -55,7 +57,7 @@ class Similarity(object):
         tdm.T = (U Sigma V.T).T = V.T.T Sigma.T U.T = V Sigma U.T
         the term-topic matrix of U is now the right singular matrix if we use DTM instead of TDM.
         """
-        A, B = self._jux.corpus_0, self._jux.corpus_1
+        A, B = self._jux().corpus_0, self._jux().corpus_1
         svd_A = TruncatedSVD(n_components=n_components).fit(A.dtm.tfidf().matrix)
         svd_B = TruncatedSVD(n_components=n_components).fit(B.dtm.tfidf().matrix)
         top_topics = 5
@@ -71,36 +73,42 @@ class Similarity(object):
         # pairwise cosine
         return cosine_similarity(svd_A.components_[:top_topics], svd_B.components_[:top_topics])
 
-    def cosine_similarity(self, metric: str, **kwargs):
-        # based on terms
-        if metric == 'tf':
-            return self._cos_sim_tf(**kwargs)
-        elif metric == 'tfidf':
-            return self._cos_sim_tfidf(**kwargs)
-        elif metric == 'loglikelihood':
-            return self._cos_sim_llv(**kwargs)
+    def cosine_similarity(self, metric: str, *args, **kwargs):
+        metric_map = {
+            'tf': self._cos_sim_tf,
+            'tfidf': self._cos_sim_tfidf,
+            'log_likelihood': self._cos_sim_llv
+        }
+        sim_fn = metric_map.get(metric, None)
+        if sim_fn is None: raise ValueError(f"Only metrics {metric_map.keys()} are supported.")
+        return sim_fn(*args, **kwargs)
 
     def _cos_sim_llv(self, baseline: FreqTable = None):
         if baseline is None:
-            baseline = FreqTable.from_freq_tables([self._jux.corpus_0.dtm.freq_table(nonzero=True),
-                                                   self._jux.corpus_1.dtm.freq_table(nonzero=True)])
+            corpora = self._jux().corpora
+            baseline = FreqTable.from_freq_tables([corpus.dtm.freq_table(nonzero=True) for corpus in corpora])
 
-        res = self._jux.stats.log_likelihood_and_effect_size(baseline=baseline).fillna(0)
-        return _cos_sim(res['corpus_a_log_likelihood_llv'], res['corpus_b_log_likelihood_llv'])
+        res = self._jux().stats.log_likelihood_and_effect_size(baseline=baseline).fillna(0)
+        return _cos_sim(res[CORPUS_ID_COL_NAME_FORMAT.format('log_likelihood_llv', 0)],
+                        res[CORPUS_ID_COL_NAME_FORMAT.format('log_likelihood_llv', 1)])
 
     def _cos_sim_tf(self, without: list[str] = None) -> float:
-        ft_a: FreqTable = self._jux.corpus_0.dtm.freq_table(nonzero=True)
-        ft_b: FreqTable = self._jux.corpus_1.dtm.freq_table(nonzero=True)
-        if without: ft_a.remove(without), ft_b.remove(without)
+        seriess = list()
+        for i, corpus in enumerate(self._jux().corpora):
+            ft = corpus.dtm.freq_table(nonzero=True)
+            if without: ft.remove(without)
+            seriess.append(ft.series.rename(CORPUS_ID_COL_NAME_FORMAT.format(ft.name, i)))
 
-        res = pd.concat([ft_a.series, ft_b.series], axis=1).fillna(0)
-        return _cos_sim(res[0], res[1])
+        res = pd.concat(seriess, axis=1).fillna(0)
+        return _cos_sim(res.iloc[:, 0], res.iloc[:, 1])
 
     def _cos_sim_tfidf(self, **kwargs):
-        ft_a: FreqTable = self._jux.corpus_0.dtm.tfidf(**kwargs).freq_table(nonzero=True)
-        ft_b: FreqTable = self._jux.corpus_1.dtm.tfidf(**kwargs).freq_table(nonzero=True)
-        res = pd.concat([ft_a.series, ft_b.series], axis=1).fillna(0)
-        return _cos_sim(res[0], res[1])
+        seriess = list()
+        for i, corpus in enumerate(self._jux().corpora):
+            ft = corpus.dtm.tfidf(**kwargs).freq_table(nonzero=True)
+            seriess.append(ft.series.rename(CORPUS_ID_COL_NAME_FORMAT.format(ft.name, i)))
+        res = pd.concat(seriess, axis=1).fillna(0)
+        return _cos_sim(res.iloc[:, 0], res.iloc[:, 1])
 
 
 if __name__ == '__main__':
