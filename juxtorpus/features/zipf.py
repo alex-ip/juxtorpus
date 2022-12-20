@@ -68,7 +68,7 @@ class Zipf(Viz):
             self._top = _old_top
 
     def _build_dataframe(self, corpus, col_count, col_word, col_proportions, col_zipf):
-        df = corpus.dtm.freq_table(nonzero=True).df.sort_values(ascending=False)
+        df = corpus.dtm.freq_table(nonzero=True).series.sort_values(ascending=False)
         df.name = 'freq'
         df = df.to_frame()
         df = self._derive_proportions(df, col_proportions, col_zipf)

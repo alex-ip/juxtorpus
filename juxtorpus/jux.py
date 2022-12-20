@@ -2,12 +2,13 @@ from juxtorpus.corpus import Corpus
 from juxtorpus.stats import Statistics
 from juxtorpus.features.similarity import Similarity
 from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
+from juxtorpus.features.polarity import Polarity
 
 import numpy as np
 import pandas as pd
 from typing import TypeVar
 
-CorpusT = TypeVar('CorpusT', bound=Corpus)  # Corpus subclass
+_CorpusT = TypeVar('_CorpusT', bound=Corpus)  # Corpus subclass
 
 
 class Jux:
@@ -19,9 +20,10 @@ class Jux:
     for your own further analysis.
     """
 
-    def __init__(self, corpus_a: CorpusT, corpus_b: CorpusT):
-        self._A = corpus_a
-        self._B = corpus_b
+    def __init__(self, corpus_0: _CorpusT, corpus_1: _CorpusT):
+        # NOTE: numeric variables are used to maintain consistency with column names in pandas
+        self._0 = corpus_0
+        self._1 = corpus_1
         self._stats = Statistics(self)
         self._sim = Similarity(self)
 
@@ -38,45 +40,40 @@ class Jux:
         return 2
 
     @property
-    def corpus_a(self):
-        return self._A
+    def corpus_0(self):
+        return self._0
 
     @property
-    def corpus_b(self):
-        return self._B
+    def corpus_1(self):
+        return self._1
 
     @property
     def corpora(self):
-        return [self._A, self._B]
+        return [self._0, self._1]
 
     def summary(self):
-        return pd.concat([self._A.summary().rename('corpus_a'), self._B.summary().rename('corpus_b')], axis=1)
+        return pd.concat([self._0.summary().rename('corpus_a'), self._1.summary().rename('corpus_b')], axis=1)
 
     @property
     def shares_parent(self) -> bool:
-        return self._A.find_root() is self._B.find_root()
+        return self._0.find_root() is self._1.find_root()
 
     def keywords(self, method: str):
         """ Extract and return the keywords of the two corpus ranked by frequency. """
-        extractor_A: Keywords
-        extractor_B: Keywords
-        if method == 'rake':
-            extractor_A = RakeKeywords(corpus=self._A)
-            extractor_B = RakeKeywords(corpus=self._B)
-        elif method == 'tf':
-            extractor_A = TFKeywords(corpus=self._A)
-            extractor_B = TFKeywords(corpus=self._B)
-        elif method == 'tfidf':
-            extractor_A = TFIDFKeywords(corpus=self._A)
-            extractor_B = TFIDFKeywords(corpus=self._B)
-        else:
-            raise ValueError("Unsupported keyword extraction method.")
-        # use sets to compare
-        return extractor_A.extracted(), extractor_B.extracted()
+        method_map = {
+            'rake': RakeKeywords,
+            'tf': TFKeywords,
+            'tfidf': TFIDFKeywords
+        }
+        cls_kw = method_map.get(method, None)
+        if cls_kw is None: raise ValueError(f"Only {method_map.keys()} methods are supported.")
+        return cls_kw(self._0).extracted(), cls_kw(self._1).extracted()
 
     def lexical_diversity(self):
-        """ Return the lexical diversity comparison"""
-        # a smaller corpus will generally have better lexical diversity
-        ld_A = len(self._A.unique_terms) / np.log(self._A.num_terms)
-        ld_B = len(self._B.unique_terms) / np.log(self._B.num_terms)
+        """ Return the lexical diversity comparison.
+
+        A smaller corpus will generally have higher lexical diversity.
+        """
+        ld_A = len(self._0.unique_terms) / np.log(self._0.num_terms)
+        ld_B = len(self._1.unique_terms) / np.log(self._1.num_terms)
         return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}

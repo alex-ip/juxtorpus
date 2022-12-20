@@ -43,8 +43,8 @@ class Similarity(object):
         if use_lemmas:
             # check if corpus are spacy corpus.
             raise NotImplementedError("To be implemented. Use unique lemmas instead of words.")
-        _A_uniqs: set[str] = self._jux.corpus_a.unique_terms
-        _B_uniqs: set[str] = self._jux.corpus_b.unique_terms
+        _A_uniqs: set[str] = self._jux.corpus_0.unique_terms
+        _B_uniqs: set[str] = self._jux.corpus_1.unique_terms
         return len(_A_uniqs.intersection(_B_uniqs)) / len(_A_uniqs.union(_B_uniqs))
 
     def lsa_pairwise_cosine(self, n_components: int = 100, verbose=False):
@@ -55,7 +55,7 @@ class Similarity(object):
         tdm.T = (U Sigma V.T).T = V.T.T Sigma.T U.T = V Sigma U.T
         the term-topic matrix of U is now the right singular matrix if we use DTM instead of TDM.
         """
-        A, B = self._jux.corpus_a, self._jux.corpus_b
+        A, B = self._jux.corpus_0, self._jux.corpus_1
         svd_A = TruncatedSVD(n_components=n_components).fit(A.dtm.tfidf().matrix)
         svd_B = TruncatedSVD(n_components=n_components).fit(B.dtm.tfidf().matrix)
         top_topics = 5
@@ -82,24 +82,24 @@ class Similarity(object):
 
     def _cos_sim_llv(self, baseline: FreqTable = None):
         if baseline is None:
-            baseline = FreqTable.from_freq_tables([self._jux.corpus_a.dtm.freq_table(nonzero=True),
-                                                   self._jux.corpus_b.dtm.freq_table(nonzero=True)])
+            baseline = FreqTable.from_freq_tables([self._jux.corpus_0.dtm.freq_table(nonzero=True),
+                                                   self._jux.corpus_1.dtm.freq_table(nonzero=True)])
 
         res = self._jux.stats.log_likelihood_and_effect_size(baseline=baseline).fillna(0)
         return _cos_sim(res['corpus_a_log_likelihood_llv'], res['corpus_b_log_likelihood_llv'])
 
     def _cos_sim_tf(self, without: list[str] = None) -> float:
-        ft_a: FreqTable = self._jux.corpus_a.dtm.freq_table(nonzero=True)
-        ft_b: FreqTable = self._jux.corpus_b.dtm.freq_table(nonzero=True)
+        ft_a: FreqTable = self._jux.corpus_0.dtm.freq_table(nonzero=True)
+        ft_b: FreqTable = self._jux.corpus_1.dtm.freq_table(nonzero=True)
         if without: ft_a.remove(without), ft_b.remove(without)
 
-        res = pd.concat([ft_a.df, ft_b.df], axis=1).fillna(0)
+        res = pd.concat([ft_a.series, ft_b.series], axis=1).fillna(0)
         return _cos_sim(res[0], res[1])
 
     def _cos_sim_tfidf(self, **kwargs):
-        ft_a: FreqTable = self._jux.corpus_a.dtm.tfidf(**kwargs).freq_table(nonzero=True)
-        ft_b: FreqTable = self._jux.corpus_b.dtm.tfidf(**kwargs).freq_table(nonzero=True)
-        res = pd.concat([ft_a.df, ft_b.df], axis=1).fillna(0)
+        ft_a: FreqTable = self._jux.corpus_0.dtm.tfidf(**kwargs).freq_table(nonzero=True)
+        ft_b: FreqTable = self._jux.corpus_1.dtm.tfidf(**kwargs).freq_table(nonzero=True)
+        res = pd.concat([ft_a.series, ft_b.series], axis=1).fillna(0)
         return _cos_sim(res[0], res[1])
 
 

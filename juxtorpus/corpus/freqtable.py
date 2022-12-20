@@ -25,23 +25,27 @@ class FreqTable(object):
         if len(set(terms)) != len(terms): raise ValueError(f"Terms must be unique.")
 
         self._COL_FREQ = 'freq'
-        self._df = pd.Series(freqs, index=terms, dtype=np.int)
+        self._series: pd.Series = pd.Series(freqs, index=terms, dtype=np.int, name=self._COL_FREQ)
 
     @property
-    def df(self):
-        return self._df
+    def series(self):
+        return self._series
 
     @property
     def terms(self):
-        return self._df.index.tolist()
+        return self._series.index.tolist()
 
     @property
     def freqs(self):
-        return self._df.tolist()
+        return self._series.tolist()
 
     @property
     def total(self):
-        return int(self._df.sum(axis=0))
+        return int(self._series.sum(axis=0))
+
+    @property
+    def name(self):
+        return self._series.name
 
     def merge(self, other: Union['FreqTable', list[str]], freqs: Optional[list[int]] = None):
         """ Merge with another FreqTable. Or term, freq pair)"""
@@ -49,9 +53,9 @@ class FreqTable(object):
             if isinstance(other, FreqTable):
                 raise ValueError(f"You must use term freq pairs. Not {self.__class__.__name__}.")
             other = FreqTable(other, freqs)
-        self._df = pd.concat([self._df, other.df], axis=1).fillna(0).sum(axis=1)
+        self._series: pd.Series = pd.concat([self._series, other.series], axis=1).fillna(0).sum(axis=1)
 
     def remove(self, terms: Union[str, list[str]]):
         """ Remove terms from frequency table. Ignored if not exist."""
         terms = list(terms)
-        self.df.drop(terms, errors='ignore', inplace=True)
+        self.series.drop(terms, errors='ignore', inplace=True)
