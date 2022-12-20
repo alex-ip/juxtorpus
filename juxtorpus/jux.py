@@ -26,6 +26,7 @@ class Jux:
         self._1 = corpus_1
         self._stats = Statistics(self)
         self._sim = Similarity(self)
+        self._polarity = Polarity(self)
 
     @property
     def stats(self):
@@ -34,6 +35,10 @@ class Jux:
     @property
     def sim(self):
         return self._sim
+
+    @property
+    def polarity(self):
+        return self._polarity
 
     @property
     def num_corpus(self):

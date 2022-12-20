@@ -21,7 +21,7 @@ class TestPolarity(TestCase):
 
     def test_tf(self):
         p = self.polarity
-        df = p._tf()
+        df = p.tf()
         df['summed'] = df[0] + df[1]
         df['polarity_div_summed'] = df['polarity'].abs() / df['summed']
         # add this into a wordcloud -> size, colors
@@ -33,12 +33,12 @@ class TestPolarity(TestCase):
 
     def test_tfidf(self):
         p = self.polarity
-        df = p._tfidf()
+        df = p.tfidf()
         print()
 
     def test_llv(self):
         p = self.polarity
-        df = p._loglikelihood()
+        df = p.log_likelihood()
         df['size'] = df.polarity.abs()
         from juxtorpus.viz.polarity_wordcloud import PolarityWordCloud
         df_tmp = df.sort_values(by='size', ascending=False).iloc[:30]
