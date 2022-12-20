@@ -151,8 +151,9 @@ class DTM(object):
         norm is set to None by default here.
         """
         kwargs['use_idf'] = kwargs.get('use_idf', True)
-        kwargs['smooth_idf'] = kwargs.get('use_idf', True)
+        kwargs['smooth_idf'] = kwargs.get('smooth_idf', True)
         kwargs['sublinear_tf'] = kwargs.get('sublinear_tf', False)
+        kwargs['norm'] = kwargs.get('norm', None)
         tfidf_trans = TfidfTransformer(**kwargs)
         tfidf = DTM()
         tfidf.derived_from = self
