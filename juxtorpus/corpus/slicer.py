@@ -1,8 +1,12 @@
 from juxtorpus.corpus import Corpus
-from juxtorpus.meta import *
-from typing import Union, List, Callable
+from juxtorpus.corpus.meta import *
+from typing import Union, Callable
 import weakref
 import re
+
+import colorlog
+
+logger = colorlog.getLogger(__name__)
 
 
 class CorpusSlice(Corpus):
@@ -60,10 +64,12 @@ class CorpusSlicer(object):
         def cond_func(any_):
             if isinstance(any_, str):
                 return any_ in items
+            elif isinstance(any_, dict):
+                return not set(any_.keys()).isdisjoint(items)
             elif isinstance(any_, Iterable):
                 return not set(any_).isdisjoint(items)
             else:
-                print(f"[Warn] Unable to filter {type(any_)}. Only string or iterables.")
+                raise TypeError(f"Unable to filter {type(any_)}. Only string or iterables.")
 
         return cond_func
 
@@ -71,8 +77,8 @@ class CorpusSlicer(object):
         meta = self._get_meta_or_raise_err(id_)
         flags = 0 if not ignore_case else re.IGNORECASE
         pattern = re.compile(regex, flags=flags)
-        cond_func = lambda x: pattern.search(x) is not None
 
+        cond_func = lambda any_: pattern.search(any_) is not None
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
 
@@ -81,7 +87,7 @@ class CorpusSlicer(object):
         try:
             mask = mask.astype('boolean')
         except TypeError:
-            raise TypeError("Does your function return a boolean?")
+            raise TypeError("Does your condition function return booleans?")
         return mask
 
     def slice_by_condition(self, id_, cond_func):

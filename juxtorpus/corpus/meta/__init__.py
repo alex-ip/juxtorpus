@@ -56,7 +56,7 @@ class SeriesMeta(Meta):
         return self.series().apply(func)
 
     def __iter__(self):
-        for x in iter(self.series.__iter__()):
+        for x in iter(self.series().__iter__()):
             yield x
 
     def cloned(self, texts, mask):
@@ -75,7 +75,7 @@ class DelimitedStrSeriesMeta(SeriesMeta):
         return self.series().apply(lambda x: x.split(self.delimiter)).apply(func)
 
     def cloned(self, texts, mask):
-        return DelimitedStrSeriesMeta(self._id, self.series[mask], self.delimiter)
+        return DelimitedStrSeriesMeta(self._id, self.series()[mask], self.delimiter)
 
 
 """ Metadata from spaCy docs can only be derived metadata. """
@@ -126,7 +126,7 @@ class DocMeta(Meta):
         elif isinstance(self._docs, Callable):
             docs = self._docs()
         else:
-            raise ValueError(f"docs are neither a Series or a Callable stream. This should not happen.")
+            raise RuntimeError(f"docs are neither a Series or a Callable stream. This should not happen.")
         return docs
 
     def _get_doc_attr(self, doc: Doc) -> Any:

@@ -42,10 +42,10 @@ def urls(vocab: Vocab):
     return _urls
 
 
-def no_puncs(vocab: Vocab):
+def is_word(vocab: Vocab):
     _no_puncs = Matcher(vocab)
     _no_puncs.add("no_punctuations", patterns=[
-        [{"IS_PUNCT": False}]
+        [{"IS_PUNCT": False, 'IS_ALPHA': True}]
     ])
     return _no_puncs
 

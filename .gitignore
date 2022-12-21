@@ -109,6 +109,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.venv-*
 
 # Spyder project settings
 .spyderproject
@@ -139,3 +140,5 @@ dmypy.json
 _scrap/
 juxtorpus_metaslicing_oop_design.png
 tests/
+wiki-news-*
+/assets/data/

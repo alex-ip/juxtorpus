@@ -27,21 +27,11 @@ class ATAPConcordance(ConcordanceWidget, Concordance):
     """ ATAPConcordance
 
     This implementation integrates with the Concordance tool from atap_widgets package.
-
-
-    Usage:
-    ```
-    from juxtorpus.corpus import DummyCorpus
-    c = ATAPConcordance(corpus=DummyCorpus().preprocess())
-    print(c.set_keyword('Australia').find())
-    ```
     """
 
     def __init__(self, corpus: Corpus):
-        corpus_df = corpus._df.rename(columns={Corpus.COL_DOC: 'spacy_doc'})
-        if Corpus.COL_DOC not in corpus._df.columns:
-            raise RuntimeError("Corpus is not preprocessed.")
-        super(ATAPConcordance, self).__init__(df=corpus_df)  # builds ConcordanceTable internally.
+        super(ATAPConcordance, self).__init__(df=corpus.texts().to_frame('spacy_doc'))
+        # builds ConcordanceTable internally.
 
         # perf:
         self._keyword_prev: str = ''
@@ -70,8 +60,22 @@ class ATAPConcordance(ConcordanceWidget, Concordance):
 
 
 if __name__ == '__main__':
-    from juxtorpus.corpus import DummyCorpus
+    from juxtorpus.corpus import Corpus, CorpusBuilder
 
-    atap_concordance = ATAPConcordance(corpus=DummyCorpus().preprocess())
-    atap_concordance.set_keyword('australia').find()
-    atap_concordance.set_keyword('reading').find()
+    import re
+
+    tweet_wrapper = re.compile(r'([ ]?<[/]?TWEET>[ ]?)')
+
+    builder = CorpusBuilder('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv')
+    builder.set_text_column('processed_text')
+    builder.set_nrows(100)
+    builder.set_preprocessors([lambda text: tweet_wrapper.sub('', text)])
+    builder.add_metas('tweet_lga', dtypes='category')
+    builder.add_metas(['year', 'month', 'day'], dtypes='datetime')
+    corpus = builder.build()
+    corpus.summary()
+
+    concordance = ATAPConcordance(corpus)
+    concordance.set_keyword("MITIGATE").find()
+    print()
+
