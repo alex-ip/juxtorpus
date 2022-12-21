@@ -60,6 +60,11 @@ class CorpusSlicer(object):
     def __init__(self, corpus):
         self.corpus = corpus
 
+    def sample(self, n: int, rand_stat=None):
+        mask = self.corpus._df.isna().squeeze()  # Return a mask of all False
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        return self.corpus.cloned(mask)
+
     def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
         meta = self._get_meta_or_raise_err(id_)
 
@@ -97,28 +102,31 @@ class CorpusSlicer(object):
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
 
-    def filter_by_datetime(self, id_, after: Optional[str] = None, before: Optional[str] = None):
-        """ Filter by datetime
-        :arg after - any datetime string recognised by pandas.
-        :arg before - any datetime string recognised by pandas.
-        You must provide either 'after' or 'before' or both.
+    def filter_by_datetime(self, id_, start: Optional[str] = None, end: Optional[str] = None,
+                           strftime: Optional[str] = None):
+        """ Filter by datetime in range (start, end].
+        :arg start - any datetime string recognised by pandas.
+        :arg end - any datetime string recognised by pandas.
+        :arg strftime - datetime string format
+
+        If no start or end is provided, it'll return the corpus unsliced.
         """
         meta = self._get_meta_or_raise_err(id_)
-        if after is None and before is None: raise ValueError("You must either set 'after' or 'before' or both.")
-        if after is not None: after = pd.to_datetime(after)
-        if before is not None: before = pd.to_datetime(before)
-        if after is not None and before is not None:
-            cond_func = lambda dt: after < dt < before
-        elif after is not None and before is None:
-            cond_func = lambda dt: after < dt
+        if isinstance(meta, SeriesMeta) and not pd.api.types.is_datetime64_any_dtype(meta.series()):
+            raise ValueError("The meta specified is not a datetime.")
+        # return corpus if no start or end time specified.
+        if start is None and end is None: return self.corpus
+        start = pd.to_datetime(start, infer_datetime_format=True, format=strftime)  # returns None if start=None
+        end = pd.to_datetime(end, infer_datetime_format=True, format=strftime)
+        logger.info(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
+        logger.info(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
+        if None not in (start, end):
+            cond_func = lambda dt: start < dt <= end
+        elif start is not None:
+            cond_func = lambda dt: start < dt
         else:
-            cond_func = lambda dt: dt < before
+            cond_func = lambda dt: dt <= end
         mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
-
-    def sample(self, n: int, rand_stat=None):
-        mask = self.corpus._df.isna().squeeze() # Return a mask of all False
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.corpus.cloned(mask)
 
     def _mask_by_condition(self, meta, cond_func):
