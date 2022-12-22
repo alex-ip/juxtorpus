@@ -84,8 +84,8 @@ class CorpusBuilder(object):
 
         self._preprocessors = list()
 
-    def head(self, n: int):
-        return pd.read_csv(self._paths[0], nrows=n).head(n)
+    def head(self, n: int = 3):
+        return pd.read_csv(self._paths[0], nrows=n)
 
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
