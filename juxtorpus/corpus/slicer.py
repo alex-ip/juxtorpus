@@ -79,10 +79,13 @@ class CorpusSlicer(object):
 
     def _item_cond_func(self, items):
         items = [items] if isinstance(items, str) else items
+        items = [items] if not type(items) == Iterable else items
         items = set(items)
 
         def cond_func(any_):
             if isinstance(any_, str):
+                return any_ in items
+            elif isinstance(any_, int) or isinstance(any_, float):
                 return any_ in items
             elif isinstance(any_, dict):
                 return not set(any_.keys()).isdisjoint(items)

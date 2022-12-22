@@ -84,8 +84,8 @@ class CorpusBuilder(object):
 
         self._preprocessors = list()
 
-    def head(self, n: int):
-        return pd.read_csv(self._paths[0], nrows=n).head(n)
+    def head(self, n: int = 3):
+        return pd.read_csv(self._paths[0], nrows=n)
 
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
@@ -97,6 +97,7 @@ class CorpusBuilder(object):
             else:
                 to_add.append(mc.column)
         df['Add'] = df.index.isin(to_add)
+        df.sort_index(axis=0, inplace=True)
         return df.sort_values(by='Add', ascending=False)
 
     def add_metas(self, columns: Union[str, list[str]],
@@ -239,12 +240,12 @@ class CorpusBuilder(object):
         for path in self._paths:
             if self._nrows is None:
                 df = pd.read_csv(path, nrows=self._nrows, usecols=all_cols, sep=self._sep,
-                                 parse_dates=parse_dates, dtype=series_and_dtypes)
+                                 parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
             else:
                 if current >= self._nrows:
                     break
                 df = pd.read_csv(path, nrows=self._nrows - current, usecols=all_cols, sep=self._sep,
-                                 parse_dates=parse_dates, dtype=series_and_dtypes)
+                                 parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
                 current += len(df)
             dfs.append(df)
         df = pd.concat(dfs, axis=0, ignore_index=True)
