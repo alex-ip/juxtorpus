@@ -1,9 +1,7 @@
-from typing import Union, Set, Dict, Generator, Optional
+from typing import Dict, Generator, Optional
 import pandas as pd
 import spacy.vocab
 from spacy.tokens import Doc
-from frozendict import frozendict
-from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
@@ -28,6 +26,15 @@ class Corpus:
     A main design feature of the corpus is to allow for easy slicing and dicing based on the associated metadata,
     text in document. See class CorpusSlicer. After each slicing operation, new but sliced Corpus object is
     returned exposing the same descriptive functions (e.g. summary()) you may wish to call again.
+
+    To build a corpus, use the CorpusBuilder. This class handles the complexity
+
+    ```
+    builder = CorpusBuilder(pathlib.Path('./data.csv'))
+    builder.add_metas('some_meta', 'datetime')
+    builder.set_text_column('text')
+    corpus = builder.build()
+    ```
 
     Internally, documents are stored as rows of string in a dataframe. Metadata are stored in the meta registry.
     Slicing is equivalent to creating a `cloned()` corpus and is really passing a boolean mask to the dataframe and
@@ -89,6 +96,7 @@ class Corpus:
     # document term matrix
     @property
     def dtm(self):
+        """ Document-Term Matrix. """
         if not self._dtm.is_built:
             root = self.find_root()
             root._dtm.build(root.texts())
@@ -96,6 +104,7 @@ class Corpus:
         return self._dtm
 
     def find_root(self):
+        """ Find and return the root corpus. """
         if self.is_root: return self
         parent = self._parent
         while not parent.is_root:
@@ -116,7 +125,6 @@ class Corpus:
         self._processing_history.append(episode)
 
     # statistics
-
     @property
     def num_terms(self) -> int:
         return self.dtm.total
@@ -222,6 +230,12 @@ class SpacyCorpus(Corpus):
     To build a SpacyCorpus, you'll need to `process()` a Corpus object. See class SpacyProcessor. This will run
     the spacy process and update the corpus's meta registry. You'll still need to load spacy's Language object
     which is used in the process.
+
+    ```
+    nlp = spacy.blank('en')
+    from juxtorpus.corpus.processors import process
+    spcycorpus = process(corpus, nlp=nlp)
+    ```
 
     Subtle differences to Corpus:
     As spacy utilises the tokeniser set out by the Language object, you may find summary statistics to be inconsistent
