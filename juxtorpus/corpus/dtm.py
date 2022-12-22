@@ -31,6 +31,13 @@ TVectorizer = TypeVar('TVectorizer', bound=CountVectorizer)
 
 
 class DTM(object):
+    """ DTM
+    This class is an abstract representation of the document-term matrix. It serves as a component
+    of the Corpus class and exposes various functionalities that allows the slicing and dicing to be
+    done seamlessly.
+
+    Internally, DTM stores a sparse matrix which is computed using sklearn's CountVectorizer.
+    """
 
     @classmethod
     def from_wordlists(cls, wordlists: Iterable[Iterable[str]]):
@@ -145,7 +152,7 @@ class DTM(object):
         return cloned
 
     def tfidf(self, **kwargs):
-        """ Returns an un-normalised tfidf of the current matrix.
+        """ Returns an un-normalised tfidf of the current matrix. A new DTM is returned.
 
         Args: see sklearn.TfidfTransformer
         norm is set to None by default here.
@@ -193,26 +200,28 @@ class DTM(object):
         dtm._is_built = True
         return dtm
 
-    def shares_vocab(self, dtm: 'DTM') -> bool:
-        this, other = self.vocab(nonzero=True), dtm.vocab(nonzero=True)
+    def shares_vocab(self, other: 'DTM') -> bool:
+        """ Check if the other DTM shares current DTM's vocab """
+        this, other = self.vocab(nonzero=True), other.vocab(nonzero=True)
         if not len(this) == len(other): return False
         return len(this.difference(other)) == 0
 
-    def terms_aligned(self, dtm: 'DTM') -> bool:
-        this, other = self.term_names, dtm.term_names
+    def terms_aligned(self, other: 'DTM') -> bool:
+        """ Check if the other DTM's terms are index aligned with current DTM """
+        this, other = self.term_names, other.term_names
         if not len(this) == len(other): return False
         return (this == other).all()
 
-    def merged(self, dtm: 'DTM'):
-        """Merge DTM with current."""
-        if self.terms_aligned(dtm):
-            m = scipy.sparse.vstack((self.matrix, dtm.matrix))
+    def merged(self, other: 'DTM'):
+        """Merge other DTM with current."""
+        if self.terms_aligned(other):
+            m = scipy.sparse.vstack((self.matrix, other.matrix))
             feature_names_out = self._feature_names_out  # unchanged since terms are shared
         else:
-            if len(dtm.term_names) >= len(self.term_names):
-                big, small = dtm, self
+            if len(other.term_names) >= len(self.term_names):
+                big, small = other, self
             else:
-                big, small = self, dtm
+                big, small = self, other
 
             top_right, indx_missing = self._build_top_right_merged_matrix(big, small)
             top_left = self._build_top_left_merged_matrix(small)
@@ -240,10 +249,10 @@ class DTM(object):
             feature_names_out = np.concatenate([small.term_names, big.term_names[indx_missing]])
 
         # replace with new matrix.
-        dtm = DTM()
-        dtm._matrix = m
-        dtm._feature_names_out = feature_names_out
-        return dtm
+        other = DTM()
+        other._matrix = m
+        other._feature_names_out = feature_names_out
+        return other
 
     def _build_top_right_merged_matrix(self, big, small):
         # 1. build top matrix: shape = (small.num_docs, small.num_terms + missing terms from big)
