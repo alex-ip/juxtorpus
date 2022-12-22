@@ -79,6 +79,7 @@ class Jux:
 
         A smaller corpus will generally have higher lexical diversity.
         """
-        ld_A = len(self._0.unique_terms) / np.log(self._0.num_terms)
-        ld_B = len(self._1.unique_terms) / np.log(self._1.num_terms)
-        return ld_A - ld_B, {'corpusA': ld_A, 'corpusB': ld_B}
+        ld = dict()
+        for i, corpus in enumerate(self.corpora):
+            ld[f"corpus_{i}"] = len(corpus.unique_terms) / np.log(corpus.num_terms)
+        return ld
