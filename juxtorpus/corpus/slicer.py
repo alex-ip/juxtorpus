@@ -57,21 +57,37 @@ class FrozenCorpusSlices(CorpusSlices):
 
 
 class CorpusSlicer(object):
+    """ CorpusSlicer
+
+    The corpus slicer is used in conjunction with the Corpus class to serve its main design feature:
+    the ability to recursively slice and dice the corpus.
+    """
+
     def __init__(self, corpus):
         self.corpus = corpus
 
     def sample(self, n: int, rand_stat=None):
+        """ Uniformly sample from the corpus. """
         mask = self.corpus._df.isna().squeeze()  # Return a mask of all False
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.corpus.cloned(mask)
 
     def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
+        """ Filter by condition
+        :arg id_ - meta's id
+        :arg cond_func -  Callable that returns a boolean.
+        """
         meta = self._get_meta_or_raise_err(id_)
 
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
 
     def filter_by_item(self, id_, items):
+        """ Filter by item - items can be str or numeric types.
+
+        :arg id_ - meta's id.
+        :arg items - the list of items to include OR just a single item.
+        """
         meta = self._get_meta_or_raise_err(id_)
         cond_func = self._item_cond_func(items)
         mask = self._mask_by_condition(meta, cond_func)
@@ -79,7 +95,7 @@ class CorpusSlicer(object):
 
     def _item_cond_func(self, items):
         items = [items] if isinstance(items, str) else items
-        items = [items] if not type(items) == Iterable else items
+        items = [items] if not type(items) in (list, tuple, set) else items
         items = set(items)
 
         def cond_func(any_):
@@ -89,7 +105,7 @@ class CorpusSlicer(object):
                 return any_ in items
             elif isinstance(any_, dict):
                 return not set(any_.keys()).isdisjoint(items)
-            elif isinstance(any_, Iterable):
+            elif type(any_) in (list, tuple, set):
                 return not set(any_).isdisjoint(items)
             else:
                 raise TypeError(f"Unable to filter {type(any_)}. Only string or iterables.")
@@ -97,6 +113,11 @@ class CorpusSlicer(object):
         return cond_func
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool):
+        """ Filter by regex.
+        :arg id - meta id
+        :arg regex - the regex pattern
+        :arg ignore_case - whether to ignore case
+        """
         meta = self._get_meta_or_raise_err(id_)
         flags = 0 if not ignore_case else re.IGNORECASE
         pattern = re.compile(regex, flags=flags)
@@ -179,6 +200,9 @@ class SpacyCorpusSlicer(CorpusSlicer, ABC):
         super(SpacyCorpusSlicer, self).__init__(corpus)
 
     def filter_by_matcher(self, matcher: Matcher):
+        """ Filter by matcher
+        If the matcher matches anything, that document is kept in the sliced corpus.
+        """
         cond_func = self._matcher_cond_func(matcher)
         docs = self.corpus.docs()
         if isinstance(docs, pd.Series):

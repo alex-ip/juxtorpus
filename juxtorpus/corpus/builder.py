@@ -69,6 +69,23 @@ class DateTimeMetaConfig(MetaConfig):
 
 
 class CorpusBuilder(object):
+    """ CorpusBuilder
+
+    The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
+    the corpus object with the aim of making it easier to construct a well-formed Corpus.
+
+    This class follows the Builder pattern.
+    Most exposed functions are to set up the correct state and then `build()` the corpus based on those states.
+
+    ```Example Usage:
+    builder = CorpusBuilder(paths)
+    builder.add_metas(['your_meta_0', 'your_meta_1'], dtypes='category')
+    builder.add_metas('year_month_day', dtypes='datetime')  # this will keep meta id as 'year_month_day'
+    builder.set_text_column('text')
+    corpus = builder.build()
+    ```
+    """
+
     def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
         if isinstance(paths, str):
             paths = pathlib.Path(paths)

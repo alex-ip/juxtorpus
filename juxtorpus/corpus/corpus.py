@@ -1,9 +1,7 @@
-from typing import Union, Set, Dict, Generator, Optional
+from typing import Dict, Generator, Optional
 import pandas as pd
 import spacy.vocab
 from spacy.tokens import Doc
-from frozendict import frozendict
-from collections import Counter
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
@@ -18,10 +16,32 @@ logger = logging.getLogger(__name__)
 
 class Corpus:
     """ Corpus
-    This class wraps around a dataframe of raw str text that represents your corpus.
-    It exposes functions that gather statistics on the corpus such as token frequencies and lexical diversity etc.
+    This class abstractly represents a corpus which is a collection of documents.
+    Each document is also described by their metadata and is used for functions such as slicing.
 
-    summary() provides a quick summary of your corpus.
+    An important component of the Corpus is that it also holds the document-term matrix which you can access through
+    the accessor `.dtm`. See class DTM. The dtm is lazily loaded and is always computed for the root corpus.
+    (read further for a more detailed explanation.)
+
+    A main design feature of the corpus is to allow for easy slicing and dicing based on the associated metadata,
+    text in document. See class CorpusSlicer. After each slicing operation, new but sliced Corpus object is
+    returned exposing the same descriptive functions (e.g. summary()) you may wish to call again.
+
+    To build a corpus, use the CorpusBuilder. This class handles the complexity
+
+    ```
+    builder = CorpusBuilder(pathlib.Path('./data.csv'))
+    builder.add_metas('some_meta', 'datetime')
+    builder.set_text_column('text')
+    corpus = builder.build()
+    ```
+
+    Internally, documents are stored as rows of string in a dataframe. Metadata are stored in the meta registry.
+    Slicing is equivalent to creating a `cloned()` corpus and is really passing a boolean mask to the dataframe and
+    the associated metadata series. When sliced, corpus objects are created with a reference to its parent corpus.
+    This is mainly for performance reasons, so that the expensive DTM computed may be reused and a shared vocabulary
+    is kept for easier analysis of different sliced sub-corpus. You may choose the corpus to be `detached()` from this
+    behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
 
     COL_TEXT: str = 'text'
@@ -76,6 +96,7 @@ class Corpus:
     # document term matrix
     @property
     def dtm(self):
+        """ Document-Term Matrix. """
         if not self._dtm.is_built:
             root = self.find_root()
             root._dtm.build(root.texts())
@@ -83,6 +104,7 @@ class Corpus:
         return self._dtm
 
     def find_root(self):
+        """ Find and return the root corpus. """
         if self.is_root: return self
         parent = self._parent
         while not parent.is_root:
@@ -103,7 +125,6 @@ class Corpus:
         self._processing_history.append(episode)
 
     # statistics
-
     @property
     def num_terms(self) -> int:
         return self.dtm.total
@@ -186,6 +207,15 @@ class Corpus:
         """
         self._parent = None
         self._dtm = DTM()
+        meta_reg = MetaRegistry()
+        for k, meta in self.meta.items():
+            if isinstance(meta, SeriesMeta):
+                sm = SeriesMeta(meta.id, meta.series().copy().reset_index(drop=True))
+                meta_reg[sm.id] = sm
+            else:
+                meta_reg[k] = meta
+        self._meta_registry = meta_reg
+        self._df = self._df.copy().reset_index(drop=True)
         return self
 
     def __len__(self):
@@ -198,15 +228,38 @@ class Corpus:
 
 
 class SpacyCorpus(Corpus):
+    """ SpacyCorpus
+    This class inherits from the Corpus class with the added and adjusted functions to handle spacy's Doc data
+    structure as opposed to string. However, the original string data structure is kept. These may be accessed via
+    `.docs()` and `.texts()` respectively.
+
+    Metadata in this class also includes metadata stored in Doc objects. See class meta/DocMeta. Which may again
+    be used for slicing the corpus.
+
+    To build a SpacyCorpus, you'll need to `process()` a Corpus object. See class SpacyProcessor. This will run
+    the spacy process and update the corpus's meta registry. You'll still need to load spacy's Language object
+    which is used in the process.
+
+    ```
+    nlp = spacy.blank('en')
+    from juxtorpus.corpus.processors import process
+    spcycorpus = process(corpus, nlp=nlp)
+    ```
+
+    Subtle differences to Corpus:
+    As spacy utilises the tokeniser set out by the Language object, you may find summary statistics to be inconsistent
+    with the Corpus object you had before it was processed into a SpacyCorpus.
+    """
 
     @classmethod
-    def from_corpus(cls, corpus: Corpus, docs, vocab):
-        return cls(docs, corpus._meta_registry, vocab)
+    def from_corpus(cls, corpus: Corpus, docs, nlp):
+        return cls(docs, corpus._meta_registry, nlp)
 
     def __init__(self, docs, metas, nlp: spacy.Language):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
         self._is_word_matcher = is_word(self._nlp.vocab)
+        self._df.reset_index(inplace=True)
 
     @property
     def nlp(self):
@@ -243,17 +296,18 @@ class SpacyCorpus(Corpus):
     def _gen_lemmas_from(self, doc):
         return (doc[start: end].lemma_ for _, start, end in self._is_word_matcher(doc))
 
-    def _cloned_texts(self, mask):
+    def _cloned_docs(self, mask):
         return self.docs().loc[mask]
 
     def cloned(self, mask: 'pd.Series[bool]'):
-        cloned_texts = self._cloned_texts(mask)
+        # cloned_texts = self._cloned_texts(mask)
+        cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
 
-        clone = SpacyCorpus(cloned_texts, cloned_metas, self._nlp)
+        clone = SpacyCorpus(cloned_docs, cloned_metas, self._nlp)
         clone._parent = self
 
-        clone._dtm = self._cloned_dtm(cloned_texts.index)
+        clone._dtm = self._cloned_dtm(cloned_docs.index)
         clone._processing_history = self._cloned_history()
         return clone
 
