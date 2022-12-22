@@ -207,6 +207,15 @@ class Corpus:
         """
         self._parent = None
         self._dtm = DTM()
+        meta_reg = MetaRegistry()
+        for k, meta in self.meta.items():
+            if isinstance(meta, SeriesMeta):
+                sm = SeriesMeta(meta.id, meta.series().copy().reset_index(drop=True))
+                meta_reg[sm.id] = sm
+            else:
+                meta_reg[k] = meta
+        self._meta_registry = meta_reg
+        self._df = self._df.copy().reset_index(drop=True)
         return self
 
     def __len__(self):
@@ -243,13 +252,14 @@ class SpacyCorpus(Corpus):
     """
 
     @classmethod
-    def from_corpus(cls, corpus: Corpus, docs, vocab):
-        return cls(docs, corpus._meta_registry, vocab)
+    def from_corpus(cls, corpus: Corpus, docs, nlp):
+        return cls(docs, corpus._meta_registry, nlp)
 
     def __init__(self, docs, metas, nlp: spacy.Language):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
         self._is_word_matcher = is_word(self._nlp.vocab)
+        self._df.reset_index(inplace=True)
 
     @property
     def nlp(self):
@@ -286,17 +296,18 @@ class SpacyCorpus(Corpus):
     def _gen_lemmas_from(self, doc):
         return (doc[start: end].lemma_ for _, start, end in self._is_word_matcher(doc))
 
-    def _cloned_texts(self, mask):
+    def _cloned_docs(self, mask):
         return self.docs().loc[mask]
 
     def cloned(self, mask: 'pd.Series[bool]'):
-        cloned_texts = self._cloned_texts(mask)
+        # cloned_texts = self._cloned_texts(mask)
+        cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
 
-        clone = SpacyCorpus(cloned_texts, cloned_metas, self._nlp)
+        clone = SpacyCorpus(cloned_docs, cloned_metas, self._nlp)
         clone._parent = self
 
-        clone._dtm = self._cloned_dtm(cloned_texts.index)
+        clone._dtm = self._cloned_dtm(cloned_docs.index)
         clone._processing_history = self._cloned_history()
         return clone
 
