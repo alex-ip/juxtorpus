@@ -18,10 +18,22 @@ logger = logging.getLogger(__name__)
 
 class Corpus:
     """ Corpus
-    This class wraps around a dataframe of raw str text that represents your corpus.
-    It exposes functions that gather statistics on the corpus such as token frequencies and lexical diversity etc.
+    This class abstractly represents a corpus which is a collection of documents.
+    Each document is also described by their metadata and is used for functions such as slicing.
 
-    summary() provides a quick summary of your corpus.
+    An important component of the Corpus is that it also holds the document-term matrix which you can access through
+    the accessor `.dtm`. See class DTM. The dtm is lazily loaded and is always computed for the root corpus.
+    (read further for a more detailed explanation.)
+
+    A main design feature of the corpus is to allow for easy slicing and dicing based on the associated metadata,
+    text in document. See class CorpusSlicer. After each slicing operation, new but sliced Corpus object is
+    returned exposing the same descriptive functions (e.g. summary()) you may wish to call again.
+
+    Internally, documents are stored as rows of string in a dataframe. Metadata are stored in the meta registry.
+    When sliced, corpus objects are created with a reference to its parent corpus. This is mainly for performance
+    reasons, so that the expensive DTM computed may be reused and a shared vocabulary is kept for easier analysis
+    of different sliced sub-corpus. You may choose the corpus to be `detached()` from this behaviour, in which
+    the corpus will act as the root and forget its lineage.
     """
 
     COL_TEXT: str = 'text'
@@ -198,6 +210,9 @@ class Corpus:
 
 
 class SpacyCorpus(Corpus):
+    """ SpacyCorpus
+
+    """
 
     @classmethod
     def from_corpus(cls, corpus: Corpus, docs, vocab):
