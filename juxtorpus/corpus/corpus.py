@@ -30,10 +30,11 @@ class Corpus:
     returned exposing the same descriptive functions (e.g. summary()) you may wish to call again.
 
     Internally, documents are stored as rows of string in a dataframe. Metadata are stored in the meta registry.
-    When sliced, corpus objects are created with a reference to its parent corpus. This is mainly for performance
-    reasons, so that the expensive DTM computed may be reused and a shared vocabulary is kept for easier analysis
-    of different sliced sub-corpus. You may choose the corpus to be `detached()` from this behaviour, in which
-    the corpus will act as the root and forget its lineage.
+    Slicing is equivalent to creating a `cloned()` corpus and is really passing a boolean mask to the dataframe and
+    the associated metadata series. When sliced, corpus objects are created with a reference to its parent corpus.
+    This is mainly for performance reasons, so that the expensive DTM computed may be reused and a shared vocabulary
+    is kept for easier analysis of different sliced sub-corpus. You may choose the corpus to be `detached()` from this
+    behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
 
     COL_TEXT: str = 'text'
@@ -211,7 +212,20 @@ class Corpus:
 
 class SpacyCorpus(Corpus):
     """ SpacyCorpus
+    This class inherits from the Corpus class with the added and adjusted functions to handle spacy's Doc data
+    structure as opposed to string. However, the original string data structure is kept. These may be accessed via
+    `.docs()` and `.texts()` respectively.
 
+    Metadata in this class also includes metadata stored in Doc objects. See class meta/DocMeta. Which may again
+    be used for slicing the corpus.
+
+    To build a SpacyCorpus, you'll need to `process()` a Corpus object. See class SpacyProcessor. This will run
+    the spacy process and update the corpus's meta registry. You'll still need to load spacy's Language object
+    which is used in the process.
+
+    Subtle differences to Corpus:
+    As spacy utilises the tokeniser set out by the Language object, you may find summary statistics to be inconsistent
+    with the Corpus object you had before it was processed into a SpacyCorpus.
     """
 
     @classmethod
