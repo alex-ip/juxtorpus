@@ -325,5 +325,5 @@ class SpacyCorpus(Corpus):
                 'model': self.nlp.meta.get('name'),
                 'pipeline': ', '.join(self.nlp.pipe_names)
             }
-            return df, pd.DataFrame.from_dict(spacy_info, orient='index')
+            return pd.concat([df, pd.DataFrame.from_dict(spacy_info, orient='index')])
         return df
