@@ -5,7 +5,7 @@ import pandas as pd
 from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.meta import *
 
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, Any
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
 import weakref
