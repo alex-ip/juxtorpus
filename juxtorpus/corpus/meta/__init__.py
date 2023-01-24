@@ -4,6 +4,7 @@ from spacy import Language
 from spacy.tokens import Doc
 from typing import List, Callable, Any, Set, Union, Iterable, Generator
 from functools import partial
+from copy import deepcopy
 
 from juxtorpus.loader import LazySeries
 
@@ -198,4 +199,4 @@ class MetaRegistry(dict):
         return df
 
     def copy(self):
-        return MetaRegistry(self)
+        return deepcopy(self)
