@@ -227,10 +227,16 @@ class Corpus:
             yield self._df.iat[i, col_text_idx]
 
     def __getitem__(self, item):
-        return self._df.iloc[item]
-
-    def __getslice__(self, i, j):
-        return self._df.iloc[i:j]
+        if isinstance(item, int):
+            mask = self._df.index == self._df.iloc[item].name
+        else:  # i.e. type=slice
+            start = item.start
+            stop = item.stop
+            if start is None: start = 0
+            if stop is None: stop = len(self._df)
+            if item.step is not None: raise NotImplementedError("Slicing with step is currently not implemented.")
+            mask = self._df.iloc[start:stop].index
+        return self.cloned(mask)
 
 
 class SpacyCorpus(Corpus):
