@@ -152,7 +152,7 @@ class Corpus:
         })
 
         meta_info = pd.Series({
-            "metas": ', '.join(self.meta.keys())
+            "metas": ', '.join(self._meta_registry.keys())
         })
         return pd.concat([other_info, docs_info, meta_info])
 
