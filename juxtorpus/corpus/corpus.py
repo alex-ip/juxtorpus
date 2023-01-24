@@ -1,4 +1,4 @@
-from typing import Dict, Generator, Optional
+from typing import Dict, Generator, Optional, Callable
 import pandas as pd
 import spacy.vocab
 from spacy.tokens import Doc
@@ -110,6 +110,13 @@ class Corpus:
         while not parent.is_root:
             parent = parent._parent
         return parent
+
+    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
+        """ Create a custom DTM based on custom tokeniser function. """
+        dtm = DTM()
+        dtm.build(self.texts(),
+                  vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
+        return dtm
 
     # meta data
     @property
@@ -290,6 +297,11 @@ class SpacyCorpus(Corpus):
                             vectorizer=CountVectorizer(preprocessor=lambda x: x,
                                                        tokenizer=self._gen_words_from))
         return self._dtm
+
+    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
+        dtm = DTM()
+        dtm.build(self.docs(), vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
+        return dtm
 
     def texts(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT].map(lambda doc: doc.text)
