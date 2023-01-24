@@ -141,13 +141,13 @@ class Corpus:
         docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop("count")
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
-        mapper = {row_idx: f"Terms {row_idx}" for row_idx in docs_info.index}
+        mapper = {row_idx: f"No. Terms {row_idx}" for row_idx in docs_info.index}
         docs_info.rename(index=mapper, inplace=True)
 
         other_info = pd.Series({
             "Corpus Type": self.__class__.__name__,
-            "Number of documents": len(self),
-            "Number of terms": self.dtm.total,
+            "No. Documents": len(self),
+            "No. Terms": self.dtm.total,
             "Vocabulary size": len(self.dtm.vocab(nonzero=True)),
         })
 
