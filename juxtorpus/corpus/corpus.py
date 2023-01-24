@@ -226,6 +226,12 @@ class Corpus:
         for i in range(len(self)):
             yield self._df.iat[i, col_text_idx]
 
+    def __getitem__(self, item):
+        return self._df.iloc[item]
+
+    def __getslice__(self, i, j):
+        return self._df.iloc[i:j]
+
 
 class SpacyCorpus(Corpus):
     """ SpacyCorpus
