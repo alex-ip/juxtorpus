@@ -11,7 +11,7 @@ Output:
 -> dataframe
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import weakref as wr
 import pandas as pd
 
@@ -25,9 +25,16 @@ class Polarity(object):
     def __init__(self, jux: 'Jux'):
         self._jux: wr.ref['Jux'] = wr.ref(jux)
 
-    def tf(self):
+    def tf(self, tokeniser_func: Optional = None):
         """ Term frequency polarity is given by """
-        fts = (corpus.dtm.freq_table() for corpus in self._jux().corpora)
+
+        # todo HERE: allow creation of custom DTM.
+        if tokeniser_func:
+            dtms = (corpus.create_custom_dtm(tokeniser_func) for corpus in self._jux().corpora)
+        else:
+            dtms = (corpus.dtm for corpus in self._jux().corpora)
+
+        fts = (dtm.freq_table() for dtm in dtms)
 
         renamed_ft = [(f"{ft.name}_corpus_{i}", ft) for i, ft in enumerate(fts)]
         df = pd.concat([ft.series.rename(name) / ft.total for name, ft in renamed_ft], axis=1).fillna(0)
