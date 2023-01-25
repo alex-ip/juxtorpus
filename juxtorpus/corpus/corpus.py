@@ -278,7 +278,7 @@ class SpacyCorpus(Corpus):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
         self._is_word_matcher = is_word(self._nlp.vocab)
-        self._df.reset_index(inplace=True)
+        # self._df.reset_index(inplace=True)
 
     @property
     def nlp(self):
