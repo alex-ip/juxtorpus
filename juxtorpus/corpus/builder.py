@@ -104,7 +104,7 @@ class CorpusBuilder(object):
     def head(self, n: int = 3):
         return pd.read_csv(self._paths[0], nrows=n, sep=self._sep)
 
-    def show_columns(self):
+    def show_added_columns(self):
         all = pd.Series(self._columns, name='All Columns')
         df = pd.DataFrame(index=all)
         to_add = list()
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     # builder.add_metas('created_at', dtypes='datetime', lazy=True)
     builder.add_metas(['geometry', 'state_name_2016'], dtypes=['object', 'str'])
 
-    print(builder.show_columns())
+    print(builder.show_added_columns())
     corpus = builder.build()
     print(corpus.meta)
     # print(corpus.get_meta('tweet_lga').preview(5))
