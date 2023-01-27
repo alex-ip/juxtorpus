@@ -128,10 +128,6 @@ class CorpusBuilder(object):
 
         If dtype is None, dtype is inferred by pandas.
         """
-        if dtypes == 'datetime':
-            self._add_datetime_meta(columns, lazy)
-            return
-        # non datetime columns
         if isinstance(columns, str):
             columns = [columns]
         if isinstance(dtypes, list) and len(columns) != len(dtypes):
@@ -139,7 +135,10 @@ class CorpusBuilder(object):
         else:
             for i in range(len(columns)):
                 dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
-                self._add_meta(columns[i], dtype, lazy)
+                if dtype == 'datetime':
+                    self._add_datetime_meta(columns[i], lazy)
+                else:
+                    self._add_meta(columns[i], dtype, lazy)
 
     def _add_meta(self, column: str, dtype: str, lazy: bool):
         if column not in self._columns:
