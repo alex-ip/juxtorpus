@@ -11,7 +11,7 @@ Output:
 -> dataframe
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import weakref as wr
 import pandas as pd
 from typing import Generator
