@@ -99,7 +99,7 @@ class Corpus:
         """ Document-Term Matrix. """
         if not self._dtm.is_built:
             root = self.find_root()
-            root._dtm.build(root.texts())
+            root._dtm.initialise(root.texts())
             # self._dtm.build(root.texts())        # dtm tracks root and builds with root anyway
         return self._dtm
 
@@ -114,8 +114,8 @@ class Corpus:
     def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
         """ Create a custom DTM based on custom tokeniser function. """
         dtm = DTM()
-        dtm.build(self.texts(),
-                  vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
+        dtm.initialise(self.texts(),
+                       vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
         return dtm
 
     # meta data
@@ -293,14 +293,15 @@ class SpacyCorpus(Corpus):
     def dtm(self):
         if not self._dtm.is_built:
             root = self.find_root()
-            root._dtm.build(root.docs(),
-                            vectorizer=CountVectorizer(preprocessor=lambda x: x,
+            root._dtm.initialise(root.docs(),
+                                 vectorizer=CountVectorizer(preprocessor=lambda x: x,
                                                        tokenizer=self._gen_words_from))
         return self._dtm
 
     def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
+        """ Create a custom DTM with tokens returned by the tokeniser_func."""
         dtm = DTM()
-        dtm.build(self.docs(), vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
+        dtm.initialise(self.docs(), vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
         return dtm
 
     def texts(self) -> 'pd.Series[str]':

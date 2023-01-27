@@ -41,7 +41,7 @@ class DTM(object):
 
     @classmethod
     def from_wordlists(cls, wordlists: Iterable[Iterable[str]]):
-        return cls().build(wordlists)
+        return cls().initialise(wordlists)
 
     def __init__(self):
         self.root = self
@@ -112,7 +112,7 @@ class DTM(object):
         else:
             return set(self.term_names)
 
-    def build(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
+    def initialise(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
         logger.info("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
         self.root._matrix = self.root._vectorizer.fit_transform(texts)
@@ -301,7 +301,7 @@ if __name__ == '__main__':
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
     corpus.summary()
 
-    dtm = DTM().build(corpus.texts())
+    dtm = DTM().initialise(corpus.texts())
     print(dtm.terms_column_vectors('the').shape)
     print(dtm.terms_column_vectors(['the', 'he', 'she']).shape)
 
