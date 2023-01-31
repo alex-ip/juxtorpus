@@ -66,12 +66,6 @@ class CorpusSlicer(object):
     def __init__(self, corpus):
         self.corpus = corpus
 
-    def sample(self, n: int, rand_stat=None):
-        """ Uniformly sample from the corpus. """
-        mask = self.corpus._df.isna().squeeze()  # Return a mask of all False
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
-        return self.corpus.cloned(mask)
-
     def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
         """ Filter by condition
         :arg id_ - meta's id
