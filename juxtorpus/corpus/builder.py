@@ -96,6 +96,7 @@ class CorpusBuilder(object):
         self._meta_configs = dict()
         self._sep = ','
         self._col_text = None
+        self._dtype_text = pd.StringDtype('pyarrow')
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
         # todo: check if column matches for multiple paths
 
@@ -104,18 +105,35 @@ class CorpusBuilder(object):
     def head(self, n: int = 3):
         return pd.read_csv(self._paths[0], nrows=n, sep=self._sep)
 
-    def show_added_columns(self):
+    def summary(self):
         all = pd.Series(self._columns, name='All Columns')
-        df = pd.DataFrame(index=all)
-        to_add = list()
+        df = pd.DataFrame(index=all, columns=['Text', 'Meta', 'Dtype'])
+        df['Text'] = False
+        df['Meta'] = False
+        df['Dtype'] = ''
+
+        # Populate Text column
+        if self.text_column_is_set():
+            df.loc[self._col_text, 'Text'] = True
+            df.loc[self._col_text, 'Dtype'] = str(self._dtype_text)
+
+        # Populate Meta column
         for mc in self._meta_configs.values():
             if type(mc) == DateTimeMetaConfig and mc.is_multi_columned():
-                to_add.extend(mc.columns)
+                for col in mc.columns:
+                    df.loc[col, 'Meta'] = True
             else:
-                to_add.append(mc.column)
-        df['Add'] = df.index.isin(to_add)
+                df.loc[mc.column, 'Meta'] = True
+
+        # Populate dtype column
+        for row in df.itertuples(index=True):
+            if not row.Meta: continue
+            dtype = self._meta_configs.get(row.Index).dtype
+            dtype = dtype if dtype is not None else 'inferred'
+            df.loc[row.Index, 'Dtype'] = dtype
+
         df.sort_index(axis=0, inplace=True)
-        return df.sort_values(by='Add', ascending=False)
+        return df.sort_index(axis=0, ascending=True)
 
     def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
@@ -187,6 +205,10 @@ class CorpusBuilder(object):
                 f"Column: '{column}' not found. Use show_columns() to preview the columns in the dataframe")
         self._col_text = column
 
+    def text_column_is_set(self):
+        """ Text column is set. """
+        return self._col_text is not None
+
     def set_sep(self, sep: str):
         """ Set the separator to use in parsing the file.
         e.g.
@@ -217,7 +239,7 @@ class CorpusBuilder(object):
         return text
 
     def build(self) -> Corpus:
-        if self._col_text is None:
+        if not self.text_column_is_set():
             raise ValueError(f"You must set the text column. Try calling {self.set_text_column.__name__} first.")
         metas = dict()
         metas = self._build_lazy_metas(metas)
@@ -244,7 +266,7 @@ class CorpusBuilder(object):
     def _build_series_meta_and_text(self, metas: dict):
         series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
                              if not mc.lazy and type(mc) != DateTimeMetaConfig}
-        series_and_dtypes[self._col_text] = pd.StringDtype('pyarrow')
+        series_and_dtypes[self._col_text] = self._dtype_text
 
         all_cols = set(series_and_dtypes.keys())
         parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME, False)
@@ -297,7 +319,7 @@ if __name__ == '__main__':
     # builder.add_metas('created_at', dtypes='datetime', lazy=True)
     builder.add_metas(['geometry', 'state_name_2016'], dtypes=['object', 'str'])
 
-    print(builder.show_added_columns())
+    print(builder.summary())
     corpus = builder.build()
     print(corpus.meta)
     # print(corpus.get_meta('tweet_lga').preview(5))

@@ -55,13 +55,13 @@ class TestBuilder(unittest.TestCase):
         corpus = builder.build()
         assert '<TWEET>' not in corpus.texts().iloc[0]
 
-    def test_show_columns(self):
+    def test_summary(self):
         builder = self.builder
         builder.add_metas(['tweet_lga', 'geometry'])
-        df = builder.show_columns()
+        df = builder.summary()
         # assert output boolean mask for Add is correct
-        assert df.loc['tweet_lga', 'Add']
-        assert df.loc['geometry', 'Add']
+        assert df.loc['tweet_lga', 'Meta']
+        assert df.loc['geometry', 'Meta']
 
     def test_update_metas(self):
         builder = self.builder
@@ -70,3 +70,4 @@ class TestBuilder(unittest.TestCase):
 
         geometry = builder._meta_configs.get('geometry')
         assert geometry.dtype is None and geometry.lazy is False
+
