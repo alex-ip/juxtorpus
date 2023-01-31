@@ -86,6 +86,8 @@ class CorpusBuilder(object):
     ```
     """
 
+    allowed_dtypes = SeriesMeta.dtypes.union({'datetime'})
+
     def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
         if isinstance(paths, str):
             paths = pathlib.Path(paths)
@@ -146,6 +148,10 @@ class CorpusBuilder(object):
 
         If dtype is None, dtype is inferred by pandas.
         """
+        if isinstance(dtypes, list):
+            for dtype in dtypes:
+                if dtype not in SeriesMeta.dtypes:
+                    raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {self.allowed_dtypes}")
         if isinstance(columns, str):
             columns = [columns]
         if isinstance(dtypes, list) and len(columns) != len(dtypes):
@@ -202,7 +208,7 @@ class CorpusBuilder(object):
     def set_text_column(self, column: str):
         if column not in self._columns:
             raise KeyError(
-                f"Column: '{column}' not found. Use show_columns() to preview the columns in the dataframe")
+                f"Column: '{column}' not found. Use {self.summary.__name__} to preview the columns in the dataframe")
         self._col_text = column
 
     def text_column_is_set(self):
