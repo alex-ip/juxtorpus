@@ -70,4 +70,3 @@ class TestBuilder(unittest.TestCase):
 
         geometry = builder._meta_configs.get('geometry')
         assert geometry.dtype is None and geometry.lazy is False
-
