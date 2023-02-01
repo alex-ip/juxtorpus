@@ -110,22 +110,22 @@ class CorpusBuilder(object):
     def summary(self):
         all = pd.Series(self._columns, name='All Columns')
         df = pd.DataFrame(index=all, columns=['Text', 'Meta', 'Dtype'])
-        df['Text'] = False
-        df['Meta'] = False
+        df['Text'] = ''
+        df['Meta'] = ''
         df['Dtype'] = ''
 
         # Populate Text column
         if self.text_column_is_set():
-            df.loc[self._col_text, 'Text'] = True
+            df.loc[self._col_text, 'Text'] = '✅'
             df.loc[self._col_text, 'Dtype'] = str(self._dtype_text)
 
         # Populate Meta column
         for mc in self._meta_configs.values():
             if type(mc) == DateTimeMetaConfig and mc.is_multi_columned():
                 for col in mc.columns:
-                    df.loc[col, 'Meta'] = True
+                    df.loc[col, 'Meta'] = '✅'
             else:
-                df.loc[mc.column, 'Meta'] = True
+                df.loc[mc.column, 'Meta'] = '✅'
 
         # Populate dtype column
         for row in df.itertuples(index=True):
