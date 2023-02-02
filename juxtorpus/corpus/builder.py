@@ -3,6 +3,7 @@ import pathlib
 from functools import partial
 from typing import Union, Callable, Iterable
 from dataclasses import dataclass
+from IPython.display import display
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
@@ -11,6 +12,10 @@ from juxtorpus.loader import LazySeries
 import colorlog
 
 logger = colorlog.getLogger(__name__)
+
+PROMPT_MISMATCHED_COLUMNS = "There are mismatched columns. These will be filled with NaN. " \
+                            "Would you like to proceed? (y/n): "
+PROMPT_MISMATCHED_COLUMNS_PASS = 'y'
 
 
 class MetaConfig(object):
@@ -99,10 +104,23 @@ class CorpusBuilder(object):
         self._sep = ','
         self._col_text = None
         self._dtype_text = pd.StringDtype('pyarrow')
-        self._columns = pd.read_csv(self._paths[0], nrows=0).columns
-        # todo: check if column matches for multiple paths
+
+        columns = list()
+        for path in self._paths:
+            name = path.stem
+            if len(name) > 10: name = path.stem[:4] + '..' + path.stem[-4:]
+            columns.append(pd.Series('✅', index=pd.read_csv(path, nrows=0).columns, name=name))
+        df_cols = pd.concat(columns, axis=1)
+        if df_cols.isnull().values.any():
+            display(df_cols.fillna(''))
+            if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return
+        self._columns = set(df_cols.index.to_list())
 
         self._preprocessors = list()
+
+    @property
+    def paths(self):
+        return self._paths
 
     def head(self, n: int = 3):
         return pd.read_csv(self._paths[0], nrows=n, sep=self._sep)
