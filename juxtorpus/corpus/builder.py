@@ -148,10 +148,11 @@ class CorpusBuilder(object):
 
         If dtype is None, dtype is inferred by pandas.
         """
-        if isinstance(dtypes, list):
-            for dtype in dtypes:
-                if dtype not in SeriesMeta.dtypes:
-                    raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {self.allowed_dtypes}")
+        if isinstance(dtypes, str):
+            dtypes = [dtypes]
+        for dtype in dtypes:
+            if dtype not in self.allowed_dtypes:
+                raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
         if isinstance(columns, str):
             columns = [columns]
         if isinstance(dtypes, list) and len(columns) != len(dtypes):
