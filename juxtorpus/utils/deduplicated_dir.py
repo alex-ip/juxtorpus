@@ -19,10 +19,12 @@ class DeduplicatedDirectory(object):
     def __init__(self, dir_path: Union[str, pathlib.Path] = None):
         if dir_path is None: dir_path = tempfile.mkdtemp()
         if isinstance(dir_path, str): dir_path = pathlib.Path(dir_path)
+        if dir_path.exists() and not dir_path.is_dir():
+            raise FileExistsError(f"{dir_path} exists and is not a directory. Please specify another path.")
+        if not dir_path.exists(): dir_path.mkdir()
         self._dir_path = dir_path
         self._index = dict()
         self._hash_alg = hashlib.md5
-
 
     @property
     def path(self) -> pathlib.Path:

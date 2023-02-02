@@ -24,11 +24,11 @@ class FileUploadWidget(Viz):
 
     default_accepted_extensions = ['.csv', '.zip']
 
-    def __init__(self, accept_extensions: list[str] = None):
+    def __init__(self, dir_path: pathlib.Path = None, accept_extensions: list[str] = None):
         if accept_extensions is None:
             accept_extensions = self.default_accepted_extensions
 
-        self._dir = DeduplicatedDirectory()
+        self._dir = DeduplicatedDirectory(dir_path)
 
         self._uploader = FileUpload(
             description=self.DESCRIPTION.format(' '.join(accept_extensions)),
@@ -70,7 +70,7 @@ class FileUploadWidget(Viz):
 
     def _add_zip(self, content, fname):
         try:
-            logger.info(f"Extracting {fname} to disk. Please wait...")
+            logger.info(f"Extracting {fname} to {self._dir.path}. Please wait...")
             tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
@@ -82,7 +82,7 @@ class FileUploadWidget(Viz):
 
     def _add_file(self, content, fname):
         try:
-            logger.info(f"Writing {fname} to disk...")
+            logger.info(f"Writing {fname} to {self._dir.path}...")
             self._dir.add_content(content, fname)
             logger.info("Success.")
         except Exception as e:
