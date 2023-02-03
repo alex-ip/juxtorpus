@@ -7,7 +7,7 @@ import logging.config
 
 logger = logging.getLogger(__name__)
 
-from juxtorpus.viz import Viz
+from juxtorpus.viz import Widget
 from juxtorpus.utils import DeduplicatedDirectory
 
 """
@@ -18,7 +18,7 @@ jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
 """
 
 
-class FileUploadWidget(Viz):
+class FileUploadWidget(Widget):
     DESCRIPTION = "Upload your files here.\n({})"
     ERR_FAILED_UPLOAD = "File upload unsuccessful. Please try again!."
 
@@ -44,7 +44,7 @@ class FileUploadWidget(Viz):
     def uploaded(self):
         return self._dir.files()
 
-    def render(self):
+    def widget(self):
         return display(VBox([self._uploader, self._output]))
 
     def _on_upload(self, change):
