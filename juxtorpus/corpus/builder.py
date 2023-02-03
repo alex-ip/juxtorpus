@@ -1,13 +1,14 @@
 import pandas as pd
 import pathlib
 from functools import partial
-from typing import Union, Callable, Iterable
+from typing import Union, Callable, Iterable, Optional
 from dataclasses import dataclass
 from IPython.display import display
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
+from juxtorpus.viz import Widget
 
 import colorlog
 
@@ -73,7 +74,7 @@ class DateTimeMetaConfig(MetaConfig):
             return [self.column]
 
 
-class CorpusBuilder(object):
+class CorpusBuilder(Widget):
     """ CorpusBuilder
 
     The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
@@ -105,6 +106,7 @@ class CorpusBuilder(object):
         self._col_text = None
         self._dtype_text = pd.StringDtype('pyarrow')
 
+        # validate column alignments
         columns = list()
         for path in self._paths:
             name = path.stem
@@ -114,9 +116,23 @@ class CorpusBuilder(object):
         if df_cols.isnull().values.any():
             display(df_cols.fillna(''))
             if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return
-        self._columns = set(df_cols.index.to_list())
+        self._columns = self._prompt_validated_columns(self._paths)
+        if self._columns is None: return
 
         self._preprocessors = list()
+
+    @staticmethod
+    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[set[str]]:
+        columns = list()
+        for path in paths:
+            name = path.stem
+            if len(name) > 10: name = path.stem[:4] + '..' + path.stem[-4:]
+            columns.append(pd.Series('✅', index=pd.read_csv(path, nrows=0).columns, name=name))
+        df_cols = pd.concat(columns, axis=1)
+        if df_cols.isnull().values.any():
+            display(df_cols.fillna(''))
+            if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return None
+        return set(df_cols.index.to_list())
 
     @property
     def paths(self):
@@ -326,6 +342,10 @@ class CorpusBuilder(object):
                 raise KeyError(f"{col} already exists. Please use a different column name.")
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
+
+    def widget(self):
+        """ Display the CorpusBuilder widget. """
+        pass
 
 
 if __name__ == '__main__':
