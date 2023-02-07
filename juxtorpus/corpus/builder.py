@@ -107,15 +107,6 @@ class CorpusBuilder(Widget):
         self._dtype_text = pd.StringDtype('pyarrow')
 
         # validate column alignments
-        columns = list()
-        for path in self._paths:
-            name = path.stem
-            if len(name) > 10: name = path.stem[:4] + '..' + path.stem[-4:]
-            columns.append(pd.Series('✅', index=pd.read_csv(path, nrows=0).columns, name=name))
-        df_cols = pd.concat(columns, axis=1)
-        if df_cols.isnull().values.any():
-            display(df_cols.fillna(''))
-            if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return
         self._columns = self._prompt_validated_columns(self._paths)
         if self._columns is None: return
 
@@ -138,12 +129,16 @@ class CorpusBuilder(Widget):
     def paths(self):
         return self._paths
 
-    def head(self, n: int = 3):
-        return pd.read_csv(self._paths[0], nrows=n, sep=self._sep)
+    @property
+    def columns(self):
+        return self._columns
+
+    def head(self, n: int = 3, cols: Optional[Union[str, list[str]]] = None):
+        return pd.read_csv(self._paths[0], nrows=n, sep=self._sep, usecols=cols)
 
     def summary(self):
-        all = pd.Series(self._columns, name='All Columns')
-        df = pd.DataFrame(index=all, columns=['Text', 'Meta', 'Dtype'])
+        all_cols = pd.Series(sorted(list(self._columns)), name='All Columns')
+        df = pd.DataFrame(index=all_cols, columns=['Text', 'Meta', 'Dtype'])
         df['Text'] = ''
         df['Meta'] = ''
         df['Dtype'] = ''
@@ -184,9 +179,9 @@ class CorpusBuilder(Widget):
         """
         if isinstance(dtypes, str):
             dtypes = [dtypes]
-        for dtype in dtypes:
-            if dtype not in self.allowed_dtypes:
-                raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
+            for dtype in dtypes:
+                if dtype not in self.allowed_dtypes:
+                    raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
         if isinstance(columns, str):
             columns = [columns]
         if isinstance(dtypes, list) and len(columns) != len(dtypes):
@@ -345,7 +340,6 @@ class CorpusBuilder(Widget):
 
     def widget(self):
         """ Display the CorpusBuilder widget. """
-        pass
 
 
 if __name__ == '__main__':
