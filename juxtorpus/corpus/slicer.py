@@ -24,36 +24,7 @@ def slicer(corpus):
     raise ValueError(f"corpus must be an instance of {Corpus.__name__}. Got {type(corpus)}.")
 
 
-class CorpusSlice(Corpus):
-    def __init__(self, parent_corpus: weakref.ReferenceType[Corpus], *args, **kwargs):
-        super(CorpusSlice, self).__init__(*args, **kwargs)
 
-
-class CorpusSlices(dict):
-    def join(self):
-        pass  # do alignment of dict if no original corpus?
-
-
-class FrozenCorpusSlices(CorpusSlices):
-    """ Immutable corpus groups
-    This class is used to return the result of a groupby call from a corpus.
-    """
-
-    def __init__(self, orig_corpus: weakref.ReferenceType[Corpus], *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._original_corpus = orig_corpus
-
-    def join(self) -> Union[Corpus, None]:
-        """ This returns the original corpus where they were grouped from.
-        Caveat: if no hard references to the original corpus is kept, this returns None.
-
-        This design was chosen as we expect the user to reference the original corpus themselves
-        instead of calling join().
-        """
-        return self._original_corpus()  # returns the hard reference of the weakref.
-
-    def __setitem__(self, key, value):
-        raise RuntimeError("You may not write to FrozenCorpusSlices.")
 
 
 class CorpusSlicer(object):
