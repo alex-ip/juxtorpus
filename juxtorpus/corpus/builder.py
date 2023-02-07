@@ -1,8 +1,7 @@
 import pandas as pd
 import pathlib
 from functools import partial
-from typing import Union, Callable, Iterable, Optional
-from dataclasses import dataclass
+from typing import Union, Callable, Optional
 from IPython.display import display
 
 from juxtorpus.corpus import Corpus
@@ -179,20 +178,17 @@ class CorpusBuilder(Widget):
         """
         if isinstance(dtypes, str):
             dtypes = [dtypes]
-            for dtype in dtypes:
-                if dtype not in self.allowed_dtypes:
-                    raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
         if isinstance(columns, str):
             columns = [columns]
         if isinstance(dtypes, list) and len(columns) != len(dtypes):
             raise ValueError("Number of columns and dtypes must match.")
-        else:
-            for i in range(len(columns)):
-                dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
-                if dtype == 'datetime':
-                    self._add_datetime_meta(columns[i], lazy)
-                else:
-                    self._add_meta(columns[i], dtype, lazy)
+        for i in range(len(columns)):
+            if columns[i] == self._col_text: self._col_text = None  # reset text column
+            dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
+            if dtype is not None and dtype not in self.allowed_dtypes:
+                raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
+            if dtype == 'datetime': self._add_datetime_meta(columns[i], lazy)
+            else: self._add_meta(columns[i], dtype, lazy)
 
     def _add_meta(self, column: str, dtype: str, lazy: bool):
         if column not in self._columns:
@@ -240,6 +236,7 @@ class CorpusBuilder(Widget):
             raise KeyError(
                 f"Column: '{column}' not found. Use {self.summary.__name__} to preview the columns in the dataframe")
         self._col_text = column
+        self._meta_configs.pop(column, None)
 
     def text_column_is_set(self):
         """ Text column is set. """

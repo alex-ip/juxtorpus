@@ -70,3 +70,19 @@ class TestBuilder(unittest.TestCase):
 
         geometry = builder._meta_configs.get('geometry')
         assert geometry.dtype is None and geometry.lazy is False
+
+    def test_select_text_deselect_meta_column(self):
+        """ Added meta should be deselected when selected as text. """
+        builder = self.builder
+        builder.add_metas('processed_text')
+        builder.set_text_column('processed_text')
+        assert 'processed_text' not in builder._meta_configs.keys()
+        # NOTE: generally not a good idea to use private vars in tests
+
+    def test_select_meta_deselect_text_column(self):
+        """ Selected text should be deselected when added as meta. """
+        builder = self.builder
+        builder.set_text_column('processed_text')
+        builder.add_metas('processed_text')
+        assert not builder.text_column_is_set()
+        # NOTE: generally not a good idea to use private vars in tests
