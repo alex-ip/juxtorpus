@@ -1,5 +1,5 @@
 import tempfile
-
+from typing import Callable
 from ipywidgets import FileUpload, Output, VBox, widgets
 from IPython.display import display
 import pathlib
@@ -41,11 +41,17 @@ class FileUploadWidget(Widget):
         self._output = Output()
         self._uploader.observe(self._on_upload, names=['value'])  # 'value' for when any file is uploaded.
 
+        self._callback = None
+
     def uploaded(self):
         return self._dir.files()
 
     def widget(self):
         return display(VBox([self._uploader, self._output]))
+
+    def set_callback(self, callback: Callable):
+        if not callable(callback): raise ValueError(f"Callback must be a function or a callable.")
+        self._callback = callback
 
     def _on_upload(self, change):
         with self._output:
@@ -54,9 +60,10 @@ class FileUploadWidget(Widget):
                 content = fdata.get('content')
                 fname = fdata.get('name')
                 if fname.endswith('.zip'):
-                    self._add_zip(content, fname)
+                    added = self._add_zip(content, fname)
                 else:
-                    self._add_file(content, fname)
+                    added = self._add_file(content, fname)
+                if callable(self._callback): self._callback(self, added)
 
     def _get_files_data(self, change):
         new = change.get('new')
@@ -75,15 +82,18 @@ class FileUploadWidget(Widget):
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
-            num_added = self._dir.add_zip(tmp_zip_file, verbose=True)
-            logger.info(f"Done. Extracted {num_added} files.")
+            added = self._dir.add_zip(tmp_zip_file, verbose=True)
+            logger.info(f"Done. Extracted {len(added)} files.")
+            return added
         except Exception as e:
             logger.info(f"Failed. Reason: {e}")
+            return []
 
     def _add_file(self, content, fname):
         try:
             logger.info(f"Writing {fname} to {self._dir.path}...")
-            self._dir.add_content(content, fname)
+            added = self._dir.add_content(content, fname)
             logger.info("Success.")
+            return added
         except Exception as e:
             print(f"Failed. Reason: {e}")
