@@ -5,20 +5,6 @@ Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fl
 from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox
 import ipywidgets as widgets
 
-# TODO: temporary solution for registry
-REGISTRY = dict()
-
-
-def update_registry(corpus_id, corpus):
-    if corpus_id in REGISTRY.keys():
-        res = input(f"{corpus_id} already exists. Overwrite (y/n)? ")
-        if res != 'y': return
-    REGISTRY[corpus_id] = corpus
-
-
-def corpus_slicer():
-    pass
-
 
 class App(object):
     def __init__(self):
@@ -28,9 +14,17 @@ class App(object):
             Label("Size", layout=_create_layout(**size_layout, **center_style)),
             Label("Parent", layout=_create_layout(**parent_layout, **center_style))
         ]
+        self.REGISTRY = dict()
 
         # widgets
         self._corpus_selector = None
+
+    ## Corpus Registry ##
+    def update_registry(self, corpus_id, corpus):
+        if corpus_id in self.REGISTRY.keys():
+            res = input(f"{corpus_id} already exists. Overwrite (y/n)? ")
+            if res != 'y': return
+        self.REGISTRY[corpus_id] = corpus
 
     ## Widget: Corpus Selector ##
     def corpus_selector(self):
@@ -47,17 +41,17 @@ class App(object):
 
     def _create_corpus_selector_table(self):
         hbox_registry_labels = HBox(self._corpus_selector_labels, layout=hbox_layout)
-        return VBox([hbox_registry_labels] + [self._create_corpus_selector_row(k) for k in REGISTRY.keys()])
+        return VBox([hbox_registry_labels] + [self._create_corpus_selector_row(k) for k in self.REGISTRY.keys()])
 
     def _create_corpus_selector_row(self, corpus_id):
         checkbox = widgets.Checkbox(description=f"{corpus_id}")
         checkbox.style = {'description_width': '0px'}
 
-        corpus = REGISTRY.get(corpus_id, None)
+        corpus = self.REGISTRY.get(corpus_id, None)
         if corpus is None: raise KeyError(f"Corpus ID: {corpus_id} does not exist.")
         size = len(corpus)
         parent_corpus = corpus.find_root()
-        parent = list(REGISTRY.keys())[list(REGISTRY.values()).index(parent_corpus)]
+        parent = list(self.REGISTRY.keys())[list(self.REGISTRY.values()).index(parent_corpus)]
         if parent == corpus_id: parent = ''
         checkbox.layout = _create_layout(**corpus_id_layout)
         checkbox.add_class('corpus_id_focus_colour')
@@ -67,7 +61,8 @@ class App(object):
                     layout=hbox_layout)
 
     ## Widget: Corpus Slicer ##
-
+    def corpus_slicer(self):
+        pass
 
     def reset(self):
         self._corpus_selector = None
