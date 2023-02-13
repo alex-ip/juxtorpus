@@ -3,12 +3,12 @@
 Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fly access.
 """
 import pandas as pd
-from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, Box
+from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, Box, Button
 import ipywidgets as widgets
 from pathlib import Path
 import math
 
-from juxtorpus.corpus import Corpus
+from juxtorpus.corpus import Corpus, CorpusBuilder
 from juxtorpus.viz.widgets import FileUploadWidget
 
 
@@ -38,6 +38,7 @@ class App(object):
         # corpus builder
         self._files: dict = dict()
         self._files_stats_df = None
+        self._builder: CorpusBuilder = None
 
         # widgets
         self._corpus_selector = None
@@ -67,13 +68,15 @@ class App(object):
 
         box_df = Box(layout=_create_layout(**box_df_layout))
 
+        hbox_corpus_builder = self._create_corpus_builder()
+
         def _observe_file_selected(event):
             # from pprint import pprint
             selected = event.get('new')
             for name, d in self._files.items():
                 d['selected'] = True if name in selected else False
 
-            # build df
+            # build files preview
             df_list = []
             for name, d in self._files.items():
                 if d.get('selected'):
@@ -83,9 +86,52 @@ class App(object):
             box_df.children = (widgets.HTML(df.to_html(index=False, classes='table table-stripped')),)
 
         f_selector.observe(_observe_file_selected, names='value')
+        button_confirm = Button(description='Confirm',
+                                layout=Layout(width='20%', height='50px'))
+        hbox_uploader = HBox([VBox([f_selector, fuw._uploader], layout=Layout(width='50%', height='200px')),
+                              VBox([box_df, button_confirm], layout=Layout(width='50%', height='200px'))],
+                             layout=Layout(width='100%', height='100%'))
 
-        return HBox([VBox([f_selector, fuw._uploader], layout=Layout(width='50%', height='200px')),
-                     box_df], layout=Layout(width='100%', height='100%'))
+        vbox = VBox([hbox_uploader, hbox_corpus_builder])
+
+        def on_click_confirm(_):
+            selected_files = [d.get('path') for d in self._files.values() if d.get('selected')]
+            if len(selected_files) < 0:
+                print("No files selected.")
+                return
+            self._builder = CorpusBuilder(selected_files)
+            # hbox_corpus_builder.children = tuple((Label(p.name) for p in self._builder.paths))
+            hbox_corpus_builder = self._create_corpus_builder()
+            vbox.children = (vbox.children[0], hbox_corpus_builder)
+
+        button_confirm.on_click(on_click_confirm)
+        return vbox
+
+    # Widget: Corpus Builder
+    def _create_corpus_builder(self):
+        if self._builder is None: return VBox()
+
+        def create_text_meta_dtype_row(id_: str, text_checked: bool, meta_checked: bool, dtypes: list[str]):
+            label = widgets.Label(f"{id_}", layout=widgets.Layout(width='30%'))
+            t_checkbox = widgets.Checkbox(value=text_checked, layout=widgets.Layout(width='15%'))
+            t_checkbox.style.description_width = '0px'
+            m_checkbox = widgets.Checkbox(value=meta_checked, layout=widgets.Layout(width='15%'))
+            m_checkbox.style.description_width = '0px'
+            m_checkbox.observe(lambda e: print(e), names='value')       # todo: toggle text and meta
+            dtype_dd = widgets.Dropdown(options=dtypes, value=dtypes[0], disabled=False,
+                                        layout=widgets.Layout(width='100px'))
+            return widgets.HBox([label, t_checkbox, m_checkbox, dtype_dd])
+
+        top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('dtype', '30%')]
+        selection_top_labels = widgets.HBox(
+            list(map(lambda ls: widgets.HTML(f"<b>{ls[0]}</b>", layout=widgets.Layout(width=ls[1])), top_labels)))
+
+        dtypes = sorted(list(CorpusBuilder.allowed_dtypes))
+        columns = self._builder.columns
+        selection_widgets = [selection_top_labels]
+        selection_widgets.extend([create_text_meta_dtype_row(col, False, True, dtypes) for col in columns])
+        # return HBox([Label("hello")], layout=Layout(width='100%', height='100%'))
+        return VBox(selection_widgets, layout=Layout(width='100%'))
 
     ## Widget: Corpus Selector ##
     def corpus_selector(self):
@@ -156,7 +202,7 @@ parent_layout = {'width': '40%', **debug_style}
 # corpus builder
 f_selector_layout = {'width': '98%', 'height': '100%'}
 f_uploader_layout = {'width': '98%', 'height': '50px'}
-box_df_layout = {'width': '50%', 'height': '100%'}
+box_df_layout = {'width': '100%', 'height': '100%'}
 
 
 def _create_layout(**kwargs):
