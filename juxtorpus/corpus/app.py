@@ -24,6 +24,14 @@ def format_size(size_bytes):
 
 
 class App(object):
+    DTYPES_MAP = {
+        'auto': None,
+        'decimal': 'float',
+        'whole number': 'int',
+        'text': 'str',
+        'datetime': 'datetime',
+    }
+
     def __init__(self):
         self._CORPUS_SELECTOR_MAX_NUM_CORPUS_PER_COLUMN = 20  # TODO: link with _update_corpus_selector()
         self._corpus_selector_labels = [
@@ -83,7 +91,7 @@ class App(object):
                     size = format_size(d.get('path').stat().st_size)
                     df_list.append((name, size))
             df = pd.DataFrame(df_list, columns=['name', 'size'])
-            box_df.children = (widgets.HTML(df.to_html(index=False, classes='table table-stripped')),)
+            box_df.children = (widgets.HTML(df.to_html(index=False, classes='table')),)
 
         f_selector.observe(_observe_file_selected, names='value')
         button_confirm = Button(description='Confirm',
@@ -108,8 +116,6 @@ class App(object):
     # Widget: Corpus Builder
 
     def _create_text_meta_dtype_row(self, id_: str, text_checked: bool, meta_checked: bool, config: dict):
-        dtypes = sorted(list(CorpusBuilder.allowed_dtypes))
-
         label = widgets.Label(f"{id_}", layout=widgets.Layout(width='30%'))
         t_checkbox = widgets.Checkbox(value=text_checked, layout=widgets.Layout(width='15%'))
         t_checkbox.style.description_width = '0px'
@@ -117,6 +123,7 @@ class App(object):
         m_checkbox = widgets.Checkbox(value=meta_checked, layout=widgets.Layout(width='15%'))
         m_checkbox.style.description_width = '0px'
 
+        dtypes = sorted([k for k in self.DTYPES_MAP.keys()])
         dtype_dd = widgets.Dropdown(options=dtypes, value=dtypes[0], disabled=False,
                                     layout=widgets.Layout(width='100px'))
 
@@ -128,7 +135,7 @@ class App(object):
             else:
                 if id(event.get('owner')) == id(t_checkbox):
                     m_checkbox.value = False
-                    dtype_dd.value = dtypes[dtypes.index('str')]  # if ticked as text - sets dtype as str
+                    dtype_dd.value = dtypes[dtypes.index('text')]  # if ticked as text - sets dtype as str
                     config['text'] = True
                     config['meta'] = False
                 elif id(event.get('owner')) == id(m_checkbox):
@@ -138,7 +145,7 @@ class App(object):
                     config['text'] = False
 
         def _update_dtype(event):
-            config['dtype'] = event.get('new')
+            config['dtype'] = self.DTYPES_MAP.get(event.get('new'))
 
         t_checkbox.observe(_toggle_checkbox, names='value')
         m_checkbox.observe(_toggle_checkbox, names='value')  # todo: toggle text and meta
@@ -149,7 +156,7 @@ class App(object):
         if self._builder is None: return VBox()  # self._builder must first be set up before.
 
         # creates the top labels.
-        top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('dtype', '30%')]
+        top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('data type', '30%')]
         selection_top_labels = widgets.HBox(
             list(map(lambda ls: widgets.HTML(f"<b>{ls[0]}</b>", layout=widgets.Layout(width=ls[1])), top_labels)))
 
@@ -233,6 +240,14 @@ class App(object):
 
     ## Widget: Corpus Slicer ##
     def corpus_slicer(self):
+        pass
+
+    def _create_meta_value_selector(self, meta):
+        """ Creates a selector based on the meta selected. """
+        pass
+
+    def _create_meta_selector(self):
+        """ Creates a meta selector. """
         pass
 
     def reset(self):
