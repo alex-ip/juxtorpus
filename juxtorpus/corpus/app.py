@@ -256,7 +256,7 @@ class App(object):
         select_meta = Select(
             options=options_meta,
             value=options_meta[0] if len(options_meta) > 0 else None,
-            disabled=False, layout=Layout(width='98%')
+            disabled=False, layout=Layout(width='98%', height='100%')
         )
 
         # filter
@@ -275,13 +275,23 @@ class App(object):
         vbox_hist_cbs = VBox([],
                              layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
                                                    **debug_style))
+        # previews
+        label_prevw = Label("Preview",
+                            layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
+                                                  **debug_style))
+
+        # widgets.HTML(df.to_html(index=False, classes='table'))
+        html_prevw = widgets.HTML(layout=_create_layout(**{'width': '98%', 'height': '100%'}))
+
         # vboxes
         vbox_meta = VBox([label_meta, select_meta],
-                         layout=_create_layout(**{'width': '20%'}, **debug_style))
+                         layout=_create_layout(**{'width': '10%'}, **debug_style))
         vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value, Box()), button_filter],
                            layout=_create_layout(**{'width': '40%'}, **debug_style))
         vbox_hist = VBox([label_hist, vbox_hist_cbs],
                          layout=_create_layout(**{'width': '40%'}, **debug_style))
+        vbox_prevw = VBox([label_prevw, html_prevw],
+                          layout=_create_layout(**{'width': '10%'}, **debug_style))
 
         # CALLBACKS
         def observe_select_meta(event):
@@ -301,7 +311,8 @@ class App(object):
             vbox_hist_cbs.children = (*vbox_hist_cbs.children, *new_cbs)
 
         button_filter.on_click(on_click_add)
-        return HBox([vbox_meta, vbox_filter, vbox_hist], layout=_create_layout(**{'width': '98%'}))
+        return HBox([vbox_meta, vbox_filter, vbox_hist, vbox_prevw],
+                    layout=_create_layout(**{'width': '98%'}))
 
     def _create_meta_value_selector(self, meta_id: str, config: dict):
         """ Creates a selector based on the meta selected. """
