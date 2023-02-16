@@ -3,12 +3,14 @@
 Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fly access.
 """
 import pandas as pd
-from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, Box, Button, Select
+from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, \
+    Box, Button, Select, DatePicker
 import ipywidgets as widgets
 from pathlib import Path
 import math
 
 from juxtorpus.corpus import Corpus, CorpusBuilder
+from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.viz.widgets import FileUploadWidget
 
 
@@ -253,7 +255,7 @@ class App(object):
                            layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'}))
         select_meta = Select(
             options=options_meta,
-            value=options_meta[0],
+            value=options_meta[0] if len(options_meta) > 0 else None,
             disabled=False, layout=Layout(width='98%')
         )
 
@@ -263,17 +265,18 @@ class App(object):
                                                    **debug_style))
         button_filter = Button(description='Add', layout=Layout(width='98%', height='30px'))
 
-        config = dict()
-        filter_value_cache = {m: self._create_meta_value_selector(m, config) for m in options_meta}
+        config_cache = dict()
+        filter_value_cache = {m: self._create_meta_value_selector(m, config_cache) for m in options_meta}
         vbox_meta = VBox([label_meta, select_meta],
                          layout=_create_layout(**{'width': '30%'}, **debug_style))
-        vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value), button_filter],
+        print(select_meta.value)
+        vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value, Box()), button_filter],
                            layout=_create_layout(**{'width': '70%'}, **debug_style))
 
         # CALLBACKS
         def observe_select_meta(event):
             selected = event.get('new')
-            config.clear()
+            # config.clear()
             vbox_filter.children = tuple([
                 vbox_filter.children[0],
                 filter_value_cache.get(selected),
@@ -284,22 +287,67 @@ class App(object):
         select_meta.observe(observe_select_meta, names='value')
 
         def on_click_add(_):
-            print(f"Adding config: {config}")
+            print(f"Adding config: {config_cache}")
 
         button_filter.on_click(on_click_add)
         return HBox([vbox_meta, vbox_filter], layout=_create_layout(**{'width': '70%'}))
 
-    def _create_meta_value_selector(self, meta: str, config: dict):
+    def _create_meta_value_selector(self, meta_id: str, config: dict):
         """ Creates a selector based on the meta selected. """
-        meta_value_selector = Checkbox(description=f"filter operation for {meta}",
+        meta = self._selected_corpus.meta.get(meta_id)
+        if not isinstance(meta, SeriesMeta): raise NotImplementedError("Only supports SeriesMeta for now.")
+        dtype = meta.series().dtype
+        if dtype == 'category':
+            meta_value_selector = self._create_category_value_selector(meta, config)
+        elif pd.api.types.is_datetime64_any_dtype(dtype):
+            meta_value_selector = self._create_datetime_value_selector(meta, config)
+        else:
+            meta_value_selector = self._create_dummy_value_selector(meta, config)
+        return meta_value_selector
+
+    def _create_dummy_value_selector(self, meta: Meta, config):
+        meta_value_selector = Checkbox(description=f"filter operation for {meta.id}",
                                        layout=_create_layout(**meta_value_selector_layout))
 
         def observe_update_config(event):
             config['event'] = event
 
         meta_value_selector.observe(observe_update_config, names='value')
-
         return meta_value_selector
+
+    def _create_category_value_selector(self, meta: SeriesMeta, config):
+        options = sorted(meta.series().unique().tolist())
+        widget = SelectMultiple(
+            options=options,
+            layout=_create_layout(**{'width': '98%'})
+        )
+
+        def update_category(event):
+            config[meta.id] = {'selected': widget.value}
+
+        update_category(None)  # initial set up
+        widget.observe(update_category)
+        return widget
+
+    def _create_datetime_value_selector(self, meta: SeriesMeta, config):
+        series = meta.series()
+        start, end = series.min().to_pydatetime(), series.max().to_pydatetime()
+        widget_s = DatePicker(description='start', value=start)
+        widget_e = DatePicker(description='end', value=end)
+
+        def update_datetime(event):
+            config[meta.id] = {
+                'start': widget_s.value,
+                'end': widget_e.value
+            }
+
+        update_datetime(None)  # initial set up
+
+        widget_s.observe(update_datetime, names='value')
+        widget_e.observe(update_datetime, names='value')
+        return VBox([widget_s, widget_e], layout=Layout(width='98%'))
+
+    # TODO: Add more _create_{meta_dtype}_value_selector(self, meta, config)
 
     def reset(self):
         self._corpus_selector = None
