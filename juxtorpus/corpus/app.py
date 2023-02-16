@@ -251,7 +251,7 @@ class App(object):
         """ Creates a meta selector. """
         # meta
         options_meta = [id_ for id_ in self._selected_corpus.meta.keys()]
-        label_meta = Label('meta',
+        label_meta = Label('Meta',
                            layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'}))
         select_meta = Select(
             options=options_meta,
@@ -260,37 +260,48 @@ class App(object):
         )
 
         # filter
-        label_filter = Label('filter',
+        label_filter = Label('Filter',
                              layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
                                                    **debug_style))
         button_filter = Button(description='Add', layout=Layout(width='98%', height='30px'))
 
         config_cache = dict()
         filter_value_cache = {m: self._create_meta_value_selector(m, config_cache) for m in options_meta}
+
+        # operation history
+        label_hist = Label("Operations",
+                           layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
+                                                 **debug_style))
+        vbox_hist_cbs = VBox([],
+                             layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
+                                                   **debug_style))
+        # vboxes
         vbox_meta = VBox([label_meta, select_meta],
-                         layout=_create_layout(**{'width': '30%'}, **debug_style))
-        print(select_meta.value)
+                         layout=_create_layout(**{'width': '20%'}, **debug_style))
         vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value, Box()), button_filter],
-                           layout=_create_layout(**{'width': '70%'}, **debug_style))
+                           layout=_create_layout(**{'width': '40%'}, **debug_style))
+        vbox_hist = VBox([label_hist, vbox_hist_cbs],
+                         layout=_create_layout(**{'width': '40%'}, **debug_style))
 
         # CALLBACKS
         def observe_select_meta(event):
             selected = event.get('new')
-            # config.clear()
             vbox_filter.children = tuple([
                 vbox_filter.children[0],
                 filter_value_cache.get(selected),
                 vbox_filter.children[2]
             ])
-            # box_filter.value = f'filter operation for {selected}'
 
         select_meta.observe(observe_select_meta, names='value')
 
         def on_click_add(_):
             print(f"Adding config: {config_cache}")
+            selected = select_meta.value
+            new_cbs = tuple([Label(f"{selected}:  {str(config_cache.get(selected))}")])
+            vbox_hist_cbs.children = (*vbox_hist_cbs.children, *new_cbs)
 
         button_filter.on_click(on_click_add)
-        return HBox([vbox_meta, vbox_filter], layout=_create_layout(**{'width': '70%'}))
+        return HBox([vbox_meta, vbox_filter, vbox_hist], layout=_create_layout(**{'width': '98%'}))
 
     def _create_meta_value_selector(self, meta_id: str, config: dict):
         """ Creates a selector based on the meta selected. """
