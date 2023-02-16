@@ -3,7 +3,7 @@
 Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fly access.
 """
 import pandas as pd
-from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, Box, Button
+from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, Box, Button, Select
 import ipywidgets as widgets
 from pathlib import Path
 import math
@@ -157,8 +157,9 @@ class App(object):
 
         # creates the top labels.
         top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('data type', '30%')]
-        selection_top_labels = widgets.HBox(
-            list(map(lambda ls: widgets.HTML(f"<b>{ls[0]}</b>", layout=widgets.Layout(width=ls[1])), top_labels)))
+        selection_top_labels = HBox(
+            list(map(lambda ls: widgets.HTML(f"<b>{ls[0]}</b>", layout=Layout(width=ls[1])), top_labels))
+        )
 
         # creates all the rows
         columns = self._builder.columns
@@ -240,15 +241,65 @@ class App(object):
 
     ## Widget: Corpus Slicer ##
     def corpus_slicer(self):
-        pass
-
-    def _create_meta_value_selector(self, meta):
-        """ Creates a selector based on the meta selected. """
-        pass
+        if self._selected_corpus is None:
+            raise ValueError(f"No corpus selected. First run {self.corpus_selector.__name__}.")
+        return self._create_meta_selector()
 
     def _create_meta_selector(self):
         """ Creates a meta selector. """
-        pass
+        # meta
+        options_meta = [id_ for id_ in self._selected_corpus.meta.keys()]
+        label_meta = Label('meta',
+                           layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'}))
+        select_meta = Select(
+            options=options_meta,
+            value=options_meta[0],
+            disabled=False, layout=Layout(width='98%')
+        )
+
+        # filter
+        label_filter = Label('filter',
+                             layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
+                                                   **debug_style))
+        button_filter = Button(description='Add', layout=Layout(width='98%', height='30px'))
+
+        config = dict()
+        filter_value_cache = {m: self._create_meta_value_selector(m, config) for m in options_meta}
+        vbox_meta = VBox([label_meta, select_meta],
+                         layout=_create_layout(**{'width': '30%'}, **debug_style))
+        vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value), button_filter],
+                           layout=_create_layout(**{'width': '70%'}, **debug_style))
+
+        # CALLBACKS
+        def observe_select_meta(event):
+            selected = event.get('new')
+            config.clear()
+            vbox_filter.children = tuple([
+                vbox_filter.children[0],
+                filter_value_cache.get(selected),
+                vbox_filter.children[2]
+            ])
+            # box_filter.value = f'filter operation for {selected}'
+
+        select_meta.observe(observe_select_meta, names='value')
+
+        def on_click_add(_):
+            print(f"Adding config: {config}")
+
+        button_filter.on_click(on_click_add)
+        return HBox([vbox_meta, vbox_filter], layout=_create_layout(**{'width': '70%'}))
+
+    def _create_meta_value_selector(self, meta: str, config: dict):
+        """ Creates a selector based on the meta selected. """
+        meta_value_selector = Checkbox(description=f"filter operation for {meta}",
+                                       layout=_create_layout(**meta_value_selector_layout))
+
+        def observe_update_config(event):
+            config['event'] = event
+
+        meta_value_selector.observe(observe_update_config, names='value')
+
+        return meta_value_selector
 
     def reset(self):
         self._corpus_selector = None
@@ -262,14 +313,17 @@ hbox_layout = Layout(display='inline-flex',
 # 'flex' short for: flex-grow, flex-shrink, flex-basis
 debug_style = {'border': '0px solid blue'}
 center_style = {'display': 'flex', 'justify_content': 'center'}
-corpus_id_layout = {'width': '40%', **debug_style}
-size_layout = {'width': '20%', **debug_style}
-parent_layout = {'width': '40%', **debug_style}
+corpus_id_layout = {'width': '40%'}
+size_layout = {'width': '20%'}
+parent_layout = {'width': '40%'}
 
 # corpus builder
 f_selector_layout = {'width': '98%', 'height': '100%'}
 f_uploader_layout = {'width': '98%', 'height': '50px'}
 box_df_layout = {'width': '100%', 'height': '100%'}
+
+# corpus slicer
+meta_value_selector_layout = {'width': '98%', 'height': '60%'}
 
 
 def _create_layout(**kwargs):
