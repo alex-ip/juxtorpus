@@ -12,7 +12,7 @@ class TestBuilder(unittest.TestCase):
                                       Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')])
 
     def tearDown(self) -> None:
-        pass
+        self.builder = None
 
     def test_nrows(self):
         # tests the build steps
@@ -38,6 +38,22 @@ class TestBuilder(unittest.TestCase):
         corpus = builder.build()
         year_month_day = corpus.meta.get('year_month_day', None)
         assert year_month_day is not None
+
+    def test_concat_category_lazy(self):
+        """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
+        builder = self.builder
+        builder.add_metas('tweet_lga', dtypes='category', lazy=True)
+        builder.set_text_column('processed_text')
+        corpus = builder.build()
+        assert corpus.meta.get('tweet_lga').series().dtype == 'category'
+
+    def test_concat_category(self):
+        """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
+        builder = self.builder
+        builder.add_metas('tweet_lga', dtypes='category', lazy=False)
+        builder.set_text_column('processed_text')
+        corpus = builder.build()
+        assert corpus.meta.get('tweet_lga').series().dtype == 'category'
 
     def test_add_and_remove_meta(self):
         builder = self.builder
