@@ -179,7 +179,7 @@ class CorpusBuilder(Widget):
         If dtype is None, dtype is inferred by pandas.
         """
         if isinstance(dtypes, str):
-            dtypes = [dtypes]
+            dtypes = [dtypes] * len(columns)
         if isinstance(columns, str):
             columns = [columns]
         if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
