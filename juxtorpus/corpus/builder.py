@@ -3,11 +3,13 @@ import pathlib
 from functools import partial
 from typing import Union, Callable, Optional
 from IPython.display import display
+import ipywidgets as widgets
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
 from juxtorpus.viz import Widget
+from juxtorpus.utils.utils_pandas import row_concat
 
 import colorlog
 
@@ -180,19 +182,17 @@ class CorpusBuilder(Widget):
             dtypes = [dtypes]
         if isinstance(columns, str):
             columns = [columns]
-        if isinstance(dtypes, list) and len(columns) != len(dtypes):
-            raise ValueError("Number of columns and dtypes must match.")
+        if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
         for i in range(len(columns)):
-            if columns[i] == self._col_text: self._col_text = None  # reset text column
-            dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
+            col, dtype = columns[i], dtypes[i]
+            if col == self._col_text: self._col_text = None  # reset text column
             if dtype is not None and dtype not in self.allowed_dtypes:
                 raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
-            if dtype == 'datetime': self._add_datetime_meta(columns[i], lazy)
-            else: self._add_meta(columns[i], dtype, lazy)
+            if dtype == 'datetime': self._add_datetime_meta(col, lazy)
+            else: self._add_meta(col, dtype, lazy)
 
-    def _add_meta(self, column: str, dtype: str, lazy: bool):
-        if column not in self._columns:
-            raise ValueError(f"{column} column does not exist.")
+    def _add_meta(self, column: str, dtype: Optional[str], lazy: bool):
+        if column not in self._columns: raise ValueError(f"{column} column does not exist.")
         meta_config = MetaConfig(column=column, dtype=dtype, lazy=lazy)
         self._meta_configs[meta_config.column] = meta_config
 
@@ -319,7 +319,8 @@ class CorpusBuilder(Widget):
                                  parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
                 current += len(df)
             dfs.append(df)
-        df = pd.concat(dfs, axis=0, ignore_index=True)
+        df = row_concat(dfs, ignore_index=True)
+        # df = pd.concat(dfs, axis=0, ignore_index=True)
 
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
@@ -337,6 +338,7 @@ class CorpusBuilder(Widget):
 
     def widget(self):
         """ Display the CorpusBuilder widget. """
+        WIDGET_DTYPES_LIST = list(self.allowed_dtypes) + ['auto']
 
 
 if __name__ == '__main__':
