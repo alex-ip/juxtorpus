@@ -24,9 +24,6 @@ def slicer(corpus):
     raise ValueError(f"corpus must be an instance of {Corpus.__name__}. Got {type(corpus)}.")
 
 
-
-
-
 class CorpusSlicer(object):
     """ CorpusSlicer
 
@@ -76,6 +73,18 @@ class CorpusSlicer(object):
                 raise TypeError(f"Unable to filter {type(any_)}. Only string or iterables.")
 
         return cond_func
+
+    def filter_by_range(self, id_, min_: Optional[Union[int, float]], max_: Optional[Union[int, float]]):
+        meta = self._get_meta_or_raise_err(id_)
+        if min_ is None and max_ is None: return self.corpus
+        if None not in (min_, max_):
+            cond_func = lambda num: min_ <= num <= max_
+        elif min_ is not None:
+            cond_func = lambda num: min_ <= num
+        else:
+            cond_func = lambda num: num <= max_
+        mask = self._mask_by_condition(meta, cond_func)
+        return self.corpus.cloned(mask)
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool):
         """ Filter by regex.

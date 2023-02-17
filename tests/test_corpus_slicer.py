@@ -20,6 +20,7 @@ class TestCorpusSlicer(unittest.TestCase):
         # builder = CorpusBuilder(Path('~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv'))
         # smaller corpus
         builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
+        builder.add_metas(['remote_level'], dtypes='float')
         builder.add_metas(['day', 'month', 'year'], dtypes='datetime')
         builder.set_text_column('processed_text')
         self.corpus = builder.build()
@@ -35,6 +36,13 @@ class TestCorpusSlicer(unittest.TestCase):
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
         # subcorpus = groups[0][1]
         # print(subcorpus.summary())
+
+    def test_filter_by_range(self):
+        meta_id = 'remote_level'
+        min_, max_ = 1.0, 2.0
+        subcorpus = self.corpus.slicer.filter_by_range(meta_id, min_, max_)
+        series = subcorpus.meta.get(meta_id).series()
+        assert series.min() >= min_ and series.max() <= max_
 
 
 class TestSpacyCorpusSlicer(TestCorpusSlicer):
