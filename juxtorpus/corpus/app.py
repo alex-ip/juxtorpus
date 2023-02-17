@@ -32,6 +32,7 @@ class App(object):
         'whole number': 'int',
         'text': 'str',
         'datetime': 'datetime',
+        'category': 'category'
     }
 
     def __init__(self):
@@ -53,6 +54,7 @@ class App(object):
         # widgets
         self._corpus_selector = None
         self._corpus_builder_configs = None
+        self._corpus_slicer_operations = dict()
 
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
@@ -185,7 +187,8 @@ class App(object):
                     self._builder.set_text_column(key)
                 else:
                     dtype = config.get('dtype')
-                    self._builder.add_metas(key, dtype)
+                    self._builder.add_metas(key, dtypes=dtype)
+                    print(key, dtype)
             self.update_registry(corpus_id.get('name'), self._builder.build())
 
         button.on_click(_on_click_build_corpus)
@@ -245,9 +248,16 @@ class App(object):
     def corpus_slicer(self):
         if self._selected_corpus is None:
             raise ValueError(f"No corpus selected. First run {self.corpus_selector.__name__}.")
-        return self._create_meta_selector()
 
-    def _create_meta_selector(self):
+        return VBox([self._create_slice_operations_dashboard(), ], layout=Layout(width='100%'))
+
+    def _create_meta_slicer(self):
+        """ Creates the preview and slicing widget. """
+        key_textbox = widgets.Text()
+
+
+
+    def _create_slice_operations_dashboard(self):
         """ Creates a meta selector. """
         # meta
         options_meta = [id_ for id_ in self._selected_corpus.meta.keys()]
@@ -266,7 +276,7 @@ class App(object):
         button_filter = Button(description='Add', layout=Layout(width='98%', height='30px'))
 
         config_cache = dict()
-        filter_value_cache = {m: self._create_meta_value_selector(m, config_cache) for m in options_meta}
+        filter_value_cache = {m: self._create_slice_ops_selector(m, config_cache) for m in options_meta}
 
         # operation history
         label_hist = Label("Operations",
@@ -307,27 +317,29 @@ class App(object):
         def on_click_add(_):
             print(f"Adding config: {config_cache}")
             selected = select_meta.value
-            new_cbs = tuple([Label(f"{selected}:  {str(config_cache.get(selected))}")])
-            vbox_hist_cbs.children = (*vbox_hist_cbs.children, *new_cbs)
+            config = config_cache.get(selected)
+            cb = Checkbox(description=f"{selected}: {config}")
+            self._corpus_slicer_operations[id(cb)] = config.copy()
+            vbox_hist_cbs.children = (*vbox_hist_cbs.children, cb)
 
         button_filter.on_click(on_click_add)
         return HBox([vbox_meta, vbox_filter, vbox_hist, vbox_prevw],
                     layout=_create_layout(**{'width': '98%'}))
 
-    def _create_meta_value_selector(self, meta_id: str, config: dict):
+    def _create_slice_ops_selector(self, meta_id: str, config: dict):
         """ Creates a selector based on the meta selected. """
         meta = self._selected_corpus.meta.get(meta_id)
         if not isinstance(meta, SeriesMeta): raise NotImplementedError("Only supports SeriesMeta for now.")
         dtype = meta.series().dtype
         if dtype == 'category':
-            meta_value_selector = self._create_category_value_selector(meta, config)
+            meta_value_selector = self._create_category_ops_selector(meta, config)
         elif pd.api.types.is_datetime64_any_dtype(dtype):
-            meta_value_selector = self._create_datetime_value_selector(meta, config)
+            meta_value_selector = self._create_datetime_ops_selector(meta, config)
         else:
-            meta_value_selector = self._create_dummy_value_selector(meta, config)
+            meta_value_selector = self._create_dummy_ops_selector(meta, config)
         return meta_value_selector
 
-    def _create_dummy_value_selector(self, meta: Meta, config):
+    def _create_dummy_ops_selector(self, meta: Meta, config):
         meta_value_selector = Checkbox(description=f"filter operation for {meta.id}",
                                        layout=_create_layout(**meta_value_selector_layout))
 
@@ -337,7 +349,7 @@ class App(object):
         meta_value_selector.observe(observe_update_config, names='value')
         return meta_value_selector
 
-    def _create_category_value_selector(self, meta: SeriesMeta, config):
+    def _create_category_ops_selector(self, meta: SeriesMeta, config):
         options = sorted(meta.series().unique().tolist())
         widget = SelectMultiple(
             options=options,
@@ -351,7 +363,7 @@ class App(object):
         widget.observe(update_category)
         return widget
 
-    def _create_datetime_value_selector(self, meta: SeriesMeta, config):
+    def _create_datetime_ops_selector(self, meta: SeriesMeta, config):
         series = meta.series()
         start, end = series.min().to_pydatetime(), series.max().to_pydatetime()
         widget_s = DatePicker(description='start', value=start)
