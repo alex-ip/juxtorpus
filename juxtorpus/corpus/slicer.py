@@ -80,9 +80,12 @@ class CorpusSlicer(object):
 
     def filter_by_range(self, id_, min_: Optional[Union[int, float]], max_: Optional[Union[int, float]]):
         meta = self._get_meta_or_raise_err(id_)
-        cond_func = self._range_cond_func(min_, max_)
-        mask = self._mask_by_condition(meta, cond_func)
+        mask = self._filter_by_range_mask(meta, min_, max_)
         return self.corpus.cloned(mask)
+
+    def _filter_by_range_mask(self, meta, min_, max_):
+        cond_func = self._range_cond_func(min_, max_)
+        return self._mask_by_condition(meta, cond_func)
 
     def _range_cond_func(self, min_, max_):
         if min_ is None and max_ is None: return self.corpus
@@ -101,9 +104,12 @@ class CorpusSlicer(object):
         :arg ignore_case - whether to ignore case
         """
         meta = self._get_meta_or_raise_err(id_)
-        cond_func = self._regex_cond_func(regex, ignore_case)
-        mask = self._mask_by_condition(meta, cond_func)
+        mask = self._filter_by_regex_mask(meta, regex, ignore_case)
         return self.corpus.cloned(mask)
+
+    def _filter_by_regex_mask(self, meta, regex, ignore_case: bool):
+        cond_func = self._regex_cond_func(regex, ignore_case)
+        return self._mask_by_condition(meta, cond_func)
 
     def _regex_cond_func(self, regex: str, ignore_case: bool):
         flags = 0 if not ignore_case else re.IGNORECASE
