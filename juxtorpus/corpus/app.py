@@ -56,6 +56,7 @@ class App(object):
         self._corpus_selector = None  # corpus_selector - registry
         self._corpus_slicer_dashboard = None  # corpus_slicer - for referencing
         self._corpus_slicer_operations = dict()  # corpus_slicer - stores all slicer operations.
+        self._corpus_slicer_current_mask = None  # corpus_slicer - mask from all ops hist
 
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
@@ -290,7 +291,9 @@ class App(object):
 
         # widgets.HTML(df.to_html(index=False, classes='table'))
         html_prevw = widgets.HTML(f'<h4>{len(self._selected_corpus)}</h4>',
-                                  layout=_create_layout(**{'width': '98%', 'height': '70%'}))
+                                  layout=_create_layout(**{'width': '98%', 'height': '40%'}))
+        text_corpid_prevw = widgets.Text(placeholder='Corpus ID',
+                                         layout=_create_layout(**{'width': '98%', 'height': '30%'}))
         button_prevw = Button(description="Slice",
                               layout=_create_layout(**{'width': '98%', 'height': '30px'}))
 
@@ -301,7 +304,7 @@ class App(object):
                            layout=_create_layout(**{'width': '35%'}, **debug_style))
         vbox_hist = VBox([label_hist, vbox_hist_cbs],
                          layout=_create_layout(**{'width': '45%'}, **debug_style))
-        vbox_prevw = VBox([label_prevw, html_prevw, button_prevw],
+        vbox_prevw = VBox([label_prevw, html_prevw, text_corpid_prevw, button_prevw],
                           layout=_create_layout(**{'width': '10%'}, **debug_style))
 
         # CALLBACKS
@@ -324,8 +327,16 @@ class App(object):
 
         button_filter.on_click(on_click_add)
 
+        corp_id = dict()
+
+        def observe_text_corpid(_):
+            corp_id['text'] = text_corpid_prevw.value
+
+        text_corpid_prevw.observe(observe_text_corpid, names='value')
+
         def on_click_slice(_):
-            print("Sliced.")
+            print(f"Sliced. {corp_id.get('text')}")
+            self.update_registry(corp_id.get('text'), self._selected_corpus.cloned(self._corpus_slicer_current_mask))
 
         button_prevw.on_click(on_click_slice)
         self._corpus_slicer_dashboard = HBox([vbox_meta, vbox_filter, vbox_hist, vbox_prevw],
@@ -539,6 +550,7 @@ class App(object):
                 if cb.value:
                     tmp_mask = self._filter_by_mask_triage(selected, config)
                     mask = mask & tmp_mask
+            self._corpus_slicer_current_mask = mask
             num_docs = mask.sum()
             self._update_corpus_slicer_preview(html=f"<h4>{num_docs}</h4>")
 
