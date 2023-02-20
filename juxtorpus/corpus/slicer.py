@@ -51,9 +51,13 @@ class CorpusSlicer(object):
         :arg items - the list of items to include OR just a single item.
         """
         meta = self._get_meta_or_raise_err(id_)
+        mask = self._filter_by_item_mask(meta, items)
+        return self.corpus.cloned(mask)
+
+    def _filter_by_item_mask(self, meta, items):
         cond_func = self._item_cond_func(items)
         mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        return mask
 
     def _item_cond_func(self, items):
         items = [items] if isinstance(items, str) else items
@@ -116,13 +120,17 @@ class CorpusSlicer(object):
         If no start or end is provided, it'll return the corpus unsliced.
         """
         meta = self._get_meta_or_raise_err(id_)
+        if start is None and end is None: return self.corpus
+        mask = self._filter_by_datetime_mask(meta, start, end, strftime)
+        return self.corpus.cloned(mask)
+
+    def _filter_by_datetime_mask(self, meta, start, end, strftime=None):
         if isinstance(meta, SeriesMeta) and not pd.api.types.is_datetime64_any_dtype(meta.series()):
             raise ValueError("The meta specified is not a datetime.")
         # return corpus if no start or end time specified.
-        if start is None and end is None: return self.corpus
         cond_func = self._datetime_cond_func(start, end, strftime)
         mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        return mask
 
     def _datetime_cond_func(self, start, end, strftime):
         start = pd.to_datetime(start, infer_datetime_format=True, format=strftime)  # returns None if start=None
@@ -133,8 +141,10 @@ class CorpusSlicer(object):
             cond_func = lambda dt: start < dt <= end
         elif start is not None:
             cond_func = lambda dt: start < dt
-        else:
+        elif end is not None:
             cond_func = lambda dt: dt <= end
+        else:
+            cond_func = lambda dt: True
         return cond_func
 
     def _mask_by_condition(self, meta, cond_func):
