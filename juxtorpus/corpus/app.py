@@ -349,6 +349,11 @@ class App(object):
         text_corpid_prevw.observe(observe_text_corpid, names='value')
 
         def on_click_slice(_):
+            id_ = corp_id.get('text', None)
+            if id_ is None:
+                print("You must enter a corpus ID.")
+                return
+            if self._corpus_slicer_current_mask is None: return
             print(f"Sliced. {corp_id.get('text')}")
             self.update_registry(corp_id.get('text'), self._selected_corpus.cloned(self._corpus_slicer_current_mask))
 
