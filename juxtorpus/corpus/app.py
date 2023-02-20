@@ -284,12 +284,12 @@ class App(object):
                              layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
                                                    **debug_style))
         # previews
-        label_prevw = Label("Preview",
+        label_prevw = Label("Corpus Size",
                             layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
                                                   **debug_style))
 
         # widgets.HTML(df.to_html(index=False, classes='table'))
-        html_prevw = widgets.HTML('<h4>Some Number</h4>',
+        html_prevw = widgets.HTML(f'<h4>{len(self._selected_corpus)}</h4>',
                                   layout=_create_layout(**{'width': '98%', 'height': '70%'}))
         button_prevw = Button(description="Slice",
                               layout=_create_layout(**{'width': '98%', 'height': '30px'}))
@@ -417,6 +417,10 @@ class App(object):
 
         # CALLBACKs
         config['mode'] = toggle.value
+        config['number'] = ft_num.value
+        config['range'] = dict()
+        config['range']['min'] = ft_min.value
+        config['range']['max'] = ft_max.value
 
         def observe_toggle(event):
             config['mode'] = event.get('new')
@@ -555,6 +559,19 @@ class App(object):
         elif 'item' in config.keys():
             items = config.get('item')
             mask = self._selected_corpus.slicer._filter_by_item_mask(meta, items)
+        elif 'mode' in config.keys():
+            mode = config.get('mode').upper()
+            if mode == 'NUMBER':
+                mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('number'))
+            elif mode == 'MIN/MAX':
+                min_, max_ = config.get('range').get('min'), config.get('range').get('max')
+                mask = self._selected_corpus.slicer._filter_by_range_mask(meta, min_, max_)
+            elif mode == 'TEXT':
+                mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('text'))
+            elif mode == 'REGEX':
+                mask = self._selected_corpus.slicer._filter_by_regex_mask(meta, config.get('regex'))
+            else:
+                raise NotImplementedError()
         else:
             raise NotImplementedError()
         return mask
