@@ -54,6 +54,7 @@ class App(object):
         # widgets
         self._corpus_builder_configs = None  # corpus_builder - stores all builder meta, text configs
         self._corpus_selector = None  # corpus_selector - registry
+        self._corpus_slicer = None
         self._corpus_slicer_dashboard = None  # corpus_slicer - for referencing
         self._corpus_slicer_operations = dict()  # corpus_slicer - stores all slicer operations.
         self._corpus_slicer_current_mask = None  # corpus_slicer - mask from all ops hist
@@ -245,12 +246,19 @@ class App(object):
                         if type(cb) == Checkbox:
                             cb.value = False if cb != owner else True
 
+            # update corpus_slicer if exist.
+            self._refresh_corpus_slicer()
+
     ## Widget: Corpus Slicer ##
     def corpus_slicer(self):
         if self._selected_corpus is None:
             raise ValueError(f"No corpus selected. First run {self.corpus_registry.__name__}.")
+        self._corpus_slicer = VBox([self._create_slice_operations_dashboard(), ], layout=Layout(width='100%'))
+        return self._corpus_slicer
 
-        return VBox([self._create_slice_operations_dashboard(), ], layout=Layout(width='100%'))
+    def _refresh_corpus_slicer(self):
+        if self._corpus_slicer is None: return
+        self._corpus_slicer.children = (self._create_slice_operations_dashboard(),)
 
     def _create_meta_slicer(self):
         """ Creates the preview and slicing widget. """
