@@ -253,6 +253,12 @@ class App(object):
     def corpus_slicer(self):
         if self._selected_corpus is None:
             raise ValueError(f"No corpus selected. First run {self.corpus_registry.__name__}.")
+
+        # reset dependencies
+        self._corpus_slicer_dashboard = None  # corpus_slicer - for referencing
+        self._corpus_slicer_operations = dict()  # corpus_slicer - stores all slicer operations.
+        self._corpus_slicer_current_mask = None  # corpus_slicer - mask from all ops hist
+
         self._corpus_slicer = VBox([self._create_slice_operations_dashboard(), ], layout=Layout(width='100%'))
         return self._corpus_slicer
 
