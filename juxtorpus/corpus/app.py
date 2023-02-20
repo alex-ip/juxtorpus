@@ -188,7 +188,6 @@ class App(object):
                 else:
                     dtype = config.get('dtype')
                     self._builder.add_metas(key, dtypes=dtype)
-                    print(key, dtype)
             self.update_registry(corpus_id.get('name'), self._builder.build())
 
         button.on_click(_on_click_build_corpus)
@@ -254,8 +253,6 @@ class App(object):
     def _create_meta_slicer(self):
         """ Creates the preview and slicing widget. """
         key_textbox = widgets.Text()
-
-
 
     def _create_slice_operations_dashboard(self):
         """ Creates a meta selector. """
@@ -331,10 +328,18 @@ class App(object):
         meta = self._selected_corpus.meta.get(meta_id)
         if not isinstance(meta, SeriesMeta): raise NotImplementedError("Only supports SeriesMeta for now.")
         dtype = meta.series().dtype
+        config[meta.id] = config.get(meta.id, dict())
+        config = config.get(meta.id)
         if dtype == 'category':
             meta_value_selector = self._create_category_ops_selector(meta, config)
         elif pd.api.types.is_datetime64_any_dtype(dtype):
             meta_value_selector = self._create_datetime_ops_selector(meta, config)
+        elif dtype == int:
+            meta_value_selector = self._create_wholenumber_ops_selector(meta, config)
+        elif dtype == float:
+            meta_value_selector = self._create_decimal_ops_selector(meta, config)
+        elif pd.api.types.is_string_dtype(dtype):
+            meta_value_selector = self._create_text_ops_selector(meta, config)
         else:
             meta_value_selector = self._create_dummy_ops_selector(meta, config)
         return meta_value_selector
@@ -357,7 +362,7 @@ class App(object):
         )
 
         def update_category(event):
-            config[meta.id] = {'selected': widget.value}
+            config['item'] = widget.value
 
         update_category(None)  # initial set up
         widget.observe(update_category)
@@ -370,10 +375,8 @@ class App(object):
         widget_e = DatePicker(description='end', value=end)
 
         def update_datetime(event):
-            config[meta.id] = {
-                'start': widget_s.value,
-                'end': widget_e.value
-            }
+            config['start'] = widget_s.value
+            config['end'] = widget_e.value
 
         update_datetime(None)  # initial set up
 
@@ -381,7 +384,136 @@ class App(object):
         widget_e.observe(update_datetime, names='value')
         return VBox([widget_s, widget_e], layout=Layout(width='98%'))
 
-    # TODO: Add more _create_{meta_dtype}_value_selector(self, meta, config)
+    def _create_wholenumber_ops_selector(self, meta: SeriesMeta, config):
+        """ DType: whole number; filter_by_item, filter_by_range """
+        WIDGET_NUM = widgets.IntText
+
+        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'))
+        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'))
+        vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
+        ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
+        box_num = Box([ft_num], layout=Layout(width='98%'))
+
+        vboxes = [
+            ('Number', box_num),
+            ('Min/Max', vbox_range)
+        ]
+        starter_idx = 0
+        options = [vbox[starter_idx] for vbox in vboxes]
+        toggle = widgets.ToggleButtons(
+            options=options, value=options[starter_idx], layout=Layout(width='98%')
+        )
+
+        vbox = VBox([vboxes[starter_idx][1], toggle], layout=Layout(width='98%', height='65%'))
+
+        # CALLBACKs
+        config['mode'] = toggle.value
+
+        def observe_toggle(event):
+            config['mode'] = event.get('new')
+            alt_vbox = None
+            for vb in vboxes:
+                if vb[0] == config.get('mode'):
+                    alt_vbox = vb[1]
+                    break
+            if alt_vbox is None: raise RuntimeError("This should not happen. Internal Error.")
+            vbox.children = (alt_vbox, toggle)
+
+        def observe_num(event):
+            config['number'] = event.get('new')
+
+        def observe_min(event):
+            r = config.get('range', dict())
+            r['min'] = event.get('new')
+            config['range'] = r
+
+        def observe_max(event):
+            r = config.get('range', dict())
+            r['max'] = event.get('new')
+            config['range'] = r
+
+        toggle.observe(observe_toggle, names='value')
+        ft_num.observe(observe_num, names='value')
+        ft_min.observe(observe_min, names='value')
+        ft_max.observe(observe_max, names='value')
+        return vbox
+
+    def _create_decimal_ops_selector(self, meta: SeriesMeta, config):
+        """ Dtype: decimal; filter_by_item, filter_by_range """
+        WIDGET_NUM = widgets.FloatText
+
+        ft_min = WIDGET_NUM(description='Min:')
+        ft_max = WIDGET_NUM(description='Max:')
+        vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
+        ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
+        box_num = Box([ft_num], layout=Layout(width='98%'))
+
+        vboxes = [
+            ('Number', box_num),
+            ('Min/Max', vbox_range)
+        ]
+        starter_idx = 0
+        options = [vbox[starter_idx] for vbox in vboxes]
+        toggle = widgets.ToggleButtons(
+            options=options, value=options[starter_idx], layout=Layout(width='98%')
+        )
+
+        vbox = VBox([vboxes[starter_idx][1], toggle], layout=Layout(width='98%', height='65%'))
+
+        # CALLBACKs
+        config['mode'] = toggle.value
+
+        def observe_toggle(event):
+            config['mode'] = event.get('new')
+            alt_vbox = None
+            for vb in vboxes:
+                if vb[0] == config.get('mode'):
+                    alt_vbox = vb[1]
+                    break
+            if alt_vbox is None: raise RuntimeError("This should not happen. Internal Error.")
+            vbox.children = (alt_vbox, toggle)
+
+        def observe_num(event):
+            config['number'] = event.get('new')
+
+        def observe_min(event):
+            r = config.get('range', dict())
+            r['min'] = event.get('new')
+            config['range'] = r
+
+        def observe_max(event):
+            r = config.get('range', dict())
+            r['max'] = event.get('new')
+            config['range'] = r
+
+        toggle.observe(observe_toggle, names='value')
+        ft_num.observe(observe_num, names='value')
+        ft_min.observe(observe_min, names='value')
+        ft_max.observe(observe_max, names='value')
+        return vbox
+
+    def _create_text_ops_selector(self, meta: SeriesMeta, config):
+        """ Dtype: text; filter_by_item, filter_by_regex """
+        w_text = widgets.Text()
+        w_toggle = widgets.ToggleButtons(
+            options=['Text', 'Regex'],
+            value='Text',
+            description='',
+            disabled=False,
+            button_style='',
+            tooltips=['Exact match', 'Enter a regex pattern'],
+        )
+        config['mode'] = w_toggle.value
+
+        def observe_toggle(event):
+            config['mode'] = event.get('new')
+
+        def observe_text(event):
+            config['text'] = event.get('new')
+
+        w_toggle.observe(observe_toggle, names='value')
+        w_text.observe(observe_text, names='value')
+        return VBox([w_text, w_toggle], layout=Layout(width='98%'))
 
     def reset(self):
         self._corpus_selector = None
