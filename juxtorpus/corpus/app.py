@@ -318,6 +318,7 @@ class App(object):
         text_corpid_prevw = Text(placeholder='Corpus ID',
                                  layout=_create_layout(**{'width': '98%', 'height': '30%'}))
         button_prevw = Button(description="Slice",
+                              disabled=True,
                               layout=_create_layout(**{'width': '98%', 'height': '30px'}))
 
         # vboxes
@@ -345,7 +346,7 @@ class App(object):
             print(f"Adding config: {config_cache}")
             selected = select_meta.value
             config = config_cache.get(selected)
-            cb = self._create_ops_history_checkbox(selected, config)
+            cb = self._create_ops_history_checkbox(selected, config, button_prevw)
             vbox_hist_cbs.children = (*vbox_hist_cbs.children, cb)
 
         button_filter.on_click(on_click_add)
@@ -568,7 +569,7 @@ class App(object):
         w_text.observe(observe_text, names='value')
         return VBox([w_text, w_toggle], layout=Layout(width='98%'))
 
-    def _create_ops_history_checkbox(self, selected, config):
+    def _create_ops_history_checkbox(self, selected, config, slice_button):
         cb = Checkbox(description=f"{selected}: {config}")
         cb.style = {'description_width': '0px'}
         self._corpus_slicer_operations[cb] = (selected, config.copy())
@@ -583,7 +584,13 @@ class App(object):
                     mask = mask & tmp_mask
             self._corpus_slicer_current_mask = mask
             num_docs = mask.sum()
-            self._update_corpus_slicer_preview(html=f"<h4>{num_docs}</h4>")
+            if num_docs > 0:
+                html_text, disabled = f"<h4>{num_docs}</h4>", False
+            else:
+                html_text, disabled = f"<h4 style='color:red;'>{num_docs}</h4>", True
+
+            self._update_corpus_slicer_preview(html=html_text)
+            slice_button.disabled = disabled
 
         cb.observe(observe_cb, names='value')
         return cb
