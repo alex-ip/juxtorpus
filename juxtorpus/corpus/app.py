@@ -553,6 +553,8 @@ class App(object):
         self._corpus_slicer_operations[cb] = (selected, config.copy())
 
         def observe_cb(_):
+            self._update_corpus_slicer_preview(html=f"<h4>Calculating...</h4>")
+            self._corpus_slicer_current_mask = None
             mask = pd.Series([True] * len(self._selected_corpus))
             for cb, (selected, config) in self._corpus_slicer_operations.items():
                 if cb.value:
