@@ -8,6 +8,7 @@ from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMulti
 import ipywidgets as widgets
 from pathlib import Path
 import math
+from datetime import timedelta
 
 from juxtorpus.corpus import Corpus, CorpusBuilder
 from juxtorpus.corpus.meta import Meta, SeriesMeta
@@ -409,7 +410,8 @@ class App(object):
 
     def _create_datetime_ops_selector(self, meta: SeriesMeta, config):
         series = meta.series()
-        start, end = series.min().to_pydatetime(), series.max().to_pydatetime()
+        margin = timedelta(days=1)
+        start, end = series.min().to_pydatetime() - margin, series.max().to_pydatetime() + margin
         widget_s = DatePicker(description='start', value=start)
         widget_e = DatePicker(description='end', value=end)
 
