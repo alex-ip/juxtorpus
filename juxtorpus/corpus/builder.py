@@ -180,7 +180,7 @@ class CorpusBuilder(Widget):
         """
         if isinstance(columns, str):
             columns = [columns]
-        if isinstance(dtypes, str):
+        if isinstance(dtypes, str) or dtypes is None:
             dtypes = [dtypes] * len(columns)
         if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
         for i in range(len(columns)):
