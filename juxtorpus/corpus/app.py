@@ -286,7 +286,7 @@ class App(object):
         label_filter = Label('Filter',
                              layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
                                                    **debug_style))
-        button_filter = Button(description='Add', layout=Layout(width='98%', height='30px'))
+        button_filter = Button(description='Add Operation', layout=Layout(width='98%', height='30px'))
 
         config_cache = dict()
         filter_value_cache = {m: self._create_slice_ops_selector(m, config_cache) for m in options_meta}
