@@ -4,7 +4,7 @@ Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fl
 """
 import pandas as pd
 from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, \
-    Box, Button, Select, DatePicker
+    Box, Button, Select, DatePicker, Output, Text
 import ipywidgets as widgets
 from pathlib import Path
 import math
@@ -179,11 +179,12 @@ class App(object):
         selection_widgets.extend(gen_rows)
 
         # create build button
-        key_textbox = widgets.Text(description='Corpus ID:', placeholder='ID to be stored in the registry')
+        key_textbox = Text(description='Corpus ID:', placeholder='ID to be stored in the registry')
         corpus_id = {'name': ''}
         key_textbox.observe(lambda event: corpus_id.update({'name': event.get('new')}), names='value')
 
-        button = Button(description='build')
+        button = Button(description='Build')
+        button_output = Output(layout=Layout(overflow='scroll hidden'))
 
         def _on_click_build_corpus(_):
             for key, config in configs.items():
@@ -192,12 +193,19 @@ class App(object):
                 else:
                     dtype = config.get('dtype')
                     self._builder.add_metas(key, dtypes=dtype)
-            self.update_registry(corpus_id.get('name'), self._builder.build())
+            button_output.clear_output()
+            try:
+                corpus = self._builder.build()
+                with button_output: print(f"{corpus_id.get('name')} added to registry.")
+                self.update_registry(corpus_id.get('name'), corpus)
+            except Exception as e:
+                with button_output: print(f"Failed to build. {e}")
+                return
 
         button.on_click(_on_click_build_corpus)
 
         return HBox([VBox(selection_widgets, layout=Layout(width='70%')),
-                     VBox([key_textbox, button], layout=Layout(width='30%'))])
+                     VBox([key_textbox, button, button_output], layout=Layout(width='30%'))])
 
     ## Widget: Corpus Selector ##
 
@@ -269,7 +277,7 @@ class App(object):
 
     def _create_meta_slicer(self):
         """ Creates the preview and slicing widget. """
-        key_textbox = widgets.Text()
+        key_textbox = Text()
 
     def _create_slice_operations_dashboard(self):
         """ Creates a meta selector. """
@@ -307,8 +315,8 @@ class App(object):
         # widgets.HTML(df.to_html(index=False, classes='table'))
         html_prevw = widgets.HTML(f'<h4>{len(self._selected_corpus)}</h4>',
                                   layout=_create_layout(**{'width': '98%', 'height': '40%'}))
-        text_corpid_prevw = widgets.Text(placeholder='Corpus ID',
-                                         layout=_create_layout(**{'width': '98%', 'height': '30%'}))
+        text_corpid_prevw = Text(placeholder='Corpus ID',
+                                 layout=_create_layout(**{'width': '98%', 'height': '30%'}))
         button_prevw = Button(description="Slice",
                               layout=_create_layout(**{'width': '98%', 'height': '30px'}))
 
@@ -539,7 +547,7 @@ class App(object):
 
     def _create_text_ops_selector(self, meta: SeriesMeta, config):
         """ Dtype: text; filter_by_item, filter_by_regex """
-        w_text = widgets.Text()
+        w_text = Text()
         w_toggle = widgets.ToggleButtons(
             options=['Text', 'Regex'],
             value='Text',
