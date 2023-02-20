@@ -53,6 +53,7 @@ class App(object):
 
         # widgets
         self._corpus_selector = None
+        self._corpus_slicer_dashboard = None
         self._corpus_builder_configs = None
         self._corpus_slicer_operations = dict()
 
@@ -288,16 +289,19 @@ class App(object):
                                                   **debug_style))
 
         # widgets.HTML(df.to_html(index=False, classes='table'))
-        html_prevw = widgets.HTML(layout=_create_layout(**{'width': '98%', 'height': '100%'}))
+        html_prevw = widgets.HTML('<h4>Some Number</h4>',
+                                  layout=_create_layout(**{'width': '98%', 'height': '70%'}))
+        button_prevw = Button(description="Slice",
+                              layout=_create_layout(**{'width': '98%', 'height': '30px'}))
 
         # vboxes
         vbox_meta = VBox([label_meta, select_meta],
                          layout=_create_layout(**{'width': '10%'}, **debug_style))
         vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value, Box()), button_filter],
-                           layout=_create_layout(**{'width': '40%'}, **debug_style))
+                           layout=_create_layout(**{'width': '35%'}, **debug_style))
         vbox_hist = VBox([label_hist, vbox_hist_cbs],
-                         layout=_create_layout(**{'width': '40%'}, **debug_style))
-        vbox_prevw = VBox([label_prevw, html_prevw],
+                         layout=_create_layout(**{'width': '45%'}, **debug_style))
+        vbox_prevw = VBox([label_prevw, html_prevw, button_prevw],
                           layout=_create_layout(**{'width': '10%'}, **debug_style))
 
         # CALLBACKS
@@ -315,13 +319,18 @@ class App(object):
             print(f"Adding config: {config_cache}")
             selected = select_meta.value
             config = config_cache.get(selected)
-            cb = Checkbox(description=f"{selected}: {config}")
-            self._corpus_slicer_operations[id(cb)] = config.copy()
+            cb = self._create_ops_history_checkbox(selected, config)
             vbox_hist_cbs.children = (*vbox_hist_cbs.children, cb)
 
         button_filter.on_click(on_click_add)
-        return HBox([vbox_meta, vbox_filter, vbox_hist, vbox_prevw],
-                    layout=_create_layout(**{'width': '98%'}))
+
+        def on_click_slice(_):
+            print("Sliced.")
+
+        button_prevw.on_click(on_click_slice)
+        self._corpus_slicer_dashboard = HBox([vbox_meta, vbox_filter, vbox_hist, vbox_prevw],
+                                             layout=_create_layout(**{'width': '98%'}))
+        return self._corpus_slicer_dashboard
 
     def _create_slice_ops_selector(self, meta_id: str, config: dict):
         """ Creates a selector based on the meta selected. """
@@ -514,6 +523,30 @@ class App(object):
         w_toggle.observe(observe_toggle, names='value')
         w_text.observe(observe_text, names='value')
         return VBox([w_text, w_toggle], layout=Layout(width='98%'))
+
+    def _create_ops_history_checkbox(self, selected, config):
+        cb = Checkbox(description=f"{selected}: {config}")
+        cb.style = {'description_width': '0px'}
+        self._corpus_slicer_operations[cb] = config.copy()
+
+        def observe_cb(event):
+            for cb, config in self._corpus_slicer_operations.items():
+                if cb.value:
+                    print(cb.value)
+                    pass  # todo: build a set of conditions to slice with.
+            self._update_corpus_slicer_preview(html="<h4>updated</h4>")
+
+        cb.observe(observe_cb, names='value')
+        return cb
+
+    def _update_corpus_slicer_preview(self, html: str):
+        """ Updates the content of the corpus slicer preview."""
+        if self._corpus_slicer_dashboard is None: return
+        else:
+            self._corpus_slicer_dashboard.children[3].children[1].value = html
+
+    def _filter_by_triage(self, **kwargs):
+        pass
 
     def reset(self):
         self._corpus_selector = None
