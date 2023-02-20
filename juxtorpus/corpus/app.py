@@ -602,7 +602,7 @@ class App(object):
             elif mode == 'TEXT':
                 mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('text'))
             elif mode == 'REGEX':
-                mask = self._selected_corpus.slicer._filter_by_regex_mask(meta, config.get('regex'))
+                mask = self._selected_corpus.slicer._filter_by_regex_mask(meta, config.get('regex'), ignore_case=True)
             else:
                 raise NotImplementedError()
         else:
