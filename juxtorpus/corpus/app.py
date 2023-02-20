@@ -527,14 +527,16 @@ class App(object):
     def _create_ops_history_checkbox(self, selected, config):
         cb = Checkbox(description=f"{selected}: {config}")
         cb.style = {'description_width': '0px'}
-        self._corpus_slicer_operations[cb] = config.copy()
+        self._corpus_slicer_operations[cb] = (selected, config.copy())
 
-        def observe_cb(event):
-            for cb, config in self._corpus_slicer_operations.items():
+        def observe_cb(_):
+            mask = pd.Series([True] * len(self._selected_corpus))
+            for cb, (selected, config) in self._corpus_slicer_operations.items():
                 if cb.value:
-                    print(cb.value)
-                    pass  # todo: build a set of conditions to slice with.
-            self._update_corpus_slicer_preview(html="<h4>updated</h4>")
+                    tmp_mask = self._filter_by_mask_triage(selected, config)
+                    mask = mask & tmp_mask
+            num_docs = mask.sum()
+            self._update_corpus_slicer_preview(html=f"<h4>{num_docs}</h4>")
 
         cb.observe(observe_cb, names='value')
         return cb
@@ -545,8 +547,17 @@ class App(object):
         else:
             self._corpus_slicer_dashboard.children[3].children[1].value = html
 
-    def _filter_by_triage(self, **kwargs):
-        pass
+    def _filter_by_mask_triage(self, selected, config: dict):
+        meta = self._selected_corpus.slicer._get_meta_or_raise_err(selected)
+        if 'start' in config.keys() and 'end' in config.keys():
+            start, end = config.get('start'), config.get('end')
+            mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end)
+        elif 'item' in config.keys():
+            items = config.get('item')
+            mask = self._selected_corpus.slicer._filter_by_item_mask(meta, items)
+        else:
+            raise NotImplementedError()
+        return mask
 
     def reset(self):
         self._corpus_selector = None
