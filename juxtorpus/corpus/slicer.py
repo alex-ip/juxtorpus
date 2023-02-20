@@ -76,6 +76,11 @@ class CorpusSlicer(object):
 
     def filter_by_range(self, id_, min_: Optional[Union[int, float]], max_: Optional[Union[int, float]]):
         meta = self._get_meta_or_raise_err(id_)
+        cond_func = self._range_cond_func(min_, max_)
+        mask = self._mask_by_condition(meta, cond_func)
+        return self.corpus.cloned(mask)
+
+    def _range_cond_func(self, min_, max_):
         if min_ is None and max_ is None: return self.corpus
         if None not in (min_, max_):
             cond_func = lambda num: min_ <= num <= max_
@@ -83,8 +88,7 @@ class CorpusSlicer(object):
             cond_func = lambda num: min_ <= num
         else:
             cond_func = lambda num: num <= max_
-        mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        return cond_func
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool):
         """ Filter by regex.
@@ -93,12 +97,14 @@ class CorpusSlicer(object):
         :arg ignore_case - whether to ignore case
         """
         meta = self._get_meta_or_raise_err(id_)
-        flags = 0 if not ignore_case else re.IGNORECASE
-        pattern = re.compile(regex, flags=flags)
-
-        cond_func = lambda any_: pattern.search(any_) is not None
+        cond_func = self._regex_cond_func(regex, ignore_case)
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
+
+    def _regex_cond_func(self, regex: str, ignore_case: bool):
+        flags = 0 if not ignore_case else re.IGNORECASE
+        pattern = re.compile(regex, flags=flags)
+        return lambda any_: pattern.search(any_) is not None
 
     def filter_by_datetime(self, id_, start: Optional[str] = None, end: Optional[str] = None,
                            strftime: Optional[str] = None):
@@ -114,6 +120,11 @@ class CorpusSlicer(object):
             raise ValueError("The meta specified is not a datetime.")
         # return corpus if no start or end time specified.
         if start is None and end is None: return self.corpus
+        cond_func = self._datetime_cond_func(start, end, strftime)
+        mask = self._mask_by_condition(meta, cond_func)
+        return self.corpus.cloned(mask)
+
+    def _datetime_cond_func(self, start, end, strftime):
         start = pd.to_datetime(start, infer_datetime_format=True, format=strftime)  # returns None if start=None
         end = pd.to_datetime(end, infer_datetime_format=True, format=strftime)
         logger.info(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
@@ -124,8 +135,7 @@ class CorpusSlicer(object):
             cond_func = lambda dt: start < dt
         else:
             cond_func = lambda dt: dt <= end
-        mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        return cond_func
 
     def _mask_by_condition(self, meta, cond_func):
         mask = meta.apply(cond_func)
