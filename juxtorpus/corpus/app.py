@@ -52,10 +52,10 @@ class App(object):
         self._builder: CorpusBuilder = None
 
         # widgets
-        self._corpus_selector = None
-        self._corpus_slicer_dashboard = None
-        self._corpus_builder_configs = None
-        self._corpus_slicer_operations = dict()
+        self._corpus_builder_configs = None  # corpus_builder - stores all builder meta, text configs
+        self._corpus_selector = None  # corpus_selector - registry
+        self._corpus_slicer_dashboard = None  # corpus_slicer - for referencing
+        self._corpus_slicer_operations = dict()  # corpus_slicer - stores all slicer operations.
 
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
@@ -198,7 +198,7 @@ class App(object):
 
     ## Widget: Corpus Selector ##
 
-    def corpus_selector(self):
+    def corpus_registry(self):
         if self._corpus_selector is None:
             self._corpus_selector = GridBox([self._create_corpus_selector_table()],
                                             layout=Layout(grid_template_columns="repeat(2, 1fr)"))
@@ -206,7 +206,7 @@ class App(object):
 
     def _update_corpus_selector(self):
         """ Updates the Corpus Selector live with new registry. NO refresh required. """
-        cs = self.corpus_selector()
+        cs = self.corpus_registry()
         cs.children = (self._create_corpus_selector_table(),)
         # todo: triage/create new corpus table if it's full.
 
@@ -247,7 +247,7 @@ class App(object):
     ## Widget: Corpus Slicer ##
     def corpus_slicer(self):
         if self._selected_corpus is None:
-            raise ValueError(f"No corpus selected. First run {self.corpus_selector.__name__}.")
+            raise ValueError(f"No corpus selected. First run {self.corpus_registry.__name__}.")
 
         return VBox([self._create_slice_operations_dashboard(), ], layout=Layout(width='100%'))
 
