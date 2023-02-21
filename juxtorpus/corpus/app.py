@@ -8,11 +8,21 @@ from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMulti
 import ipywidgets as widgets
 from pathlib import Path
 import math
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 from juxtorpus.corpus import Corpus, CorpusBuilder
 from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.viz.widgets import FileUploadWidget
+
+
+#
+# python3.9/site-packages/traitlets/traitlets.py:697:
+# FutureWarning: Comparison of Timestamp with datetime.date is deprecated in order to match the standard
+# library behavior. In a future version these will be considered non-comparable.
+# Use 'ts == pd.Timestamp(date)' or 'ts.date() == date' instead.
+#   silent = bool(old_value == new_value)
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 def format_size(size_bytes):
@@ -424,15 +434,31 @@ class App(object):
         widget_s = DatePicker(description='start', value=start)
         widget_e = DatePicker(description='end', value=end)
 
-        def update_datetime(event):
+        def date_to_slider_idx(date):
+            return date.strftime(' %d %b %Y '), date
+
+        dates = pd.date_range(start, end, freq='D')
+        options = [date_to_slider_idx(date) for date in dates]
+        index = (int(len(dates) / 4), int(3 * len(dates) / 4))
+        slider = widgets.SelectionRangeSlider(options=options, index=index, layout={'width': '98%'})
+
+        def update_datetime_datepicker(event):
             config['start'] = widget_s.value
             config['end'] = widget_e.value
+            slider.index = (options.index(date_to_slider_idx(pd.Timestamp(widget_s.value))),
+                            options.index(date_to_slider_idx(pd.Timestamp(widget_e.value))))
 
-        update_datetime(None)  # initial set up
+        def update_datetime_slider(event):
+            config['start'] = slider.value[0]
+            config['end'] = slider.value[1]
+            widget_s.value = config['start']
+            widget_e.value = config['end']
 
-        widget_s.observe(update_datetime, names='value')
-        widget_e.observe(update_datetime, names='value')
-        return VBox([widget_s, widget_e], layout=Layout(width='98%'))
+        update_datetime_slider(None)
+        widget_s.observe(update_datetime_datepicker, names='value')
+        widget_e.observe(update_datetime_datepicker, names='value')
+        slider.observe(update_datetime_slider, names='value')
+        return VBox([widget_s, widget_e, slider], layout=Layout(width='98%'))
 
     def _create_wholenumber_ops_selector(self, meta: SeriesMeta, config):
         """ DType: whole number; filter_by_item, filter_by_range """
