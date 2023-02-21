@@ -72,9 +72,7 @@ class App(object):
 
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
-        if corpus_id in self.REGISTRY.keys():
-            res = input(f"{corpus_id} already exists. Overwrite (y/n)? ")
-            if res != 'y': return
+        if corpus_id in self.REGISTRY.keys(): raise KeyError(f"{corpus_id} already exists.")
         self.REGISTRY[corpus_id] = corpus
         self._update_corpus_selector()  # refreshes registry
 
