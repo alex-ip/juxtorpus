@@ -14,7 +14,6 @@ from juxtorpus.corpus import Corpus, CorpusBuilder
 from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.viz.widgets import FileUploadWidget
 
-
 #
 # python3.9/site-packages/traitlets/traitlets.py:697:
 # FutureWarning: Comparison of Timestamp with datetime.date is deprecated in order to match the standard
@@ -22,6 +21,7 @@ from juxtorpus.viz.widgets import FileUploadWidget
 # Use 'ts == pd.Timestamp(date)' or 'ts.date() == date' instead.
 #   silent = bool(old_value == new_value)
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
@@ -331,15 +331,18 @@ class App(object):
                               disabled=True,
                               layout=_create_layout(**{'width': '98%', 'height': '30px'}))
 
+        # output
+        output = Output(layout=_create_layout(**{'width': '20%'}))
+
         # vboxes
         vbox_meta = VBox([label_meta, select_meta],
-                         layout=_create_layout(**{'width': '10%'}, **debug_style))
+                         layout=_create_layout(**{'width': '20%'}, **debug_style))
         vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value, Box()), button_filter],
-                           layout=_create_layout(**{'width': '35%'}, **debug_style))
-        vbox_hist = VBox([label_hist, vbox_hist_cbs],
-                         layout=_create_layout(**{'width': '45%'}, **debug_style))
+                           layout=_create_layout(**{'width': '40%'}, **debug_style, **center_style))
         vbox_prevw = VBox([label_prevw, html_prevw, text_corpid_prevw, button_prevw],
-                          layout=_create_layout(**{'width': '10%'}, **debug_style))
+                          layout=_create_layout(**{'width': '20%'}, **debug_style))
+        vbox_hist = VBox([label_hist, vbox_hist_cbs],
+                         layout=_create_layout(**{'width': '98%'}, **debug_style))
 
         # CALLBACKS
         def observe_select_meta(event):
@@ -374,12 +377,13 @@ class App(object):
                 print("You must enter a corpus ID.")
                 return
             if self._corpus_slicer_current_mask is None: return
-            print(f"Sliced. {corp_id.get('text')}")
+            with output: print(f"Added {corp_id.get('text')} to registry.")
             self.update_registry(corp_id.get('text'), self._selected_corpus.cloned(self._corpus_slicer_current_mask))
 
         button_prevw.on_click(on_click_slice)
-        self._corpus_slicer_dashboard = HBox([vbox_meta, vbox_filter, vbox_hist, vbox_prevw],
-                                             layout=_create_layout(**{'width': '98%'}))
+        self._corpus_slicer_dashboard = VBox([HBox([vbox_meta, vbox_filter, vbox_prevw, output],
+                                                   layout=_create_layout(**{'width': '98%'})),
+                                              vbox_hist], layout=_create_layout(**{'width': '98%'}))
         return self._corpus_slicer_dashboard
 
     def _create_slice_ops_selector(self, meta_id: str, config: dict):
@@ -431,8 +435,8 @@ class App(object):
         series = meta.series()
         margin = timedelta(days=1)
         start, end = series.min().to_pydatetime() - margin, series.max().to_pydatetime() + margin
-        widget_s = DatePicker(description='start', value=start)
-        widget_e = DatePicker(description='end', value=end)
+        widget_s = DatePicker(description='start', value=start, layout=Layout(**{'width': '98%'}))
+        widget_e = DatePicker(description='end', value=end, layout=Layout(**{'width': '98%'}))
 
         def date_to_slider_idx(date):
             return date.strftime(' %d %b %Y '), date
@@ -625,7 +629,7 @@ class App(object):
         """ Updates the content of the corpus slicer preview."""
         if self._corpus_slicer_dashboard is None: return
         else:
-            self._corpus_slicer_dashboard.children[3].children[1].value = html
+            self._corpus_slicer_dashboard.children[0].children[2].children[1].value = html
 
     def _filter_by_mask_triage(self, selected, config: dict):
         meta = self._selected_corpus.slicer._get_meta_or_raise_err(selected)
