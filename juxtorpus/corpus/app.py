@@ -67,8 +67,8 @@ class App(object):
         self._corpus_selector = None  # corpus_selector - registry
         self._corpus_slicer = None
         self._corpus_slicer_dashboard = None  # corpus_slicer - for referencing
-        self._corpus_slicer_operations = dict()  # corpus_slicer - stores all slicer operations.
-        self._corpus_slicer_current_mask = None  # corpus_slicer - mask from all ops hist
+        self._corpus_slicer_operations: dict = None  # corpus_slicer - stores all slicer operations.
+        self._corpus_slicer_current_mask: pd.Series[bool] = None  # corpus_slicer - mask from all ops hist
 
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
@@ -291,6 +291,7 @@ class App(object):
 
     def _create_slice_operations_dashboard(self):
         """ Creates a meta selector. """
+        self._corpus_slicer_operations = dict()
         # meta
         options_meta = [id_ for id_ in self._selected_corpus.meta.keys()]
         label_meta = Label('Meta',
@@ -356,7 +357,7 @@ class App(object):
         select_meta.observe(observe_select_meta, names='value')
 
         def on_click_add(_):
-            print(f"Adding config: {config_cache}")
+            # print(f"Adding config: {config_cache}")
             selected = select_meta.value
             config = config_cache.get(selected)
             cb = self._create_ops_history_checkbox(selected, config, button_prevw)
