@@ -302,7 +302,7 @@ class App(object):
         )
 
         # filter
-        label_filter = Label('Filter',
+        label_filter = Label('Filter By',
                              layout=_create_layout(**{'width': '98%', 'display': 'flex', 'justify_content': 'center'},
                                                    **debug_style))
         button_filter = Button(description='Add Operation', layout=Layout(width='98%', height='30px'))
@@ -447,10 +447,10 @@ class App(object):
         slider = widgets.SelectionRangeSlider(options=options, index=index, layout={'width': '98%'})
 
         def update_datetime_datepicker(event):
-            config['start'] = widget_s.value
-            config['end'] = widget_e.value
             slider.index = (options.index(date_to_slider_idx(pd.Timestamp(widget_s.value))),
                             options.index(date_to_slider_idx(pd.Timestamp(widget_e.value))))
+            config['start'] = slider.value[0]
+            config['end'] = slider.value[1]
 
         def update_datetime_slider(event):
             config['start'] = slider.value[0]
@@ -600,11 +600,13 @@ class App(object):
         return VBox([w_text, w_toggle], layout=Layout(width='98%'))
 
     def _create_ops_history_checkbox(self, selected, config, slice_button):
-        cb = Checkbox(description=f"{selected}: {config}")
+        cb = Checkbox(description=self._beautify_ops_checkbox_description(selected, config),
+                      layout=_create_layout(**{'width': '98%'}))
         cb.style = {'description_width': '0px'}
         self._corpus_slicer_operations[cb] = (selected, config.copy())
 
         def observe_cb(_):
+            # calculates a mask given the checked boxes, outputs preview of corpus size.
             self._update_corpus_slicer_preview(html=f"<h4>Calculating...</h4>")
             self._corpus_slicer_current_mask = None
             mask = pd.Series([True] * len(self._selected_corpus))
@@ -649,12 +651,37 @@ class App(object):
             elif mode == 'TEXT':
                 mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('text'))
             elif mode == 'REGEX':
-                mask = self._selected_corpus.slicer._filter_by_regex_mask(meta, config.get('regex'), ignore_case=True)
+                mask = self._selected_corpus.slicer._filter_by_regex_mask(meta, config.get('text'), ignore_case=True)
             else:
                 raise NotImplementedError()
         else:
             raise NotImplementedError()
         return mask
+
+    def _beautify_ops_checkbox_description(self, selected: str, config):
+        prefix = f"[{selected.ljust(30)}] "
+        if 'start' in config.keys() and 'end' in config.keys():
+            start, end = config.get('start'), config.get('end')
+            text = f"{start.strftime('%d %b %Y')} - {end.strftime('%d %b %Y')}"
+        elif 'item' in config.keys():
+            items = config.get('item')
+            text = f"Items: {', '.join(items)}"
+        elif 'mode' in config.keys():
+            mode = config.get('mode').upper()
+            if mode == 'NUMBER':
+                text = f"Number: {config.get('number')}"
+            elif mode == 'MIN/MAX':
+                min_, max_ = config.get('range').get('min'), config.get('range').get('max')
+                text = f"Min: {min_}\tMax: {max_}"
+            elif mode == 'TEXT':
+                text = f"Text: {config.get('text')}"
+            elif mode == 'REGEX':
+                text = f"Regex: {config.get('text')}"
+            else:
+                raise NotImplementedError()
+        else:
+            raise NotImplementedError()
+        return prefix + text
 
     def reset(self):
         self._corpus_selector = None
