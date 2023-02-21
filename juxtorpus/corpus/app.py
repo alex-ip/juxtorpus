@@ -4,7 +4,7 @@ Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fl
 """
 import pandas as pd
 from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, \
-    Box, Button, Select, DatePicker, Output, Text
+    Box, Button, Select, DatePicker, Output, Text, HTML
 import ipywidgets as widgets
 from pathlib import Path
 import math
@@ -330,16 +330,15 @@ class App(object):
                               disabled=True,
                               layout=_create_layout(**{'width': '98%', 'height': '30px'}))
 
-        # output
-        output = Output(layout=_create_layout(**{'width': '20%'}))
-
-        # vboxes
+        # vboxes & output
         vbox_meta = VBox([label_meta, select_meta],
-                         layout=_create_layout(**{'width': '20%'}, **debug_style))
+                         layout=_create_layout(**{'width': '15%'}, **debug_style))
         vbox_filter = VBox([label_filter, filter_value_cache.get(select_meta.value, Box()), button_filter],
                            layout=_create_layout(**{'width': '40%'}, **debug_style, **center_style))
         vbox_prevw = VBox([label_prevw, html_prevw, text_corpid_prevw, button_prevw],
-                          layout=_create_layout(**{'width': '20%'}, **debug_style))
+                          layout=_create_layout(**{'width': '15%'}, **debug_style))
+        output = Output(layout=_create_layout(**{'width': '30%', 'height': '220px', 'overflow': 'scroll'}))
+
         vbox_hist = VBox([label_hist, vbox_hist_cbs],
                          layout=_create_layout(**{'width': '98%'}, **debug_style))
 
@@ -373,11 +372,15 @@ class App(object):
         def on_click_slice(_):
             id_ = corp_id.get('text', None)
             if id_ is None:
-                print("You must enter a corpus ID.")
+                with output: print("You must enter a corpus ID.")
                 return
             if self._corpus_slicer_current_mask is None: return
-            with output: print(f"Added {corp_id.get('text')} to registry.")
-            self.update_registry(corp_id.get('text'), self._selected_corpus.cloned(self._corpus_slicer_current_mask))
+            try:
+                if id_ not in self.REGISTRY.keys():
+                    with output: print(f"Added {id_} to registry.")
+                self.update_registry(id_, self._selected_corpus.cloned(self._corpus_slicer_current_mask))
+            except KeyError as ke:
+                with output: print(f"'{id_}' already exists. Please choose another key.")
 
         button_prevw.on_click(on_click_slice)
         self._corpus_slicer_dashboard = VBox([HBox([vbox_meta, vbox_filter, vbox_prevw, output],
