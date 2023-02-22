@@ -139,3 +139,6 @@ dmypy.json
 _scrap/
 juxtorpus_metaslicing_oop_design.png
 tests/
+.venv-pymusas/
+assets/
+meeting_notes/
