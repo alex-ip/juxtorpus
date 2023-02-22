@@ -1,12 +1,13 @@
 import tempfile
-
+from typing import Callable
 from ipywidgets import FileUpload, Output, VBox, widgets
 from IPython.display import display
-from typing import Union
 import pathlib
-import os
+import logging.config
 
-from juxtorpus.viz import Viz
+logger = logging.getLogger(__name__)
+
+from juxtorpus.viz import Widget
 from juxtorpus.utils import DeduplicatedDirectory
 
 """
@@ -17,17 +18,17 @@ jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
 """
 
 
-class FileUploadWidget(Viz):
+class FileUploadWidget(Widget):
     DESCRIPTION = "Upload your files here.\n({})"
     ERR_FAILED_UPLOAD = "File upload unsuccessful. Please try again!."
 
     default_accepted_extensions = ['.csv', '.zip']
 
-    def __init__(self, accept_extensions: list[str] = None):
+    def __init__(self, dir_path: pathlib.Path = None, accept_extensions: list[str] = None):
         if accept_extensions is None:
             accept_extensions = self.default_accepted_extensions
 
-        self._dir = DeduplicatedDirectory()
+        self._dir = DeduplicatedDirectory(dir_path)
 
         self._uploader = FileUpload(
             description=self.DESCRIPTION.format(' '.join(accept_extensions)),
@@ -40,38 +41,59 @@ class FileUploadWidget(Viz):
         self._output = Output()
         self._uploader.observe(self._on_upload, names=['value'])  # 'value' for when any file is uploaded.
 
+        self._callback = None
+
     def uploaded(self):
         return self._dir.files()
 
-    def render(self):
+    def widget(self):
         return display(VBox([self._uploader, self._output]))
+
+    def set_callback(self, callback: Callable):
+        if not callable(callback): raise ValueError(f"Callback must be a function or a callable.")
+        self._callback = callback
 
     def _on_upload(self, change):
         with self._output:
-            new_files = change.get('new').keys()
-            for fname in new_files:
-                content = change.get('new').get(fname).get('content')
+            new_files = self._get_files_data(change)
+            for fdata in new_files:
+                content = fdata.get('content')
+                fname = fdata.get('name')
                 if fname.endswith('.zip'):
-                    self._add_zip(content, fname)
+                    added = self._add_zip(content, fname)
                 else:
-                    self._add_file(content, fname)
+                    added = self._add_file(content, fname)
+                if callable(self._callback): self._callback(self, added)
+
+    def _get_files_data(self, change):
+        new = change.get('new')
+        if isinstance(new, dict):  # support v7.x
+            fdata_list = list()
+            for fname, fdata in new.items():
+                fdata['name'] = fname
+                fdata_list.append(fdata)
+            return fdata_list
+        return new  # support v8.x
 
     def _add_zip(self, content, fname):
         try:
-            print(f"++ Extracting {fname} to disk. Please wait...")
+            logger.info(f"Extracting {fname} to {self._dir.path}. Please wait...")
             tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
-            self._dir.add_zip(tmp_zip_file, verbose=True)
-            print("++ Finished.")
+            added = self._dir.add_zip(tmp_zip_file, verbose=True)
+            logger.info(f"Done. Extracted {len(added)} files.")
+            return added
         except Exception as e:
-            print(f"Failed. Reason: {e}")
+            logger.info(f"Failed. Reason: {e}")
+            return []
 
     def _add_file(self, content, fname):
         try:
-            print(f"++ Writing {fname} to disk...", end='')
-            self._dir.add_content(content, fname)
-            print("Success.")
+            logger.info(f"Writing {fname} to {self._dir.path}...")
+            added = self._dir.add_content(content, fname)
+            logger.info("Success.")
+            return added
         except Exception as e:
             print(f"Failed. Reason: {e}")

@@ -1,18 +1,36 @@
-import spacy
-from typing import Union
-from juxtorpus.components import *
+import logging.config
+import colorlog
+from pathlib import Path
 
-model: str = 'en_core_web_sm'
-nlp: Union[spacy.Language, None] = spacy.load(model)
-out_of_the_box_components = list(nlp.meta.get('components'))
+conf_path = Path("logging_conf.ini")
+logging.config.fileConfig(conf_path)
+rlogger = colorlog.getLogger()
+
+# ARCHIVED: FileConfig unable to read key: log_colors
+# Comment above and uncomment below if you want to change the log colours.
+# import colorlog
+# from colorlog import ColoredFormatter
+#
+# handler = colorlog.StreamHandler()
+# logger = colorlog.getLogger()   # root logger
+#
+# formatter = ColoredFormatter(
+#     "%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(message)s",
+#     datefmt=None,
+#     reset=True,
+#     log_colors={
+#         'DEBUG': 'cyan',
+#         'INFO': 'green',
+#         'WARNING': 'yellow',
+#         'ERROR': 'red',
+#         'CRITICAL': 'red,bg_white',
+#     },
+#     secondary_log_colors={},
+#     style='%'
+# )
+#
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 
 
-def reload_spacy(model_: str, clear_mem: bool):
-    global model, nlp, out_of_the_box_components
-    model = model_
-    nlp = spacy.load(model)
-    out_of_the_box_components = list(nlp.meta.get('components'))
-    if clear_mem:
-        import gc
-        gc.collect()
-    return nlp
+from .jux import Jux
