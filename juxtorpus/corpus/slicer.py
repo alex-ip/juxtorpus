@@ -24,38 +24,6 @@ def slicer(corpus):
     raise ValueError(f"corpus must be an instance of {Corpus.__name__}. Got {type(corpus)}.")
 
 
-class CorpusSlice(Corpus):
-    def __init__(self, parent_corpus: weakref.ReferenceType[Corpus], *args, **kwargs):
-        super(CorpusSlice, self).__init__(*args, **kwargs)
-
-
-class CorpusSlices(dict):
-    def join(self):
-        pass  # do alignment of dict if no original corpus?
-
-
-class FrozenCorpusSlices(CorpusSlices):
-    """ Immutable corpus groups
-    This class is used to return the result of a groupby call from a corpus.
-    """
-
-    def __init__(self, orig_corpus: weakref.ReferenceType[Corpus], *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._original_corpus = orig_corpus
-
-    def join(self) -> Union[Corpus, None]:
-        """ This returns the original corpus where they were grouped from.
-        Caveat: if no hard references to the original corpus is kept, this returns None.
-
-        This design was chosen as we expect the user to reference the original corpus themselves
-        instead of calling join().
-        """
-        return self._original_corpus()  # returns the hard reference of the weakref.
-
-    def __setitem__(self, key, value):
-        raise RuntimeError("You may not write to FrozenCorpusSlices.")
-
-
 class CorpusSlicer(object):
     """ CorpusSlicer
 
@@ -65,12 +33,6 @@ class CorpusSlicer(object):
 
     def __init__(self, corpus):
         self.corpus = corpus
-
-    def sample(self, n: int, rand_stat=None):
-        """ Uniformly sample from the corpus. """
-        mask = self.corpus._df.isna().squeeze()  # Return a mask of all False
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
-        return self.corpus.cloned(mask)
 
     def filter_by_condition(self, id_, cond_func: Callable[[Any], bool]):
         """ Filter by condition
@@ -89,9 +51,13 @@ class CorpusSlicer(object):
         :arg items - the list of items to include OR just a single item.
         """
         meta = self._get_meta_or_raise_err(id_)
+        mask = self._filter_by_item_mask(meta, items)
+        return self.corpus.cloned(mask)
+
+    def _filter_by_item_mask(self, meta, items):
         cond_func = self._item_cond_func(items)
         mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        return mask
 
     def _item_cond_func(self, items):
         items = [items] if isinstance(items, str) else items
@@ -112,6 +78,25 @@ class CorpusSlicer(object):
 
         return cond_func
 
+    def filter_by_range(self, id_, min_: Optional[Union[int, float]], max_: Optional[Union[int, float]]):
+        meta = self._get_meta_or_raise_err(id_)
+        mask = self._filter_by_range_mask(meta, min_, max_)
+        return self.corpus.cloned(mask)
+
+    def _filter_by_range_mask(self, meta, min_, max_):
+        cond_func = self._range_cond_func(min_, max_)
+        return self._mask_by_condition(meta, cond_func)
+
+    def _range_cond_func(self, min_, max_):
+        if min_ is None and max_ is None: return self.corpus
+        if None not in (min_, max_):
+            cond_func = lambda num: min_ <= num <= max_
+        elif min_ is not None:
+            cond_func = lambda num: min_ <= num
+        else:
+            cond_func = lambda num: num <= max_
+        return cond_func
+
     def filter_by_regex(self, id_, regex: str, ignore_case: bool):
         """ Filter by regex.
         :arg id - meta id
@@ -119,12 +104,17 @@ class CorpusSlicer(object):
         :arg ignore_case - whether to ignore case
         """
         meta = self._get_meta_or_raise_err(id_)
+        mask = self._filter_by_regex_mask(meta, regex, ignore_case)
+        return self.corpus.cloned(mask)
+
+    def _filter_by_regex_mask(self, meta, regex, ignore_case: bool):
+        cond_func = self._regex_cond_func(regex, ignore_case)
+        return self._mask_by_condition(meta, cond_func)
+
+    def _regex_cond_func(self, regex: str, ignore_case: bool):
         flags = 0 if not ignore_case else re.IGNORECASE
         pattern = re.compile(regex, flags=flags)
-
-        cond_func = lambda any_: pattern.search(any_) is not None
-        mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        return lambda any_: pattern.search(any_) is not None
 
     def filter_by_datetime(self, id_, start: Optional[str] = None, end: Optional[str] = None,
                            strftime: Optional[str] = None):
@@ -136,22 +126,32 @@ class CorpusSlicer(object):
         If no start or end is provided, it'll return the corpus unsliced.
         """
         meta = self._get_meta_or_raise_err(id_)
+        if start is None and end is None: return self.corpus
+        mask = self._filter_by_datetime_mask(meta, start, end, strftime)
+        return self.corpus.cloned(mask)
+
+    def _filter_by_datetime_mask(self, meta, start, end, strftime=None):
         if isinstance(meta, SeriesMeta) and not pd.api.types.is_datetime64_any_dtype(meta.series()):
             raise ValueError("The meta specified is not a datetime.")
         # return corpus if no start or end time specified.
-        if start is None and end is None: return self.corpus
+        cond_func = self._datetime_cond_func(start, end, strftime)
+        mask = self._mask_by_condition(meta, cond_func)
+        return mask
+
+    def _datetime_cond_func(self, start, end, strftime):
         start = pd.to_datetime(start, infer_datetime_format=True, format=strftime)  # returns None if start=None
         end = pd.to_datetime(end, infer_datetime_format=True, format=strftime)
-        logger.info(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
-        logger.info(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
+        logger.debug(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
+        logger.debug(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
         if None not in (start, end):
             cond_func = lambda dt: start < dt <= end
         elif start is not None:
             cond_func = lambda dt: start < dt
-        else:
+        elif end is not None:
             cond_func = lambda dt: dt <= end
-        mask = self._mask_by_condition(meta, cond_func)
-        return self.corpus.cloned(mask)
+        else:
+            cond_func = lambda dt: True
+        return cond_func
 
     def _mask_by_condition(self, meta, cond_func):
         mask = meta.apply(cond_func)

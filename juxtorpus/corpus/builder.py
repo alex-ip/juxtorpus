@@ -1,16 +1,23 @@
 import pandas as pd
 import pathlib
 from functools import partial
-from typing import Union, Callable, Iterable
-from dataclasses import dataclass
+from typing import Union, Callable, Optional
+from IPython.display import display
+import ipywidgets as widgets
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
+from juxtorpus.viz import Widget
+from juxtorpus.utils.utils_pandas import row_concat
 
 import colorlog
 
 logger = colorlog.getLogger(__name__)
+
+PROMPT_MISMATCHED_COLUMNS = "There are mismatched columns. These will be filled with NaN. " \
+                            "Would you like to proceed? (y/n): "
+PROMPT_MISMATCHED_COLUMNS_PASS = 'y'
 
 
 class MetaConfig(object):
@@ -68,7 +75,7 @@ class DateTimeMetaConfig(MetaConfig):
             return [self.column]
 
 
-class CorpusBuilder(object):
+class CorpusBuilder(Widget):
     """ CorpusBuilder
 
     The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
@@ -86,6 +93,8 @@ class CorpusBuilder(object):
     ```
     """
 
+    allowed_dtypes = SeriesMeta.dtypes.union({'datetime'})
+
     def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
         if isinstance(paths, str):
             paths = pathlib.Path(paths)
@@ -96,26 +105,67 @@ class CorpusBuilder(object):
         self._meta_configs = dict()
         self._sep = ','
         self._col_text = None
-        self._columns = pd.read_csv(self._paths[0], nrows=0).columns
-        # todo: check if column matches for multiple paths
+        self._dtype_text = pd.StringDtype('pyarrow')
+
+        # validate column alignments
+        self._columns = self._prompt_validated_columns(self._paths)
+        if self._columns is None: return
 
         self._preprocessors = list()
 
-    def head(self, n: int = 3):
-        return pd.read_csv(self._paths[0], nrows=n)
+    @staticmethod
+    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[set[str]]:
+        columns = list()
+        for path in paths:
+            name = path.stem
+            if len(name) > 10: name = path.stem[:4] + '..' + path.stem[-4:]
+            columns.append(pd.Series('✅', index=pd.read_csv(path, nrows=0).columns, name=name))
+        df_cols = pd.concat(columns, axis=1)
+        if df_cols.isnull().values.any():
+            display(df_cols.fillna(''))
+            if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return None
+        return set(df_cols.index.to_list())
 
-    def show_columns(self):
-        all = pd.Series(self._columns, name='All Columns')
-        df = pd.DataFrame(index=all)
-        to_add = list()
+    @property
+    def paths(self):
+        return self._paths
+
+    @property
+    def columns(self):
+        return self._columns
+
+    def head(self, n: int = 3, cols: Optional[Union[str, list[str]]] = None):
+        return pd.read_csv(self._paths[0], nrows=n, sep=self._sep, usecols=cols)
+
+    def summary(self):
+        all_cols = pd.Series(sorted(list(self._columns)), name='All Columns')
+        df = pd.DataFrame(index=all_cols, columns=['Text', 'Meta', 'Dtype'])
+        df['Text'] = ''
+        df['Meta'] = ''
+        df['Dtype'] = ''
+
+        # Populate Text column
+        if self.text_column_is_set():
+            df.loc[self._col_text, 'Text'] = '✅'
+            df.loc[self._col_text, 'Dtype'] = str(self._dtype_text)
+
+        # Populate Meta column
         for mc in self._meta_configs.values():
             if type(mc) == DateTimeMetaConfig and mc.is_multi_columned():
-                to_add.extend(mc.columns)
+                for col in mc.columns:
+                    df.loc[col, 'Meta'] = '✅'
             else:
-                to_add.append(mc.column)
-        df['Add'] = df.index.isin(to_add)
+                df.loc[mc.column, 'Meta'] = '✅'
+
+        # Populate dtype column
+        for row in df.itertuples(index=True):
+            if not row.Meta: continue
+            dtype = self._meta_configs.get(row.Index).dtype
+            dtype = dtype if dtype is not None else 'inferred'
+            df.loc[row.Index, 'Dtype'] = dtype
+
         df.sort_index(axis=0, inplace=True)
-        return df.sort_values(by='Add', ascending=False)
+        return df.sort_index(axis=0, ascending=True)
 
     def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
@@ -128,22 +178,21 @@ class CorpusBuilder(object):
 
         If dtype is None, dtype is inferred by pandas.
         """
-        if dtypes == 'datetime':
-            self._add_datetime_meta(columns, lazy)
-            return
-        # non datetime columns
         if isinstance(columns, str):
             columns = [columns]
-        if isinstance(dtypes, list) and len(columns) != len(dtypes):
-            raise ValueError("Number of columns and dtypes must match.")
-        else:
-            for i in range(len(columns)):
-                dtype = dtypes[i] if isinstance(dtypes, list) else dtypes
-                self._add_meta(columns[i], dtype, lazy)
+        if isinstance(dtypes, str) or dtypes is None:
+            dtypes = [dtypes] * len(columns)
+        if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
+        for i in range(len(columns)):
+            col, dtype = columns[i], dtypes[i]
+            if col == self._col_text: self._col_text = None  # reset text column
+            if dtype is not None and dtype not in self.allowed_dtypes:
+                raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
+            if dtype == 'datetime': self._add_datetime_meta(col, lazy)
+            else: self._add_meta(col, dtype, lazy)
 
-    def _add_meta(self, column: str, dtype: str, lazy: bool):
-        if column not in self._columns:
-            raise ValueError(f"{column} column does not exist.")
+    def _add_meta(self, column: str, dtype: Optional[str], lazy: bool):
+        if column not in self._columns: raise ValueError(f"{column} column does not exist.")
         meta_config = MetaConfig(column=column, dtype=dtype, lazy=lazy)
         self._meta_configs[meta_config.column] = meta_config
 
@@ -185,8 +234,13 @@ class CorpusBuilder(object):
     def set_text_column(self, column: str):
         if column not in self._columns:
             raise KeyError(
-                f"Column: '{column}' not found. Use show_columns() to preview the columns in the dataframe")
+                f"Column: '{column}' not found. Use {self.summary.__name__} to preview the columns in the dataframe")
         self._col_text = column
+        self._meta_configs.pop(column, None)
+
+    def text_column_is_set(self):
+        """ Text column is set. """
+        return self._col_text is not None
 
     def set_sep(self, sep: str):
         """ Set the separator to use in parsing the file.
@@ -218,7 +272,7 @@ class CorpusBuilder(object):
         return text
 
     def build(self) -> Corpus:
-        if self._col_text is None:
+        if not self.text_column_is_set():
             raise ValueError(f"You must set the text column. Try calling {self.set_text_column.__name__} first.")
         metas = dict()
         metas = self._build_lazy_metas(metas)
@@ -245,7 +299,7 @@ class CorpusBuilder(object):
     def _build_series_meta_and_text(self, metas: dict):
         series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
                              if not mc.lazy and type(mc) != DateTimeMetaConfig}
-        series_and_dtypes[self._col_text] = pd.StringDtype('pyarrow')
+        series_and_dtypes[self._col_text] = self._dtype_text
 
         all_cols = set(series_and_dtypes.keys())
         parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME, False)
@@ -265,7 +319,8 @@ class CorpusBuilder(object):
                                  parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
                 current += len(df)
             dfs.append(df)
-        df = pd.concat(dfs, axis=0, ignore_index=True)
+        df = row_concat(dfs, ignore_index=True)
+        # df = pd.concat(dfs, axis=0, ignore_index=True)
 
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
@@ -280,6 +335,10 @@ class CorpusBuilder(object):
                 raise KeyError(f"{col} already exists. Please use a different column name.")
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
+
+    def widget(self):
+        """ Display the CorpusBuilder widget. """
+        WIDGET_DTYPES_LIST = list(self.allowed_dtypes) + ['auto']
 
 
 if __name__ == '__main__':
@@ -298,7 +357,7 @@ if __name__ == '__main__':
     # builder.add_metas('created_at', dtypes='datetime', lazy=True)
     builder.add_metas(['geometry', 'state_name_2016'], dtypes=['object', 'str'])
 
-    print(builder.show_columns())
+    print(builder.summary())
     corpus = builder.build()
     print(corpus.meta)
     # print(corpus.get_meta('tweet_lga').preview(5))

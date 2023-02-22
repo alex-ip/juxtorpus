@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 import pathlib
 from typing import Iterable, Union
 import pandas as pd
+from .utils.utils_pandas import row_concat
 
 
 class LazyLoader(metaclass=ABCMeta):
@@ -31,7 +32,8 @@ class LazySeries(LazyLoader):
         return self._paths
 
     def load(self):
-        return pd.concat(self._yield_series(), axis=0, ignore_index=True)
+        return row_concat(self._yield_series(), ignore_index=True)
+        # return pd.concat(self._yield_series(), axis=0, ignore_index=True)
 
     def _yield_series(self) -> pd.Series:
         # load all

@@ -245,6 +245,12 @@ class Corpus:
             mask = self._df.iloc[start:stop].index
         return self.cloned(mask)
 
+    def sample(self, n: int, rand_stat=None):
+        """ Uniformly sample from the corpus. """
+        mask = self._df.isna().squeeze()  # Return a mask of all False
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        return self.cloned(mask)
+
 
 class SpacyCorpus(Corpus):
     """ SpacyCorpus
@@ -295,7 +301,7 @@ class SpacyCorpus(Corpus):
             root = self.find_root()
             root._dtm.initialise(root.docs(),
                                  vectorizer=CountVectorizer(preprocessor=lambda x: x,
-                                                       tokenizer=self._gen_words_from))
+                                                            tokenizer=self._gen_words_from))
         return self._dtm
 
     def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):

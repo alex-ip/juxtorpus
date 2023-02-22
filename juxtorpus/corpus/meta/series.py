@@ -6,6 +6,9 @@ from juxtorpus.loader import LazySeries
 
 
 class SeriesMeta(Meta):
+    dtypes = {'float', 'float16', 'float32', 'float64',
+              'int', 'int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64',
+              'str', 'bool', 'category'}
 
     def __init__(self, id_, series: Union[pd.Series, LazySeries]):
         super(SeriesMeta, self).__init__(id_)
@@ -31,6 +34,7 @@ class SeriesMeta(Meta):
         return self.series().head(n)
 
     def summary(self) -> pd.DataFrame:
+        """ Return a summary of the series in a dataframe. """
         series = self.series()
 
         # dtype

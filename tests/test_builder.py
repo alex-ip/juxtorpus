@@ -12,7 +12,7 @@ class TestBuilder(unittest.TestCase):
                                       Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')])
 
     def tearDown(self) -> None:
-        pass
+        self.builder = None
 
     def test_nrows(self):
         # tests the build steps
@@ -39,6 +39,22 @@ class TestBuilder(unittest.TestCase):
         year_month_day = corpus.meta.get('year_month_day', None)
         assert year_month_day is not None
 
+    def test_concat_category_lazy(self):
+        """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
+        builder = self.builder
+        builder.add_metas('tweet_lga', dtypes='category', lazy=True)
+        builder.set_text_column('processed_text')
+        corpus = builder.build()
+        assert corpus.meta.get('tweet_lga').series().dtype == 'category'
+
+    def test_concat_category(self):
+        """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
+        builder = self.builder
+        builder.add_metas('tweet_lga', dtypes='category', lazy=False)
+        builder.set_text_column('processed_text')
+        corpus = builder.build()
+        assert corpus.meta.get('tweet_lga').series().dtype == 'category'
+
     def test_add_and_remove_meta(self):
         builder = self.builder
         builder.add_metas(['tweet_lga', 'geometry'])
@@ -55,13 +71,13 @@ class TestBuilder(unittest.TestCase):
         corpus = builder.build()
         assert '<TWEET>' not in corpus.texts().iloc[0]
 
-    def test_show_columns(self):
+    def test_summary(self):
         builder = self.builder
         builder.add_metas(['tweet_lga', 'geometry'])
-        df = builder.show_columns()
+        df = builder.summary()
         # assert output boolean mask for Add is correct
-        assert df.loc['tweet_lga', 'Add']
-        assert df.loc['geometry', 'Add']
+        assert df.loc['tweet_lga', 'Meta']
+        assert df.loc['geometry', 'Meta']
 
     def test_update_metas(self):
         builder = self.builder
@@ -70,3 +86,19 @@ class TestBuilder(unittest.TestCase):
 
         geometry = builder._meta_configs.get('geometry')
         assert geometry.dtype is None and geometry.lazy is False
+
+    def test_select_text_deselect_meta_column(self):
+        """ Added meta should be deselected when selected as text. """
+        builder = self.builder
+        builder.add_metas('processed_text')
+        builder.set_text_column('processed_text')
+        assert 'processed_text' not in builder._meta_configs.keys()
+        # NOTE: generally not a good idea to use private vars in tests
+
+    def test_select_meta_deselect_text_column(self):
+        """ Selected text should be deselected when added as meta. """
+        builder = self.builder
+        builder.set_text_column('processed_text')
+        builder.add_metas('processed_text')
+        assert not builder.text_column_is_set()
+        # NOTE: generally not a good idea to use private vars in tests

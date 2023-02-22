@@ -6,3 +6,10 @@ class Viz(metaclass=ABCMeta):
     def render(self):
         """ Renders the visualisation. """
         raise NotImplementedError()
+
+
+class Widget(metaclass=ABCMeta):
+    @abstractmethod
+    def widget(self):
+        """ Display the interactive widget. """
+        raise NotImplementedError()

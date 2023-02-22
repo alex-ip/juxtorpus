@@ -19,10 +19,12 @@ class DeduplicatedDirectory(object):
     def __init__(self, dir_path: Union[str, pathlib.Path] = None):
         if dir_path is None: dir_path = tempfile.mkdtemp()
         if isinstance(dir_path, str): dir_path = pathlib.Path(dir_path)
+        if dir_path.exists() and not dir_path.is_dir():
+            raise FileExistsError(f"{dir_path} exists and is not a directory. Please specify another path.")
+        if not dir_path.exists(): dir_path.mkdir()
         self._dir_path = dir_path
         self._index = dict()
         self._hash_alg = hashlib.md5
-
 
     @property
     def path(self) -> pathlib.Path:
@@ -40,15 +42,18 @@ class DeduplicatedDirectory(object):
         """ Adds a file to the directory. Raises error if file already exists. """
         if not file.is_file():
             raise ValueError(f"{file.name} is not a file.")
-        self._add_from(file, self._dir_path)
+        added = self._add_from(file, self._dir_path)
         self._build_index()
+        return added
 
     def _add_from(self, file: pathlib.Path, start_at: pathlib.Path):
         if not start_at.exists():
             os.mkdir(start_at)
         if self.exists(file):
             raise ValueError(f"{file.name} already exists.")
-        shutil.copy(file, start_at.joinpath(file.name))
+        new_file_path = start_at.joinpath(file.name)
+        shutil.copy(file, new_file_path)
+        return new_file_path
 
     def add_content(self, content: bytes, fname: str):
         """ Add the content to the directory. Raises error if both file name and content are duplicated."""
@@ -56,8 +61,10 @@ class DeduplicatedDirectory(object):
         # note: to change this to content ONLY, remove the self._filename_exists condition and keep content_exists ONLY.
         if self._filename_exists(fname) and self.content_exists(content):
             raise ValueError(f"File name: {fname} and its content are duplicated.")
-        with open(self._dir_path.joinpath(fname), 'wb') as fh: fh.write(content)
+        new_file_path = self._dir_path.joinpath(fname)
+        with open(new_file_path, 'wb') as fh: fh.write(content)
         self._build_index()
+        return new_file_path
 
     def add_zip(self, path: pathlib.Path, verbose=False):
         if not zipfile.is_zipfile(path):
@@ -81,13 +88,12 @@ class DeduplicatedDirectory(object):
     def _add_directory_from(self, path: pathlib.Path, start_at: pathlib.Path, verbose=False):
         if not start_at.is_dir():
             raise ValueError(f"{start_at} must be a directory.")
-        added = 0
+        added = []
         for file in path.glob('./*'):
             if file.is_file():
                 try:
-                    self._add_from(file, start_at)
+                    added.append(self._add_from(file, start_at))
                     if verbose: logger.info(f"{file.name} successfully added.")
-                    added += 1
                 except ValueError:
                     if verbose: logger.warning(f"{file.name} already exist. Skipped.")
             elif file.is_dir():
