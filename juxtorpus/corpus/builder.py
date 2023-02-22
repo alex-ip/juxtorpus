@@ -69,6 +69,23 @@ class DateTimeMetaConfig(MetaConfig):
 
 
 class CorpusBuilder(object):
+    """ CorpusBuilder
+
+    The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
+    the corpus object with the aim of making it easier to construct a well-formed Corpus.
+
+    This class follows the Builder pattern.
+    Most exposed functions are to set up the correct state and then `build()` the corpus based on those states.
+
+    ```Example Usage:
+    builder = CorpusBuilder(paths)
+    builder.add_metas(['your_meta_0', 'your_meta_1'], dtypes='category')
+    builder.add_metas('year_month_day', dtypes='datetime')  # this will keep meta id as 'year_month_day'
+    builder.set_text_column('text')
+    corpus = builder.build()
+    ```
+    """
+
     def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
         if isinstance(paths, str):
             paths = pathlib.Path(paths)
@@ -80,11 +97,12 @@ class CorpusBuilder(object):
         self._sep = ','
         self._col_text = None
         self._columns = pd.read_csv(self._paths[0], nrows=0).columns
+        # todo: check if column matches for multiple paths
 
         self._preprocessors = list()
 
-    def head(self, n: int):
-        return pd.read_csv(self._paths[0], nrows=n).head(n)
+    def head(self, n: int = 3):
+        return pd.read_csv(self._paths[0], nrows=n)
 
     def show_columns(self):
         all = pd.Series(self._columns, name='All Columns')
@@ -96,9 +114,10 @@ class CorpusBuilder(object):
             else:
                 to_add.append(mc.column)
         df['Add'] = df.index.isin(to_add)
+        df.sort_index(axis=0, inplace=True)
         return df.sort_values(by='Add', ascending=False)
 
-    def add_metas(self, columns: Union[list[str], str],
+    def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
                   lazy=True):
         """ Add a column to add as metadata OR a list of columns to add.
@@ -183,7 +202,7 @@ class CorpusBuilder(object):
             raise ValueError("nrows must be a positive integer. Set as None to remove.")
         self._nrows = nrows
 
-    def set_preprocessors(self, preprocess_callables: list[Callable]):
+    def set_text_preprocessors(self, preprocess_callables: list[Callable]):
         """ Set a list of preprocessors for your text data.
 
         This is typically designed for basic preprocessing.
@@ -214,10 +233,11 @@ class CorpusBuilder(object):
         for lazy in lazies:
             if type(lazy) == DateTimeMetaConfig:
                 lazy: DateTimeMetaConfig
-                read_func = partial(pd.read_csv, usecols=lazy.columns,
+                read_func = partial(pd.read_csv, usecols=[lazy.column],
                                     parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
             else:
-                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype={lazy.column: lazy.dtype}, sep=self._sep)
+                dtype = {lazy.column: lazy.dtype} if lazy.dtype is not None else None
+                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype=dtype, sep=self._sep)
             metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func))
 
         return metas
@@ -237,15 +257,15 @@ class CorpusBuilder(object):
         for path in self._paths:
             if self._nrows is None:
                 df = pd.read_csv(path, nrows=self._nrows, usecols=all_cols, sep=self._sep,
-                                 parse_dates=parse_dates, dtype=series_and_dtypes)
+                                 parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
             else:
                 if current >= self._nrows:
                     break
                 df = pd.read_csv(path, nrows=self._nrows - current, usecols=all_cols, sep=self._sep,
-                                 parse_dates=parse_dates, dtype=series_and_dtypes)
+                                 parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
                 current += len(df)
             dfs.append(df)
-        df = pd.concat(dfs, axis=0)
+        df = pd.concat(dfs, axis=0, ignore_index=True)
 
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
@@ -280,6 +300,6 @@ if __name__ == '__main__':
 
     print(builder.show_columns())
     corpus = builder.build()
-    print(corpus.metas())
+    print(corpus.meta)
     # print(corpus.get_meta('tweet_lga').preview(5))
     # print(corpus.get_meta('created_at').head(5))

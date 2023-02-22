@@ -29,14 +29,14 @@ class TestBuilder(unittest.TestCase):
         builder.add_metas(['year', 'month', 'day'], dtypes='datetime')
         builder.set_text_column('processed_text')
         corpus = builder.build()
-        assert corpus.metas().get('datetime', None) is not None
+        assert corpus.meta.get('datetime', None) is not None
 
     def test_add_datetime(self):
         builder = self.builder
         builder.add_metas('year_month_day', dtypes='datetime')
         builder.set_text_column('processed_text')
         corpus = builder.build()
-        year_month_day = corpus.metas().get('year_month_day', None)
+        year_month_day = corpus.meta.get('year_month_day', None)
         assert year_month_day is not None
 
     def test_add_and_remove_meta(self):
@@ -45,13 +45,13 @@ class TestBuilder(unittest.TestCase):
         builder.remove_metas('geometry')
         builder.set_text_column('processed_text')
         corpus = builder.build()
-        assert 'geometry' not in corpus.metas().keys()
+        assert 'geometry' not in corpus.meta.keys()
 
     def test_preprocessors(self):
         builder = self.builder
         builder.set_text_column('processed_text')
         pattern = re.compile("[ ]?<TWEET[/]>[ ]?")
-        builder.set_preprocessors([lambda text: pattern.sub(text, '')])
+        builder.set_text_preprocessors([lambda text: pattern.sub(text, '')])
         corpus = builder.build()
         assert '<TWEET>' not in corpus.texts().iloc[0]
 

@@ -2,9 +2,10 @@ import tempfile
 
 from ipywidgets import FileUpload, Output, VBox, widgets
 from IPython.display import display
-from typing import Union
 import pathlib
-import os
+import logging.config
+
+logger = logging.getLogger(__name__)
 
 from juxtorpus.viz import Viz
 from juxtorpus.utils import DeduplicatedDirectory
@@ -48,30 +49,41 @@ class FileUploadWidget(Viz):
 
     def _on_upload(self, change):
         with self._output:
-            new_files = change.get('new').keys()
-            for fname in new_files:
-                content = change.get('new').get(fname).get('content')
+            new_files = self._get_files_data(change)
+            for fdata in new_files:
+                content = fdata.get('content')
+                fname = fdata.get('name')
                 if fname.endswith('.zip'):
                     self._add_zip(content, fname)
                 else:
                     self._add_file(content, fname)
 
+    def _get_files_data(self, change):
+        new = change.get('new')
+        if isinstance(new, dict):  # support v7.x
+            fdata_list = list()
+            for fname, fdata in new.items():
+                fdata['name'] = fname
+                fdata_list.append(fdata)
+            return fdata_list
+        return new  # support v8.x
+
     def _add_zip(self, content, fname):
         try:
-            print(f"++ Extracting {fname} to disk. Please wait...")
+            logger.info(f"Extracting {fname} to disk. Please wait...")
             tmp_zip_dir = pathlib.Path(tempfile.mkdtemp())
             tmp_zip_file = tmp_zip_dir.joinpath(fname)
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
-            self._dir.add_zip(tmp_zip_file, verbose=True)
-            print("++ Finished.")
+            num_added = self._dir.add_zip(tmp_zip_file, verbose=True)
+            logger.info(f"Done. Extracted {num_added} files.")
         except Exception as e:
-            print(f"Failed. Reason: {e}")
+            logger.info(f"Failed. Reason: {e}")
 
     def _add_file(self, content, fname):
         try:
-            print(f"++ Writing {fname} to disk...", end='')
+            logger.info(f"Writing {fname} to disk...")
             self._dir.add_content(content, fname)
-            print("Success.")
+            logger.info("Success.")
         except Exception as e:
             print(f"Failed. Reason: {e}")

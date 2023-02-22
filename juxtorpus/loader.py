@@ -31,7 +31,7 @@ class LazySeries(LazyLoader):
         return self._paths
 
     def load(self):
-        return pd.concat(self._yield_series(), axis=0)
+        return pd.concat(self._yield_series(), axis=0, ignore_index=True)
 
     def _yield_series(self) -> pd.Series:
         # load all

@@ -79,6 +79,11 @@ def create_sentiment(nlp: Language, name: str):
 
 
 class SpacyProcessor(Processor):
+    """ SpacyProcessor
+    This class processes a Corpus object into a SpacyCorpus.
+    It takes in spacy's `Language` model and uses it to process the texts in the Corpus and then set up the
+    same metadata in the new SpacyCorpus.
+    """
     built_in_component_attrs = {
         'ner': 'ents'
     }
@@ -94,12 +99,12 @@ class SpacyProcessor(Processor):
         start = datetime.now()
         logger.info(f"Processing corpus of {len(corpus)} documents...")
         texts = corpus.texts()
-        doc_generator = (doc for doc in tqdm(self.nlp.pipe(texts)))
-        # doc_generator = self.nlp.pipe(texts)
+        # doc_generator = (doc for doc in tqdm(self.nlp.pipe(texts)))
+        doc_generator = self.nlp.pipe(texts)
         docs = pd.Series(doc_generator, index=texts.index)
         logger.info("Done.")
         logger.debug(f"Elapsed time: {datetime.now() - start}s.")
-        return SpacyCorpus.from_corpus(corpus, docs, self.nlp.vocab)
+        return SpacyCorpus.from_corpus(corpus, docs, self.nlp)
 
     def _add_metas(self, corpus: Corpus):
         """ Add the relevant meta-objects into the Corpus class.
@@ -111,7 +116,7 @@ class SpacyProcessor(Processor):
             if _attr is None: continue
             generator = corpus._df.loc[:, corpus.COL_TEXT]
             meta = DocMeta(id_=name, attr=_attr, nlp=self.nlp, docs=generator)
-            corpus.add_meta(meta)
+            corpus._meta_registry[meta.id] = meta
 
     def _create_episode(self) -> ProcessEpisode:
         return ProcessEpisode(

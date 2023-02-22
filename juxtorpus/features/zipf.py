@@ -49,7 +49,7 @@ class Zipf(Viz):
         ax.set_xlabel("Rank")
         ax.set_ylabel("Proportion of max frequency")
         ax2 = ax.twiny()  # create another x-axis sharing y-axis - hence twin-'y'
-        ax2.set_xticks(ticks=ranks, labels=[w for w in df['word'].iloc[:top].reset_index(drop=True)])
+        ax2.set_xticks(ticks=ranks, labels=df.iloc[:top].index)
         ax2.set_xlabel("Word")
         plt.xticks(fontsize=14, rotation=45)
         ax.legend()
@@ -61,22 +61,22 @@ class Zipf(Viz):
         _old_df = self._df.copy()
         _old_top = self._top
         try:
-            self._df = self._df[~self._df[self._COL_WORD].isin(word_list)]
+            self._df = self._df[~self._df.index.isin(word_list)]
             yield self
         finally:
             self._df = _old_df
             self._top = _old_top
 
     def _build_dataframe(self, corpus, col_count, col_word, col_proportions, col_zipf):
-        df = pd.DataFrame.from_dict(corpus.word_counter(), orient='index', columns=[col_count]) \
-            .sort_values(self._COL_COUNTS, ascending=False).reset_index()
-        df = df.rename(columns={'index': col_word})
+        df = corpus.dtm.freq_table(nonzero=True).series.sort_values(ascending=False)
+        df.name = 'freq'
+        df = df.to_frame()
         df = self._derive_proportions(df, col_proportions, col_zipf)
         return df
 
     def _derive_proportions(self, df, col_proportions, col_zipf):
-        max_freq = df[self._COL_COUNTS].max()
-        df[col_proportions] = df.loc[:, self._COL_COUNTS].apply(lambda c: c / max_freq)
+        max_freq = df['freq'].max()
+        df[col_proportions] = df.loc[:, 'freq'].apply(lambda c: c / max_freq)
         df[col_zipf] = [1 / i for i in range(1, len(df) + 1)]
         return df
 
@@ -85,8 +85,8 @@ if __name__ == '__main__':
     from pathlib import Path
     from juxtorpus.corpus import CorpusBuilder
 
-    builder = CorpusBuilder(Path('./test/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
-    builder.set_text_column('text')
+    builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
+    builder.set_text_column('processed_text')
     builder.set_nrows(100)
     corpus = builder.build()
 
