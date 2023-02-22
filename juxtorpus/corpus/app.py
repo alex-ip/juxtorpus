@@ -420,7 +420,7 @@ class App(object):
         return meta_value_selector
 
     def _create_category_ops_selector(self, meta: SeriesMeta, config):
-        options = sorted(meta.series().unique().tolist())
+        options = sorted((str(item) for item in meta.series().unique().tolist()))
         widget = SelectMultiple(
             options=options,
             layout=_create_layout(**{'width': '98%'})
