@@ -75,7 +75,7 @@ class DateTimeMetaConfig(MetaConfig):
             return [self.column]
 
 
-class CorpusBuilder(Widget):
+class CorpusBuilder(object):
     """ CorpusBuilder
 
     The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
@@ -335,10 +335,6 @@ class CorpusBuilder(Widget):
                 raise KeyError(f"{col} already exists. Please use a different column name.")
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
-
-    def widget(self):
-        """ Display the CorpusBuilder widget. """
-        WIDGET_DTYPES_LIST = list(self.allowed_dtypes) + ['auto']
 
 
 if __name__ == '__main__':
