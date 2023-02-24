@@ -74,6 +74,14 @@ class ItemTimeline(Viz):
         self.top = None
         self.set_top(3)
 
+        self.seed(42)
+        self._rint = random.randint
+
+    @staticmethod
+    def seed(seed: int):
+        """ Set the seed across all item timeline objects. """
+        random.seed(seed)
+
     def set_mode(self, mode: Optional[str]):
         if mode is None:
             self.mode = None
@@ -114,7 +122,7 @@ class ItemTimeline(Viz):
         return f'rgba({r},{g},{b},{opacity})'
 
     def _get_rgb(self, item: str) -> T_PLOTLY_RGB_COLOUR:
-        rint = random.randint
+        rint = self._rint
         h = hash(item)
         return (h * rint(0, 10)) % 256, (h * rint(0, 10)) % 256, (h * rint(0, 10)) % 256
 
