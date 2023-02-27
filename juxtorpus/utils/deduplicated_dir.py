@@ -30,9 +30,14 @@ class DeduplicatedDirectory(object):
     def path(self) -> pathlib.Path:
         return self._dir_path
 
-    def files(self) -> list[pathlib.Path]:
+    def files(self, hidden: bool = False) -> list[pathlib.Path]:
         """ Lists all the absolute paths of the files in the directory """
-        return list((f for f in pathlib.Path(self._dir_path).glob('**/*') if f.is_file()))
+        f: pathlib.Path
+        if hidden:
+            cond = lambda f: f.is_file()
+        else:
+            cond = lambda f: f.is_file() and f.stem[0] != '.'
+        return list(f for f in pathlib.Path(self._dir_path).glob('**/*') if cond(f))
 
     def list(self) -> list[str]:
         """ Lists all the name of the files in the directory. """

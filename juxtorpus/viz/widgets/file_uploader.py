@@ -43,8 +43,8 @@ class FileUploadWidget(Widget):
 
         self._callback = None
 
-    def uploaded(self):
-        return self._dir.files()
+    def uploaded(self, hidden: bool = False):
+        return self._dir.files(hidden)
 
     def widget(self):
         return display(VBox([self._uploader, self._output]))
@@ -83,7 +83,8 @@ class FileUploadWidget(Widget):
             with open(tmp_zip_file, 'wb') as fh:
                 fh.write(content)
             added = self._dir.add_zip(tmp_zip_file, verbose=True)
-            logger.info(f"Done. Extracted {len(added)} files.")
+            hidden = [f for f in added if f.stem[0] == '.']
+            logger.info(f"Done. Extracted {len(added)} files. {len(hidden)} are hidden.")
             return added
         except Exception as e:
             logger.info(f"Failed. Reason: {e}")
