@@ -124,7 +124,7 @@ class CorpusBuilder(object):
         if df_cols.isnull().values.any():
             display(df_cols.fillna(''))
             if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return None
-        return set(df_cols.index.to_list())
+        return df_cols.index.to_list()
 
     @property
     def paths(self):
