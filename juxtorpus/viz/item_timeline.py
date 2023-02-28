@@ -77,14 +77,18 @@ class ItemTimeline(Viz):
             self.MODE_CUMULATIVE: partial(pd.DataFrame.sum, axis=0)
         }
         self.DEFAULT_MODE = self.MODE_PEAK
-        self.mode = None
+        self.mode = self.DEFAULT_MODE
         self._metric_series = None
         self.items = None
-        self.set_mode(self.DEFAULT_MODE)
 
-        self.DEFAULT_TOP = 3
-        self.top = None
-        self.set_top(3)
+        # top items
+        self.DEFAULT_TOP = 10
+        self.top = self.DEFAULT_TOP
+
+        self._update_metrics(self.mode, self.top)
+
+        # opacity
+        self.FULL_OPACITY_TOP = 3  # top number of items with full opacity
 
         self.seed(42)
         self._rint = random.randint
@@ -95,6 +99,8 @@ class ItemTimeline(Viz):
         random.seed(seed)
 
     def set_mode(self, mode: Optional[str]):
+        """ Sets the mode of the timeline as 'Peak' or 'Cumulative'. """
+        # updates the items to display.
         if mode is None:
             self.mode = None
             self.items = self._df.columns.to_list()
@@ -102,13 +108,22 @@ class ItemTimeline(Viz):
             mode = mode.upper()
             if mode not in self.modes.keys(): raise ValueError(f"{mode} not in {', '.join(self.modes.keys())}")
             self.mode = mode
-            self._metric_series: pd.Series = self.modes.get(self.mode)(self._df)
+            self._update_metrics(self.mode, self.top)
             # critical functions for top
             self._metric_series.sort_values(ascending=False, inplace=True)
             self.items = self._metric_series.index.to_list()
 
     def set_top(self, top: int):
+        if top < 1: raise ValueError(f"Must be > 1.")
         self.top = top
+        self._update_metrics(self.mode, self.top)
+
+    def _update_metrics(self, mode: str, top: int):
+        metric_series = self.modes.get(mode)(self._df)
+        metric_series.sort_values(ascending=False, inplace=True)
+        metric_series = metric_series.iloc[:top]
+        self._metric_series = metric_series
+        self.items = self._metric_series.index.to_list()
 
     def render(self):
         fig = self._build()
@@ -144,9 +159,9 @@ class ItemTimeline(Viz):
         else:
             # top
             idx = self._metric_series.index.get_loc(item)
-            if idx < self.top: return 1.0
+            if idx < self.FULL_OPACITY_TOP: return 1.0
 
             # gradient
             metric = self._metric_series.loc[item]
-            if metric > self._metric_series.quantile(0.9): return 0.2
-            return 0.01
+            if metric > self._metric_series.quantile(0.5): return 0.4
+            return 0.1
