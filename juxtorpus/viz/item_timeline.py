@@ -178,10 +178,10 @@ class ItemTimeline(Viz):
 
     def _add_top_items_slider_layer(self, fig):
         steps = []
-        for i in range(len(fig.data)):
+        for i in reversed(range(len(fig.data))):
             step = dict(
                 method='update',
-                args=[{'visible': [True if j <= i else False for j in range(len(fig.data))]},
+                args=[{'visible': [True if j <= i else 'legendonly' for j in range(len(fig.data))]},
                       {'title': self._get_title(i + 1)}],
                 label=f'{i+1}',
             )
@@ -249,3 +249,6 @@ class ItemTimeline(Viz):
             metric = self._metric_series.loc[item]
             if metric > self._metric_series.quantile(0.5): return 0.4
             return 0.1
+
+    def _get_title(self, i):
+        return f'Top {i} {self.mode.capitalize()} items'
