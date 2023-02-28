@@ -143,6 +143,58 @@ class ItemTimeline(Viz):
             )
 
         self._add_toggle_all_selection_layer(fig)
+        self._add_top_items_slider_layer(fig)
+        return fig
+
+    @staticmethod
+    def _add_toggle_all_selection_layer(fig):
+        """ Adds a layer to select/deselect all the traces of the timeline. """
+        fig.update_layout(dict(updatemenus=[
+            dict(
+                type="buttons",
+                direction="left",
+                buttons=list([
+                    dict(
+                        args=["visible", True],
+                        label="Select All",
+                        method="restyle",
+                    ),
+                    dict(
+                        args=[{"visible": ['legendonly'] * len(fig.data)}],
+                        label="Deselect All",
+                        method="restyle",
+                    ),
+                ]),
+                pad={"r": 1, "t": 1},
+                showactive=False,
+                x=1,
+                xanchor="right",
+                y=1.1,
+                yanchor="top",
+                font=dict(size=12)
+            ),
+        ]
+        ))
+
+    def _add_top_items_slider_layer(self, fig):
+        steps = []
+        for i in range(len(fig.data)):
+            step = dict(
+                method='update',
+                args=[{'visible': [True if j <= i else False for j in range(len(fig.data))]},
+                      {'title': self._get_title(i + 1)}],
+                label=f'{i+1}',
+            )
+            steps.append(step)
+
+        sliders = [dict(
+            active=self.top,
+            currentvalue={'prefix': 'Top: '},
+            pad={'t': 25},
+            steps=steps
+        )]
+        # pad = {'t': 20}
+        fig.update_layout(sliders=sliders)
         return fig
 
     @staticmethod
