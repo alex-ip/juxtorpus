@@ -43,7 +43,7 @@ TPLOTLY_RGB_COLOUR = str
 
 
 class ItemTimeline(Viz):
-    TIMELINE_TRACE = namedtuple('TIMELINE_TRACE', ['item', 'datetimes', 'metrics', 'colour'])
+    TRACE_DATUM = namedtuple('TRACE_DATUM', ['item', 'datetimes', 'metrics', 'colour'])
 
     @classmethod
     def from_freqtables(cls, datetimes: Union[pd.Series, list], freqtables: list[FreqTable]):
@@ -132,13 +132,13 @@ class ItemTimeline(Viz):
     def _build(self):
         fig = go.Figure()
         for i, item in enumerate(self.items):
-            trace = ItemTimeline.TIMELINE_TRACE(item=item, datetimes=self.datetimes, metrics=self._df.loc[:, item],
-                                                colour=self._get_colour(item))
+            tdatum = ItemTimeline.TRACE_DATUM(item=item, datetimes=self.datetimes, metrics=self._df.loc[:, item],
+                                              colour=self._get_colour(item))
             fig.add_trace(
                 go.Scatter(
-                    x=trace.datetimes, y=trace.metrics,
-                    mode='lines+markers', marker_color=trace.colour,
-                    name=trace.item
+                    x=tdatum.datetimes, y=tdatum.metrics,
+                    mode='lines+markers+text', marker_color=tdatum.colour,
+                    name=tdatum.item,
                 )
             )
         return fig
