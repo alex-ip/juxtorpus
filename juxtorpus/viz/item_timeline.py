@@ -38,8 +38,8 @@ import random
 from juxtorpus.viz import Viz
 from juxtorpus.corpus.freqtable import FreqTable
 
-T_NUMERIC = Union[int, float]
-T_PLOTLY_RGB_COLOUR = str
+TNUMERIC = Union[int, float]
+TPLOTLY_RGB_COLOUR = str
 
 
 class ItemTimeline(Viz):
@@ -121,7 +121,7 @@ class ItemTimeline(Viz):
         opacity = self._get_opacity(item)
         return f'rgba({r},{g},{b},{opacity})'
 
-    def _get_rgb(self, item: str) -> T_PLOTLY_RGB_COLOUR:
+    def _get_rgb(self, item: str) -> TPLOTLY_RGB_COLOUR:
         rint = self._rint
         h = hash(item)
         return (h * rint(0, 10)) % 256, (h * rint(0, 10)) % 256, (h * rint(0, 10)) % 256
