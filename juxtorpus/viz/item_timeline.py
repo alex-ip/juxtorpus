@@ -141,6 +141,38 @@ class ItemTimeline(Viz):
                     name=tdatum.item,
                 )
             )
+
+        self._add_toggle_all_selection_layer(fig)
+        return fig
+
+    @staticmethod
+    def _add_toggle_all_selection_layer(fig):
+        """ Adds a layer to select/deselect all the traces of the timeline. """
+        fig.update_layout(dict(updatemenus=[
+            dict(
+                type="buttons",
+                direction="left",
+                buttons=list([
+                    dict(
+                        args=[{"visible": ['legendonly'] * len(fig.data)}],
+                        label="Deselect All",
+                        method="restyle"
+                    ),
+                    dict(
+                        args=["visible", True],
+                        label="Select All",
+                        method="restyle"
+                    )
+                ]),
+                pad={"r": 10, "t": 10},
+                showactive=False,
+                x=1,
+                xanchor="right",
+                y=1.1,
+                yanchor="top"
+            ),
+        ]
+        ))
         return fig
 
     def _get_colour(self, item):
