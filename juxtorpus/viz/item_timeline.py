@@ -82,7 +82,7 @@ class ItemTimeline(Viz):
         self.items = None
 
         # top items
-        self.DEFAULT_TOP = 10
+        self.DEFAULT_TOP = 30
         self.top = self.DEFAULT_TOP
 
         self._update_metrics(self.mode, self.top)
