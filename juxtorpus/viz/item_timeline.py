@@ -46,11 +46,23 @@ class ItemTimeline(Viz):
     TIMELINE_TRACE = namedtuple('TIMELINE_TRACE', ['item', 'datetimes', 'metrics', 'colour'])
 
     @classmethod
-    def from_freqtables(cls, datetimes: pd.Series, freqtables: list[FreqTable]):
+    def from_freqtables(cls, datetimes: Union[pd.Series, list], freqtables: list[FreqTable]):
+        """ Constructs ItemTimeline using the specified freqtables"""
+        if len(datetimes) != len(freqtables):
+            raise ValueError(f"Mismatched length of datetimes and freqtables. {len(datetimes)} and {len(freqtables)}.")
         fts_df = pd.concat([ft.series for ft in freqtables], axis=1).fillna(0).T
-        datetimes = pd.Series(datetimes)
+        datetimes = pd.to_datetime(pd.Series(datetimes))
+        fts_df.reset_index(drop=True)
         fts_df.set_index(datetimes, inplace=True)
         return cls(df=fts_df)
+
+    @classmethod
+    def from_corpus_groups(cls, groups):
+        """ Constructss ItemTimeline from corpus groups. Note: Default DTM is used as the items. """
+        groups = list(groups)
+        fts = [c.dtm.freq_table() for _, c in groups]
+        datetimes = [dt for dt, _ in groups]
+        return cls.from_freqtables(datetimes, fts)
 
     def __init__(self, df: pd.DataFrame):
         """ Initialise with a dataframe with a datetime index, item columns and values as metrics. """
