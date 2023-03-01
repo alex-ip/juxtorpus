@@ -114,7 +114,7 @@ class CorpusBuilder(object):
         self._preprocessors = list()
 
     @staticmethod
-    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[set[str]]:
+    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[list[str]]:
         columns = list()
         for path in paths:
             name = path.stem
@@ -124,7 +124,7 @@ class CorpusBuilder(object):
         if df_cols.isnull().values.any():
             display(df_cols.fillna(''))
             if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return None
-        return df_cols.index.to_list()
+        return sorted(df_cols.index.to_list())
 
     @property
     def paths(self):
