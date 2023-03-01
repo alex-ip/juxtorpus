@@ -45,7 +45,7 @@ TPLOTLY_RGB_COLOUR = str
 
 
 class ItemTimeline(Viz):
-    TRACE_DATUM = namedtuple('TRACE_DATUM', ['item', 'datetimes', 'metrics', 'colour'])
+    TRACE_DATUM = namedtuple('TRACE_DATUM', ['item', 'datetimes', 'metrics', 'colour', 'texts'])
 
     @classmethod
     def from_freqtables(cls, datetimes: Union[pd.Series, list], freqtables: list[FreqTable]):
@@ -140,6 +140,7 @@ class ItemTimeline(Viz):
                 go.Scatter(
                     x=tdatum.datetimes, y=tdatum.metrics,
                     mode='lines+markers+text', marker_color=tdatum.colour,
+                    text=tdatum.texts, textposition='bottom center',
                     name=tdatum.item,
                 )
             )
@@ -153,7 +154,7 @@ class ItemTimeline(Viz):
         trace_data = []
         for i, item in enumerate(self.items):
             tdatum = ItemTimeline.TRACE_DATUM(item=item, datetimes=self.datetimes, metrics=self._df.loc[:, item],
-                                              colour=self._get_colour(item))
+                                              colour=self._get_colour(item), texts=self._get_texts(item))
             trace_data.append(tdatum)
         return trace_data
 
@@ -164,13 +165,14 @@ class ItemTimeline(Viz):
                 tdatum = trace_data[i]
                 trace.name = f'{tdatum.item}'
                 trace.y = tdatum.metrics
+                trace.text = tdatum.texts
 
     def _create_dropdown_widget(self, fig):
         dropdown = widgets.Dropdown(
             options=[mode.capitalize() for mode in sorted(list(self.modes.keys()))],
             value=self.mode.capitalize(),
             description='Mode: ',
-            disabled=False
+            disabled=False,
         )
 
         def observe_dropdown(event):
@@ -215,8 +217,8 @@ class ItemTimeline(Viz):
         for i in reversed(range(len(fig.data))):
             step = dict(
                 method='update',
-                args=[{'visible': [True if j <= i else 'legendonly' for j in range(len(fig.data))]},
-                      {'title': self._get_title(i + 1)}],
+                args=[{'visible': [True if j <= i else 'legendonly' for j in range(len(fig.data))]},],
+                      # {'title': self._get_title(i + 1)}],
                 label=f'{i + 1}',
             )
             steps.append(step)
@@ -231,42 +233,12 @@ class ItemTimeline(Viz):
         fig.update_layout(sliders=sliders)
         return fig
 
-    @staticmethod
-    def _add_toggle_all_selection_layer(fig):
-        """ Adds a layer to select/deselect all the traces of the timeline. """
-        fig.update_layout(dict(updatemenus=[
-            dict(
-                type="buttons",
-                direction="left",
-                buttons=list([
-                    dict(
-                        args=[{"visible": ['legendonly'] * len(fig.data)}],
-                        label="Deselect All",
-                        method="restyle"
-                    ),
-                    dict(
-                        args=["visible", True],
-                        label="Select All",
-                        method="restyle"
-                    )
-                ]),
-                pad={"r": 10, "t": 10},
-                showactive=False,
-                x=1,
-                xanchor="right",
-                y=1.1,
-                yanchor="top"
-            ),
-        ]
-        ))
-        return fig
-
-    def _get_colour(self, item):
+    def _get_colour(self, item) -> TPLOTLY_RGB_COLOUR:
         r, g, b = self._get_rgb(item)
         opacity = self._get_opacity(item)
         return f'rgba({r},{g},{b},{opacity})'
 
-    def _get_rgb(self, item: str) -> TPLOTLY_RGB_COLOUR:
+    def _get_rgb(self, item: str):
         rint = self._rint
         h = hash(item)
         return (h * rint(0, 10)) % 256, (h * rint(0, 10)) % 256, (h * rint(0, 10)) % 256
@@ -286,3 +258,13 @@ class ItemTimeline(Viz):
 
     def _get_title(self, i):
         return f'Top {i} {self.mode.capitalize()} items'
+
+    def _get_texts(self, item: str):
+        number = self._metric_series.loc[item]
+        if self.mode == self.MODE_PEAK:
+            idx = self._df.loc[:, item].argmax()
+        elif self.mode == self.MODE_CUMULATIVE:
+            idx = len(self.datetimes) - 1
+        else:
+            raise RuntimeError(f"Unsupported Mode. {self.mode} not in {self.modes.keys()}. This should not happen.")
+        return ['' if i != idx else str(number) for i in range(len(self.datetimes))]
