@@ -166,15 +166,19 @@ class ItemTimeline(Viz):
                 trace.y = tdatum.metrics
 
     def _create_dropdown_widget(self, fig):
-        button = widgets.Button(description='click me')
+        dropdown = widgets.Dropdown(
+            options=[mode.capitalize() for mode in sorted(list(self.modes.keys()))],
+            value=self.mode.capitalize(),
+            description='Mode: ',
+            disabled=False
+        )
 
-        def on_click(event):
-            mode = self.MODE_PEAK if self.mode == self.MODE_CUMULATIVE else self.MODE_CUMULATIVE
-            self.set_mode(mode)
+        def observe_dropdown(event):
+            self.set_mode(dropdown.value.upper())
             self._update_traces(fig)
 
-        button.on_click(on_click)
-        return button
+        dropdown.observe(observe_dropdown)
+        return dropdown
 
     @staticmethod
     def _add_toggle_all_selection_layer(fig):
