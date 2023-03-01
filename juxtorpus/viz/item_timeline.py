@@ -86,10 +86,12 @@ class ItemTimeline(Viz):
         self.items = None
 
         # top items
-        self.DEFAULT_TOP = 30
-        self.top = self.DEFAULT_TOP
+        self.DEFAULT_NUM_TRACES = 30
+        self.num_traces = self.DEFAULT_NUM_TRACES
 
-        self._update_metrics(self.mode, self.top)
+        self.MAX_NUM_TRACES = 100
+
+        self._update_metrics(self.mode, self.num_traces)
 
         # opacity
         self.FULL_OPACITY_TOP = 3  # top number of items with full opacity
@@ -112,15 +114,15 @@ class ItemTimeline(Viz):
             mode = mode.upper()
             if mode not in self.modes.keys(): raise ValueError(f"{mode} not in {', '.join(self.modes.keys())}")
             self.mode = mode
-            self._update_metrics(self.mode, self.top)
+            self._update_metrics(self.mode, self.num_traces)
             # critical functions for top
             # self._metric_series.sort_values(ascending=False, inplace=True)
             # self.items = self._metric_series.index.to_list()
 
     def set_top(self, top: int):
         if top < 1: raise ValueError(f"Must be > 1.")
-        self.top = top
-        self._update_metrics(self.mode, self.top)
+        self.num_traces = top
+        self._update_metrics(self.mode, self.num_traces)
 
     def _update_metrics(self, mode: str, top: int):
         metric_series = self.modes.get(mode)(self._df)
@@ -131,15 +133,18 @@ class ItemTimeline(Viz):
 
     def render(self):
         fig = self._build()
-        button = self._create_dropdown_widget(fig)
-        search = self._create_search_bar(fig)
-        display(widgets.HBox([button, widgets.Box(layout=widgets.Layout(width='40%')), search],
+        mode_dropdown = self._create_dropdown_widget(fig)
+        item_search = self._create_search_bar(fig)
+        trace_slider = self._create_num_traces_slider(fig)
+        trace_slider.layout.width = '45%'
+        pad_box = widgets.Box(layout=widgets.Layout(width='5%'))
+        display(widgets.HBox([trace_slider, pad_box, mode_dropdown, item_search],
                              layout=widgets.Layout(width='100%', height='40px')))
         return fig
 
     def _build(self):
         fig = go.FigureWidget()
-        fig.layout.showlegend = True        # even for single traces
+        fig.layout.showlegend = True  # even for single traces
         for tdatum in self._generate_trace_data():
             fig.add_trace(
                 go.Scatter(
@@ -151,7 +156,7 @@ class ItemTimeline(Viz):
             )
 
         self._add_toggle_all_selection_layer(fig)
-        self._add_top_items_slider_layer(fig)
+        # self._add_top_items_slider_layer(fig)
         return fig
 
     def _generate_trace_data(self):
@@ -165,6 +170,18 @@ class ItemTimeline(Viz):
 
     def _update_traces(self, fig):
         trace_data = self._generate_trace_data()
+
+        if len(trace_data) > len(fig.data):
+            start_idx = len(fig.data)
+            for tdatum in trace_data[start_idx:]:
+                fig.add_trace(
+                    go.Scatter(
+                        x=tdatum.datetimes, y=tdatum.metrics,
+                        mode='lines+markers+text', marker_color=tdatum.colour,
+                        text=tdatum.texts, textposition='bottom center',
+                        name=tdatum.item,
+                    )
+                )
         with fig.batch_update():
             for i, trace in enumerate(fig.data):
                 tdatum = trace_data[i]
@@ -186,6 +203,38 @@ class ItemTimeline(Viz):
 
         dropdown.observe(observe_dropdown)
         return dropdown
+
+    def _create_search_bar(self, fig):
+        """ Create the search bar to filter for items. """
+        search_bar = widgets.Text(description='Search: ')
+
+        @debounce(0.1)
+        def observe_search(event):
+            query = event.get('new')
+            # pattern = re.compile(query, re.IGNORECASE)
+            with fig.batch_update():
+                for trace in fig.data:
+                    if query.upper() in trace.name.upper():
+                        trace.visible = True
+                    else:
+                        trace.visible = False
+
+        search_bar.observe(observe_search, names='value')
+        return search_bar
+
+    def _create_num_traces_slider(self, fig):
+        """ Create a slider to control the number of traces on the plot. """
+        slider = widgets.IntSlider(value=self.DEFAULT_NUM_TRACES, min=self.DEFAULT_NUM_TRACES, max=self.MAX_NUM_TRACES,
+                                   description="More data: ")
+
+        @debounce(0.5)
+        def observe_slider(event):
+            num_traces = event.get('new')
+            self.set_top(num_traces)
+            self._update_traces(fig)
+
+        slider.observe(observe_slider, names='value')
+        return slider
 
     @staticmethod
     def _add_toggle_all_selection_layer(fig):
@@ -229,7 +278,7 @@ class ItemTimeline(Viz):
             steps.append(step)
 
         sliders = [dict(
-            active=self.top,
+            active=self.num_traces,
             currentvalue={'prefix': 'Top: '},
             pad={'t': 25},
             steps=steps
@@ -273,20 +322,3 @@ class ItemTimeline(Viz):
         else:
             raise RuntimeError(f"Unsupported Mode. {self.mode} not in {self.modes.keys()}. This should not happen.")
         return ['' if i != idx else str(number) for i in range(len(self.datetimes))]
-
-    def _create_search_bar(self, fig):
-        search_bar = widgets.Text(description='Search: ')
-
-        @debounce(0.1)
-        def observe_search(event):
-            query = event.get('new')
-            # pattern = re.compile(query, re.IGNORECASE)
-            with fig.batch_update():
-                for trace in fig.data:
-                    if query.upper() in trace.name.upper():
-                        trace.visible = True
-                    else:
-                        trace.visible = False
-
-        search_bar.observe(observe_search, names='value')
-        return search_bar
