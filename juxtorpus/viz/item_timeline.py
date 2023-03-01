@@ -34,6 +34,8 @@ from collections import namedtuple
 from functools import partial
 import colorsys
 import random
+import ipywidgets as widgets
+from IPython.display import display
 
 from juxtorpus.viz import Viz
 from juxtorpus.corpus.freqtable import FreqTable
@@ -110,8 +112,8 @@ class ItemTimeline(Viz):
             self.mode = mode
             self._update_metrics(self.mode, self.top)
             # critical functions for top
-            self._metric_series.sort_values(ascending=False, inplace=True)
-            self.items = self._metric_series.index.to_list()
+            # self._metric_series.sort_values(ascending=False, inplace=True)
+            # self.items = self._metric_series.index.to_list()
 
     def set_top(self, top: int):
         if top < 1: raise ValueError(f"Must be > 1.")
@@ -127,13 +129,13 @@ class ItemTimeline(Viz):
 
     def render(self):
         fig = self._build()
-        fig.show()
+        button = self._create_dropdown_widget(fig)
+        display(button)
+        return fig
 
     def _build(self):
-        fig = go.Figure()
-        for i, item in enumerate(self.items):
-            tdatum = ItemTimeline.TRACE_DATUM(item=item, datetimes=self.datetimes, metrics=self._df.loc[:, item],
-                                              colour=self._get_colour(item))
+        fig = go.FigureWidget()
+        for tdatum in self._generate_trace_data():
             fig.add_trace(
                 go.Scatter(
                     x=tdatum.datetimes, y=tdatum.metrics,
@@ -145,6 +147,34 @@ class ItemTimeline(Viz):
         self._add_toggle_all_selection_layer(fig)
         self._add_top_items_slider_layer(fig)
         return fig
+
+    def _generate_trace_data(self):
+        """ Generates the trace content data from the current state (mode, top)"""
+        trace_data = []
+        for i, item in enumerate(self.items):
+            tdatum = ItemTimeline.TRACE_DATUM(item=item, datetimes=self.datetimes, metrics=self._df.loc[:, item],
+                                              colour=self._get_colour(item))
+            trace_data.append(tdatum)
+        return trace_data
+
+    def _update_traces(self, fig):
+        trace_data = self._generate_trace_data()
+        with fig.batch_update():
+            for i, trace in enumerate(fig.data):
+                tdatum = trace_data[i]
+                trace.name = f'{tdatum.item}'
+                trace.y = tdatum.metrics
+
+    def _create_dropdown_widget(self, fig):
+        button = widgets.Button(description='click me')
+
+        def on_click(event):
+            mode = self.MODE_PEAK if self.mode == self.MODE_CUMULATIVE else self.MODE_CUMULATIVE
+            self.set_mode(mode)
+            self._update_traces(fig)
+
+        button.on_click(on_click)
+        return button
 
     @staticmethod
     def _add_toggle_all_selection_layer(fig):
@@ -183,7 +213,7 @@ class ItemTimeline(Viz):
                 method='update',
                 args=[{'visible': [True if j <= i else 'legendonly' for j in range(len(fig.data))]},
                       {'title': self._get_title(i + 1)}],
-                label=f'{i+1}',
+                label=f'{i + 1}',
             )
             steps.append(step)
 
