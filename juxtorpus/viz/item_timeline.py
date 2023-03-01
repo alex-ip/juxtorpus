@@ -32,6 +32,7 @@ from typing import Union, Optional
 import plotly.graph_objs as go
 from collections import namedtuple
 from functools import partial
+import re
 import colorsys
 import random
 import ipywidgets as widgets
@@ -39,6 +40,7 @@ from IPython.display import display
 
 from juxtorpus.viz import Viz
 from juxtorpus.corpus.freqtable import FreqTable
+from juxtorpus.utils.utils_ipywidgets import debounce
 
 TNUMERIC = Union[int, float]
 TPLOTLY_RGB_COLOUR = str
@@ -130,11 +132,14 @@ class ItemTimeline(Viz):
     def render(self):
         fig = self._build()
         button = self._create_dropdown_widget(fig)
-        display(button)
+        search = self._create_search_bar(fig)
+        display(widgets.HBox([button, widgets.Box(layout=widgets.Layout(width='40%')), search],
+                             layout=widgets.Layout(width='100%', height='40px')))
         return fig
 
     def _build(self):
         fig = go.FigureWidget()
+        fig.layout.showlegend = True        # even for single traces
         for tdatum in self._generate_trace_data():
             fig.add_trace(
                 go.Scatter(
@@ -217,8 +222,8 @@ class ItemTimeline(Viz):
         for i in reversed(range(len(fig.data))):
             step = dict(
                 method='update',
-                args=[{'visible': [True if j <= i else 'legendonly' for j in range(len(fig.data))]},],
-                      # {'title': self._get_title(i + 1)}],
+                args=[{'visible': [True if j <= i else 'legendonly' for j in range(len(fig.data))]}, ],
+                # {'title': self._get_title(i + 1)}],
                 label=f'{i + 1}',
             )
             steps.append(step)
@@ -268,3 +273,20 @@ class ItemTimeline(Viz):
         else:
             raise RuntimeError(f"Unsupported Mode. {self.mode} not in {self.modes.keys()}. This should not happen.")
         return ['' if i != idx else str(number) for i in range(len(self.datetimes))]
+
+    def _create_search_bar(self, fig):
+        search_bar = widgets.Text(description='Search: ')
+
+        @debounce(0.1)
+        def observe_search(event):
+            query = event.get('new')
+            # pattern = re.compile(query, re.IGNORECASE)
+            with fig.batch_update():
+                for trace in fig.data:
+                    if query.upper() in trace.name.upper():
+                        trace.visible = True
+                    else:
+                        trace.visible = False
+
+        search_bar.observe(observe_search, names='value')
+        return search_bar
