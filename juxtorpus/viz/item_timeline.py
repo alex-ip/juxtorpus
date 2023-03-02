@@ -134,17 +134,11 @@ class ItemTimeline(Viz):
         self.items = self._metric_series.index.to_list()
 
     def render(self):
-        fig = self._build()
-        mode_dropdown = self._create_dropdown_widget(fig)
-        item_search = self._create_search_bar(fig)
-        trace_slider = self._create_num_traces_slider(fig)
-        trace_slider.layout.width = '45%'
-        pad_box = widgets.Box(layout=widgets.Layout(width='5%'))
-        display(widgets.HBox([trace_slider, pad_box, mode_dropdown, item_search],
-                             layout=widgets.Layout(width='100%', height='40px')))
+        fig = self._build_main_figure()
+        display(self._build_widgets(fig))
         return fig
 
-    def _build(self):
+    def _build_main_figure(self):
         fig = go.FigureWidget()
         fig.layout.showlegend = True  # even for single traces
         for tdatum in self._generate_trace_data():
@@ -154,6 +148,24 @@ class ItemTimeline(Viz):
         # self._add_top_items_slider_layer(fig)
         return fig
 
+    def _build_widgets(self, fig):
+        mode_dropdown = self._create_dropdown_widget(fig)
+        item_search = self._create_search_bar(fig)
+        trace_slider = self._create_num_traces_slider(fig)
+        trace_slider.layout.width = '45%'
+        pad_box = widgets.Box(layout=widgets.Layout(width='5%'))
+        return widgets.HBox([trace_slider, pad_box, mode_dropdown, item_search],
+                            layout=widgets.Layout(width='100%', height='40px'))
+
+    @staticmethod
+    def _create_trace(tdatum: TRACE_DATUM):
+        return go.Scatter(
+            x=tdatum.datetimes, y=tdatum.metrics,
+            mode='lines+markers+text', marker_color=tdatum.colour,
+            text=tdatum.texts, textposition='bottom center', textfont={'color': 'crimson'},
+            name=tdatum.item,
+        )
+
     def _generate_trace_data(self):
         """ Generates the trace content data from the current state (mode, top)"""
         trace_data = []
@@ -162,14 +174,6 @@ class ItemTimeline(Viz):
                                               colour=self._get_colour(item), texts=self._get_texts(item, i))
             trace_data.append(tdatum)
         return trace_data
-
-    def _create_trace(self, tdatum: TRACE_DATUM):
-        return go.Scatter(
-            x=tdatum.datetimes, y=tdatum.metrics,
-            mode='lines+markers+text', marker_color=tdatum.colour,
-            text=tdatum.texts, textposition='bottom center', textfont={'color': 'crimson'},
-            name=tdatum.item,
-        )
 
     def _update_traces(self, fig):
         trace_data = self._generate_trace_data()
@@ -306,8 +310,8 @@ class ItemTimeline(Viz):
             if metric > self._metric_series.quantile(0.5): return 0.4
             return 0.1
 
-    def _get_title(self, i):
-        return f'Top {i} {self.mode.capitalize()} items'
+    def _get_title(self, idx):
+        return f'Top {idx} {self.mode.capitalize()} items'
 
     def _get_texts(self, item: str, idx: int):
         number = self._metric_series.loc[item]
