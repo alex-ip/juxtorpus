@@ -175,6 +175,8 @@ class CorpusSlicer(object):
         if not isinstance(meta, SeriesMeta):
             raise NotImplementedError(f"Unable to groupby non SeriesMeta. "
                                       f"Please use {self.group_by_conditions.__name__}.")
+
+        RETURN_GROUP_KEYS = True  # NOTE: this is a dependency in downstream classes (e.g. ItemTimeline)
         series = meta.series()
         # using pd.Grouper on datetime requires it to be an index.
         if grouper is not None:
@@ -183,10 +185,11 @@ class CorpusSlicer(object):
                 by.level = series.name
                 df = self.corpus._df.set_index([self.corpus._df.index, series])
                 return ((gid, self.corpus.cloned(g.index.droplevel(by.level)))
-                        for gid, g in df.groupby(by, axis=0, group_keys=True))
+                        for gid, g in df.groupby(by, axis=0, group_keys=RETURN_GROUP_KEYS))
         else:
             by = series
-        return ((gid, self.corpus.cloned(g.index)) for gid, g in series.groupby(by=by, axis=0, group_keys=True))
+        return ((gid, self.corpus.cloned(g.index)) for gid, g in
+                series.groupby(by=by, axis=0, group_keys=RETURN_GROUP_KEYS))
 
     def _get_meta_or_raise_err(self, id_):
         meta = self.corpus.meta.get(id_)

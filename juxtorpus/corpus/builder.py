@@ -75,7 +75,7 @@ class DateTimeMetaConfig(MetaConfig):
             return [self.column]
 
 
-class CorpusBuilder(Widget):
+class CorpusBuilder(object):
     """ CorpusBuilder
 
     The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
@@ -114,7 +114,7 @@ class CorpusBuilder(Widget):
         self._preprocessors = list()
 
     @staticmethod
-    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[set[str]]:
+    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[list[str]]:
         columns = list()
         for path in paths:
             name = path.stem
@@ -124,7 +124,7 @@ class CorpusBuilder(Widget):
         if df_cols.isnull().values.any():
             display(df_cols.fillna(''))
             if not input(PROMPT_MISMATCHED_COLUMNS).strip() == PROMPT_MISMATCHED_COLUMNS_PASS: return None
-        return set(df_cols.index.to_list())
+        return sorted(df_cols.index.to_list())
 
     @property
     def paths(self):
@@ -335,10 +335,6 @@ class CorpusBuilder(Widget):
                 raise KeyError(f"{col} already exists. Please use a different column name.")
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
-
-    def widget(self):
-        """ Display the CorpusBuilder widget. """
-        WIDGET_DTYPES_LIST = list(self.allowed_dtypes) + ['auto']
 
 
 if __name__ == '__main__':
