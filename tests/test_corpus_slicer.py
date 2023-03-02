@@ -21,7 +21,7 @@ class TestCorpusSlicer(unittest.TestCase):
         # smaller corpus
         builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
         builder.add_metas(['remote_level'], dtypes='float')
-        builder.add_metas(['day', 'month', 'year'], dtypes='datetime')
+        builder.add_metas(['year_month_day'], dtypes='datetime')
         builder.set_text_column('processed_text')
         self.corpus = builder.build()
         self.slicer = CorpusSlicer(self.corpus)
@@ -31,7 +31,7 @@ class TestCorpusSlicer(unittest.TestCase):
 
     def test_groupby_datetime(self):
         slicer = self.slicer
-        groups = list(slicer.group_by('datetime', pd.Grouper(freq='1W')))
+        groups = list(slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
         print(len(groups))
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
         # subcorpus = groups[0][1]

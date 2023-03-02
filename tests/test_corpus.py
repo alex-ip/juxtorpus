@@ -33,7 +33,7 @@ class TestCorpus(unittest.TestCase):
         cloned = self.corpus.cloned(mask)
         assert len(cloned) == num_trues
         assert cloned.dtm.matrix.shape[0] == num_trues
-        assert set(cloned.metas().keys()) == set(self.corpus.metas().keys())
+        assert set(cloned.meta.keys()) == set(self.corpus.meta.keys())
 
     def test_cloned_dtm(self):
         mask, num_trues = random_mask(self.corpus)
