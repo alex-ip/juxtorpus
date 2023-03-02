@@ -64,7 +64,11 @@ class Corpus:
             self['custom'] = dtm
 
         def get_custom_dtm(self):
-            return self.get('custom', None)
+            custom = self.get('custom', None)
+            if not custom:
+                raise LookupError(f"You have not created a custom dtm. "
+                                  f"Use {Corpus.create_custom_dtm.__name__} to create one.")
+            return custom
 
     COL_TEXT: str = 'text'
 
