@@ -44,6 +44,28 @@ class Corpus:
     behaviour, and the corpus will act as the root, forget its lineage and a new dtm will need to be rebuilt.
     """
 
+    class DTMRegistry(dict):
+        def __init__(self, *args, **kwargs):
+            super(Corpus.DTMRegistry, self).__init__(*args, **kwargs)
+            self.set_tokens_dtm(DTM())
+
+        def __setitem__(self, key, value):
+            if not isinstance(value, DTM):
+                raise ValueError(f"{self.__class__.__name__} only holds {DTM.__name__} objects.")
+            super(Corpus.DTMRegistry, self).__setitem__(key, value)
+
+        def set_tokens_dtm(self, dtm: DTM):
+            self['tokens'] = dtm
+
+        def get_tokens_dtm(self):
+            return self.get('tokens')
+
+        def set_custom_dtm(self, dtm):
+            self['custom'] = dtm
+
+        def get_custom_dtm(self):
+            return self.get('custom', None)
+
     COL_TEXT: str = 'text'
 
     @classmethod
@@ -74,7 +96,7 @@ class Corpus:
         self._meta_registry = MetaRegistry(metas)
 
         # document term matrix - DTM
-        self._dtm: Optional[DTM] = DTM()
+        self._dtm_registry: Corpus.DTMRegistry = Corpus.DTMRegistry()
 
         # processing
         self._processing_history = list()
@@ -97,11 +119,14 @@ class Corpus:
     @property
     def dtm(self):
         """ Document-Term Matrix. """
-        if not self._dtm.is_built:
+        if not self._dtm_registry.get_tokens_dtm().is_built:
             root = self.find_root()
-            root._dtm.initialise(root.texts())
-            # self._dtm.build(root.texts())        # dtm tracks root and builds with root anyway
-        return self._dtm
+            root._dtm_registry.get_tokens_dtm().initialise(root.texts())
+        return self._dtm_registry.get_tokens_dtm()
+
+    @property
+    def custom_dtm(self):
+        return self._dtm_registry.get_custom_dtm()
 
     def find_root(self):
         """ Find and return the root corpus. """
@@ -116,6 +141,8 @@ class Corpus:
         dtm = DTM()
         dtm.initialise(self.texts(),
                        vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
+
+        self._dtm_registry.set_custom_dtm(dtm)
         return dtm
 
     # meta data
@@ -188,7 +215,7 @@ class Corpus:
         clone = Corpus(cloned_texts, cloned_metas)
         clone._parent = self
 
-        clone._dtm = self._cloned_dtm(cloned_texts.index)
+        clone._dtm_registry = self._cloned_dtms(cloned_texts.index)
         clone._processing_history = self._cloned_history()
         return clone
 
@@ -204,8 +231,11 @@ class Corpus:
     def _cloned_history(self):
         return [h for h in self.history()]
 
-    def _cloned_dtm(self, indices):
-        return self._dtm.cloned(indices)
+    def _cloned_dtms(self, indices):
+        registry = Corpus.DTMRegistry()
+        for k, dtm in self._dtm_registry.items():
+            registry[k] = dtm.cloned(indices)
+        return registry
 
     def detached(self):
         """ Detaches from corpus tree and becomes the root.
@@ -213,7 +243,7 @@ class Corpus:
         DTM will be regenerated when accessed - hence a different vocab.
         """
         self._parent = None
-        self._dtm = DTM()
+        self._dtm_registry = Corpus.DTMRegistry()
         meta_reg = MetaRegistry()
         for k, meta in self.meta.items():
             if isinstance(meta, SeriesMeta):
@@ -297,17 +327,19 @@ class SpacyCorpus(Corpus):
 
     @property
     def dtm(self):
-        if not self._dtm.is_built:
+        if not self._dtm_registry.get_tokens_dtm().is_built:
             root = self.find_root()
-            root._dtm.initialise(root.docs(),
-                                 vectorizer=CountVectorizer(preprocessor=lambda x: x,
-                                                            tokenizer=self._gen_words_from))
-        return self._dtm
+            root._dtm_registry.get_tokens_dtm().initialise(root.docs(),
+                                                           vectorizer=CountVectorizer(preprocessor=lambda x: x,
+                                                                                      tokenizer=self._gen_words_from))
+        return self._dtm_registry.get_tokens_dtm()
 
     def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
         """ Create a custom DTM with tokens returned by the tokeniser_func."""
         dtm = DTM()
-        dtm.initialise(self.docs(), vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
+        dtm.initialise(self.docs(),
+                       vectorizer=CountVectorizer(preprocessor=lambda doc: doc, tokenizer=tokeniser_func))
+        self._dtm_registry.set_custom_dtm(dtm)
         return dtm
 
     def texts(self) -> 'pd.Series[str]':
@@ -338,7 +370,7 @@ class SpacyCorpus(Corpus):
         clone = SpacyCorpus(cloned_docs, cloned_metas, self._nlp)
         clone._parent = self
 
-        clone._dtm = self._cloned_dtm(cloned_docs.index)
+        clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
         clone._processing_history = self._cloned_history()
         return clone
 
