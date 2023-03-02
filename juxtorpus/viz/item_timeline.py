@@ -115,9 +115,6 @@ class ItemTimeline(Viz):
             if mode not in self.modes.keys(): raise ValueError(f"{mode} not in {', '.join(self.modes.keys())}")
             self.mode = mode
             self._update_metrics(self.mode, self.num_traces)
-            # critical functions for top
-            # self._metric_series.sort_values(ascending=False, inplace=True)
-            # self.items = self._metric_series.index.to_list()
 
     def set_top(self, top: int):
         if top < 1: raise ValueError(f"Must be > 1.")
@@ -146,14 +143,7 @@ class ItemTimeline(Viz):
         fig = go.FigureWidget()
         fig.layout.showlegend = True  # even for single traces
         for tdatum in self._generate_trace_data():
-            fig.add_trace(
-                go.Scatter(
-                    x=tdatum.datetimes, y=tdatum.metrics,
-                    mode='lines+markers+text', marker_color=tdatum.colour,
-                    text=tdatum.texts, textposition='bottom center',
-                    name=tdatum.item,
-                )
-            )
+            fig.add_trace(self._create_trace(tdatum))
 
         self._add_toggle_all_selection_layer(fig)
         # self._add_top_items_slider_layer(fig)
@@ -164,9 +154,17 @@ class ItemTimeline(Viz):
         trace_data = []
         for i, item in enumerate(self.items):
             tdatum = ItemTimeline.TRACE_DATUM(item=item, datetimes=self.datetimes, metrics=self._df.loc[:, item],
-                                              colour=self._get_colour(item), texts=self._get_texts(item))
+                                              colour=self._get_colour(item), texts=self._get_texts(item, i))
             trace_data.append(tdatum)
         return trace_data
+
+    def _create_trace(self, tdatum: TRACE_DATUM):
+        return go.Scatter(
+            x=tdatum.datetimes, y=tdatum.metrics,
+            mode='lines+markers+text', marker_color=tdatum.colour,
+            text=tdatum.texts, textposition='bottom center', textfont={'color': 'crimson'},
+            name=tdatum.item,
+        )
 
     def _update_traces(self, fig):
         trace_data = self._generate_trace_data()
@@ -174,14 +172,7 @@ class ItemTimeline(Viz):
         if len(trace_data) > len(fig.data):
             start_idx = len(fig.data)
             for tdatum in trace_data[start_idx:]:
-                fig.add_trace(
-                    go.Scatter(
-                        x=tdatum.datetimes, y=tdatum.metrics,
-                        mode='lines+markers+text', marker_color=tdatum.colour,
-                        text=tdatum.texts, textposition='bottom center',
-                        name=tdatum.item,
-                    )
-                )
+                fig.add_trace(self._create_trace(tdatum))
         with fig.batch_update():
             for i, trace in enumerate(fig.data):
                 tdatum = trace_data[i]
@@ -313,9 +304,11 @@ class ItemTimeline(Viz):
     def _get_title(self, i):
         return f'Top {i} {self.mode.capitalize()} items'
 
-    def _get_texts(self, item: str):
+    def _get_texts(self, item: str, idx: int):
         number = self._metric_series.loc[item]
-        if self.mode == self.MODE_PEAK:
+        if idx >= self.FULL_OPACITY_TOP:
+            idx = -1  # i.e. no text annotation for this trace.
+        elif self.mode == self.MODE_PEAK:
             idx = self._df.loc[:, item].argmax()
         elif self.mode == self.MODE_CUMULATIVE:
             idx = len(self.datetimes) - 1
