@@ -37,9 +37,12 @@ import colorsys
 import random
 import ipywidgets as widgets
 from IPython.display import display
+import pandas as pd
 
 from juxtorpus.viz import Viz
+from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.freqtable import FreqTable
+from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.utils.utils_ipywidgets import debounce
 
 TNUMERIC = Union[int, float]
@@ -47,11 +50,26 @@ TPLOTLY_RGB_COLOUR = str
 
 
 class ItemTimeline(Viz):
+    """ ItemTimeline
+    This visualisation class plots a number of items and their associated metric across a timeline.
+    The two modes for the metrics are:
+        1. Peak
+        2. Cumulative
+
+    The top items have maximum opacity 1.0 and then opacity drops.
+
+    Factory Methods:
+    from_freqtables - uses term as items, frequencies as metric.
+    from_corpus_groups - uses datetime groupings
+    from_corpus - tries to find a datetime meta and group it (default freq = 1 week)
+    """
     TRACE_DATUM = namedtuple('TRACE_DATUM', ['item', 'datetimes', 'metrics', 'colour', 'texts'])
 
     @classmethod
     def from_freqtables(cls, datetimes: Union[pd.Series, list], freqtables: list[FreqTable]):
-        """ Constructs ItemTimeline using the specified freqtables"""
+        """ Constructs ItemTimeline using the specified freqtables.
+        :arg datetimes - list of datetimes for each freqtable (converted using pd.to_datetime)
+        """
         if len(datetimes) != len(freqtables):
             raise ValueError(f"Mismatched length of datetimes and freqtables. {len(datetimes)} and {len(freqtables)}.")
         fts_df = pd.concat([ft.series for ft in freqtables], axis=1).fillna(0).T
@@ -70,7 +88,6 @@ class ItemTimeline(Viz):
             fts = [c.dtm.freq_table() for _, c in groups]
         else:
             fts = [c.custom_dtm.freq_table() for _, c in groups]
-        datetimes = [dt for dt, _ in groups]
         return cls.from_freqtables(datetimes, fts)
 
     def __init__(self, df: pd.DataFrame):
