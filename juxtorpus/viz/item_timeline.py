@@ -84,6 +84,11 @@ class ItemTimeline(Viz):
         :arg custom_dtm - use the cached custom dtm instead of default.
         """
         groups = list(groups)
+        datetimes = []
+        for dt, _ in groups:
+            if type(dt) != pd.Timestamp: raise TypeError("Did you groupby a meta that is of type datetime?")
+            datetimes.append(dt)
+
         if not custom_dtm:
             fts = [c.dtm.freq_table() for _, c in groups]
         else:
