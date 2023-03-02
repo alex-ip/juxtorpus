@@ -79,6 +79,17 @@ class ItemTimeline(Viz):
         return cls(df=fts_df)
 
     @classmethod
+    def from_corpus(cls, corpus: Corpus, datetime_meta_key: str = None, freq: str = '1w', custom_dtm: bool = False):
+        if datetime_meta_key is None:
+            for k, meta in corpus.meta.items():
+                if type(meta) != SeriesMeta: continue
+                if pd.api.types.is_datetime64_any_dtype(meta.series()):
+                    datetime_meta_key = k
+                    break
+            raise LookupError(f"No meta found with datetime dtype. {corpus.meta.keys()}")
+        return cls.from_corpus_groups(corpus.slicer.group_by(datetime_meta_key, pd.Grouper(freq)), custom_dtm)
+
+    @classmethod
     def from_corpus_groups(cls, groups, custom_dtm: bool = False):
         """ Constructss ItemTimeline from corpus groups.
         :arg custom_dtm - use the cached custom dtm instead of default.
