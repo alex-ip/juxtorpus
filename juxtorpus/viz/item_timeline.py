@@ -61,10 +61,15 @@ class ItemTimeline(Viz):
         return cls(df=fts_df)
 
     @classmethod
-    def from_corpus_groups(cls, groups):
-        """ Constructss ItemTimeline from corpus groups. Note: Default DTM is used as the items. """
+    def from_corpus_groups(cls, groups, custom_dtm: bool = False):
+        """ Constructss ItemTimeline from corpus groups.
+        :arg custom_dtm - use the cached custom dtm instead of default.
+        """
         groups = list(groups)
-        fts = [c.dtm.freq_table() for _, c in groups]
+        if not custom_dtm:
+            fts = [c.dtm.freq_table() for _, c in groups]
+        else:
+            fts = [c.custom_dtm.freq_table() for _, c in groups]
         datetimes = [dt for dt, _ in groups]
         return cls.from_freqtables(datetimes, fts)
 
