@@ -115,8 +115,14 @@ class DTM(object):
     def initialise(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
         logger.debug("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
-        self.root._matrix = self.root._vectorizer.fit_transform(texts)
-        self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()  # expensive operation - cached.
+        try:
+            self.root._matrix = self.root._vectorizer.fit_transform(texts)
+            self.root._feature_names_out = self.root._vectorizer.get_feature_names_out()  # expensive operation - cached.
+        except ValueError as ve:
+            num_texts = len(list(texts))
+            self.root._matrix = scipy.sparse.csr_matrix((num_texts, 0))
+            self.root._feature_names_out = np.empty(0)
+
         self.root._term_idx_map = {self.root._feature_names_out[idx]: idx
                                    for idx in range(len(self.root._feature_names_out))}
         self.root._is_built = True

@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 from juxtorpus.corpus import Corpus
+from juxtorpus.corpus.dtm import DTM
 
 
 class TestDTM(unittest.TestCase):
@@ -25,3 +26,14 @@ class TestDTM(unittest.TestCase):
     def test_tfidf_inherits_correct_terms(self):
         tfidf = self.c.dtm.tfidf()
         assert self.c.dtm.shares_vocab(tfidf), "Vocabulary did not inherit properly in tfidf dtm"
+
+    def test_init_empty_dtm(self):
+        dtm = DTM()
+        dtm.initialise([])
+        assert dtm.shape == (0, 0)
+
+    def test_clone_empty_dtm(self):
+        dtm = DTM()
+        dtm.initialise([])
+        even_emptier_dtm = dtm.cloned([])
+        assert even_emptier_dtm.shape == (0, 0)
