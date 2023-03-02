@@ -80,13 +80,15 @@ class ItemTimeline(Viz):
 
     @classmethod
     def from_corpus(cls, corpus: Corpus, datetime_meta_key: str = None, freq: str = '1w', custom_dtm: bool = False):
+        keys = {'datetime': datetime_meta_key}
         if datetime_meta_key is None:
             for k, meta in corpus.meta.items():
                 if type(meta) != SeriesMeta: continue
                 if pd.api.types.is_datetime64_any_dtype(meta.series()):
-                    datetime_meta_key = k
+                    keys['datetime'] = k
                     break
             raise LookupError(f"No meta found with datetime dtype. {corpus.meta.keys()}")
+        datetime_meta_key = keys.get('datetime')
         return cls.from_corpus_groups(corpus.slicer.group_by(datetime_meta_key, pd.Grouper(freq)), custom_dtm)
 
     @classmethod
