@@ -39,7 +39,7 @@ class RakeKeywords(Keywords):
     """
 
     def extracted(self):
-        _kw_A = Counter(RakeKeywords._rake(sentences=self.corpus.texts().tolist()))
+        _kw_A = Counter(RakeKeywords._rake(sentences=self.corpus.docs().tolist()))
         return _kw_A.most_common(20)
 
     @staticmethod
@@ -73,7 +73,7 @@ class TFIDFKeywords(Keywords):
 
     def _corpus_tf_idf(self, smooth: bool = False):
         """ Term frequency is of the entire corpus. Idfs calculated as per normal. """
-        tfs = self.count_vec.fit_transform(self.corpus.texts())
+        tfs = self.count_vec.fit_transform(self.corpus.docs())
         idfs = binarize(tfs, threshold=0.99)
         if smooth:
             pass  # TODO: smoothing of idfs using log perhaps.
@@ -84,7 +84,7 @@ class TFIDFKeywords(Keywords):
         # get the tfidf score of the docs.
         # get the tfidf score of each word and rank them that way.
         vectorizer = TfidfVectorizer()
-        X = vectorizer.fit_transform(corpus.texts())
+        X = vectorizer.fit_transform(corpus.docs())
         col_words = vectorizer.get_feature_names_out()
         max_tfidf_cols = [(col_words[i], X[:, i].max()) for i in range(X.shape[1])]
         max_tfidf_cols.sort(key=lambda t: t[1], reverse=True)

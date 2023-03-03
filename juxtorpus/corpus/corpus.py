@@ -125,7 +125,7 @@ class Corpus:
         """ Document-Term Matrix. """
         if not self._dtm_registry.get_tokens_dtm().is_built:
             root = self.find_root()
-            root._dtm_registry.get_tokens_dtm().initialise(root.texts())
+            root._dtm_registry.get_tokens_dtm().initialise(root.docs())
         return self._dtm_registry.get_tokens_dtm()
 
     @property
@@ -144,11 +144,11 @@ class Corpus:
         """ Create a custom DTM based on custom tokeniser function. """
         root = self.find_root()
         dtm = DTM()
-        dtm.initialise(root.texts(),
+        dtm.initialise(root.docs(),
                        vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
 
         root._dtm_registry.set_custom_dtm(dtm)
-        self._dtm_registry.set_custom_dtm(dtm.cloned(self.texts().index))
+        self._dtm_registry.set_custom_dtm(dtm.cloned(self.docs().index))
         return dtm
 
     # meta data
@@ -173,7 +173,7 @@ class Corpus:
     def unique_terms(self) -> set[str]:
         return set(self.dtm.vocab(nonzero=True))
 
-    def texts(self) -> 'pd.Series[str]':
+    def docs(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT]
 
     def summary(self):
@@ -196,22 +196,20 @@ class Corpus:
         })
         return pd.concat([other_info, docs_info, meta_info])
 
+    def sample(self, n: int, rand_stat=None):
+        """ Uniformly sample from the corpus. """
+        mask = self._df.isna().squeeze()  # Return a mask of all False
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        return self.cloned(mask)
+
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
-        texts = self.texts()
+        texts = self.docs()
         for i in range(len(texts)):
             yield self._gen_words_from(texts.iloc[i])
 
     def _gen_words_from(self, text) -> Generator[str, None, None]:
         return (token.lower() for token in re.findall('[A-Za-z]+', text))
-
-    def generate_tokens(self):
-        texts = self.texts()
-        for i in range(len(texts)):
-            yield self._gen_tokens_from(texts.iloc[i])
-
-    def _gen_tokens_from(self, text) -> Generator[str, None, None]:
-        return (token.lower() for token in text.split(" "))
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
@@ -226,7 +224,7 @@ class Corpus:
         return clone
 
     def _cloned_texts(self, mask):
-        return self.texts()[mask]
+        return self.docs().loc[mask]
 
     def _cloned_metas(self, mask):
         cloned_meta_registry = MetaRegistry()
@@ -261,6 +259,10 @@ class Corpus:
         self._df = self._df.copy().reset_index(drop=True)
         return self
 
+    def reattach(self):
+        # apply previous states
+        pass
+
     def __len__(self):
         return len(self._df) if self._df is not None else 0
 
@@ -279,12 +281,6 @@ class Corpus:
             if stop is None: stop = len(self._df)
             if item.step is not None: raise NotImplementedError("Slicing with step is currently not implemented.")
             mask = self._df.iloc[start:stop].index
-        return self.cloned(mask)
-
-    def sample(self, n: int, rand_stat=None):
-        """ Uniformly sample from the corpus. """
-        mask = self._df.isna().squeeze()  # Return a mask of all False
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
 
@@ -351,17 +347,17 @@ class SpacyCorpus(Corpus):
         self._dtm_registry.set_custom_dtm(dtm.cloned(self.docs().index))
         return dtm
 
-    def texts(self) -> 'pd.Series[str]':
-        return self._df.loc[:, self.COL_TEXT].map(lambda doc: doc.text)
-
     def docs(self) -> 'pd.Series[Doc]':
+        return self._spacy_docs()
+
+    def _spacy_docs(self):
         return self._df.loc[:, self.COL_TEXT]
 
     def _gen_words_from(self, doc):
         return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
 
     def generate_lemmas(self):
-        texts = self.texts()
+        texts = self.docs()
         for i in range(len(texts)):
             yield self._gen_lemmas_from(texts.iloc[i])
 

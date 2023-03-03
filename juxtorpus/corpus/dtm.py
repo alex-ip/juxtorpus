@@ -307,7 +307,7 @@ if __name__ == '__main__':
     corpus = Corpus.from_dataframe(df, col_text='processed_text')
     corpus.summary()
 
-    dtm = DTM().initialise(corpus.texts())
+    dtm = DTM().initialise(corpus.docs())
     print(dtm.terms_column_vectors('the').shape)
     print(dtm.terms_column_vectors(['the', 'he', 'she']).shape)
 

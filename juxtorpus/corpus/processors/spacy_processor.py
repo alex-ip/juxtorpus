@@ -98,7 +98,7 @@ class SpacyProcessor(Processor):
     def _process(self, corpus: Corpus) -> SpacyCorpus:
         start = datetime.now()
         logger.info(f"Processing corpus of {len(corpus)} documents...")
-        texts = corpus.texts()
+        texts = corpus.docs()
         # doc_generator = (doc for doc in tqdm(self.nlp.pipe(texts)))
         doc_generator = self.nlp.pipe(texts)
         docs = pd.Series(doc_generator, index=texts.index)

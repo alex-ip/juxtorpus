@@ -30,7 +30,7 @@ class ATAPConcordance(ConcordanceWidget, Concordance):
     """
 
     def __init__(self, corpus: Corpus):
-        super(ATAPConcordance, self).__init__(df=corpus.texts().to_frame('spacy_doc'))
+        super(ATAPConcordance, self).__init__(df=corpus.docs().to_frame('spacy_doc'))
         # builds ConcordanceTable internally.
 
         # perf:
