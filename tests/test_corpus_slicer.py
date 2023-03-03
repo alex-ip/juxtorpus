@@ -11,6 +11,7 @@ import pandas as pd
 import spacy
 from spacy.matcher import Matcher
 from pathlib import Path
+import re
 
 
 class TestCorpusSlicer(unittest.TestCase):
@@ -34,8 +35,24 @@ class TestCorpusSlicer(unittest.TestCase):
         groups = list(slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
         print(len(groups))
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
-        # subcorpus = groups[0][1]
-        # print(subcorpus.summary())
+
+    def test_custom_dtm_created_at_multi_depth_subcorpus(self):
+        subcorpus: Corpus = self.corpus.slicer.filter_by_item('remote_level', 1.0)
+        _ = subcorpus.create_custom_dtm(tokeniser_func=lambda text: re.findall(r'#\w+', text))
+        assert self.corpus.custom_dtm is subcorpus.custom_dtm._root, ""
+
+
+    def test_cloning_custom_dtm_created_at_multi_depth_subcorpus(self):
+        """ Tests the dtm cloned at subcorpus sliced at depth 2 from root corpus is correct. """
+        subcorpus: Corpus = self.corpus.slicer.filter_by_item('remote_level', 1.0)
+        assert len(subcorpus) == subcorpus.dtm.num_docs, \
+            "Depth 1 DTM should have the same number of docs as subcorpus."
+
+        # the custom_dtm created should be from root and then sliced to this depth.
+        _ = subcorpus.create_custom_dtm(tokeniser_func=lambda text: re.findall(r'#\w+', text))
+        subsubcorpus = subcorpus.slicer.filter_by_datetime('year_month_day', start='2019-11-29', end='2020-06-05')
+        assert len(subsubcorpus) == subsubcorpus.dtm.num_docs, \
+            "Depth 2 DTM should have the same number of docs as subsubcorpus."
 
     def test_filter_by_range(self):
         meta_id = 'remote_level'

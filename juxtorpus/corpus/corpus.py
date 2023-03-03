@@ -142,11 +142,13 @@ class Corpus:
 
     def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
         """ Create a custom DTM based on custom tokeniser function. """
+        root = self.find_root()
         dtm = DTM()
-        dtm.initialise(self.texts(),
+        dtm.initialise(root.texts(),
                        vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
 
-        self._dtm_registry.set_custom_dtm(dtm)
+        root._dtm_registry.set_custom_dtm(dtm)
+        self._dtm_registry.set_custom_dtm(dtm.cloned(self.texts().index))
         return dtm
 
     # meta data
@@ -227,7 +229,7 @@ class Corpus:
         return self.texts()[mask]
 
     def _cloned_metas(self, mask):
-        cloned_meta_registry = dict()
+        cloned_meta_registry = MetaRegistry()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return cloned_meta_registry
@@ -340,10 +342,13 @@ class SpacyCorpus(Corpus):
 
     def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
         """ Create a custom DTM with tokens returned by the tokeniser_func."""
+        root = self.find_root()
         dtm = DTM()
-        dtm.initialise(self.docs(),
+        dtm.initialise(root.docs(),
                        vectorizer=CountVectorizer(preprocessor=lambda doc: doc, tokenizer=tokeniser_func))
-        self._dtm_registry.set_custom_dtm(dtm)
+        root._dtm_registry.set_custom_dtm(dtm)
+        # todo: propagate to all children?
+        self._dtm_registry.set_custom_dtm(dtm.cloned(self.docs().index))
         return dtm
 
     def texts(self) -> 'pd.Series[str]':
