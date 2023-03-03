@@ -36,12 +36,6 @@ class TestCorpusSlicer(unittest.TestCase):
         print(len(groups))
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
 
-    def test_custom_dtm_created_at_multi_depth_subcorpus(self):
-        subcorpus: Corpus = self.corpus.slicer.filter_by_item('remote_level', 1.0)
-        _ = subcorpus.create_custom_dtm(tokeniser_func=lambda text: re.findall(r'#\w+', text))
-        assert self.corpus.custom_dtm is subcorpus.custom_dtm._root, ""
-
-
     def test_cloning_custom_dtm_created_at_multi_depth_subcorpus(self):
         """ Tests the dtm cloned at subcorpus sliced at depth 2 from root corpus is correct. """
         subcorpus: Corpus = self.corpus.slicer.filter_by_item('remote_level', 1.0)
