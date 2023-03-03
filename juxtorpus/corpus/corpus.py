@@ -140,7 +140,12 @@ class Corpus:
             parent = parent._parent
         return parent
 
-    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
+    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]) -> DTM:
+        """ Detaches from root corpus and then build a custom dtm. """
+        _ = self.detached()
+        return self._update_custom_dtm(tokeniser_func)
+
+    def _update_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]) -> DTM:
         """ Create a custom DTM based on custom tokeniser function. """
         root = self.find_root()
         dtm = DTM()
@@ -148,8 +153,9 @@ class Corpus:
                        vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
 
         root._dtm_registry.set_custom_dtm(dtm)
-        self._dtm_registry.set_custom_dtm(dtm.cloned(self.docs().index))
-        return dtm
+        if not self.is_root:
+            self._dtm_registry.set_custom_dtm(dtm.cloned(self.docs().index))
+        return self._dtm_registry.get_custom_dtm()
 
     # meta data
     @property
@@ -258,10 +264,6 @@ class Corpus:
         self._meta_registry = meta_reg
         self._df = self._df.copy().reset_index(drop=True)
         return self
-
-    def reattach(self):
-        # apply previous states
-        pass
 
     def __len__(self):
         return len(self._df) if self._df is not None else 0
