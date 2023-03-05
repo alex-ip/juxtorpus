@@ -87,9 +87,9 @@ class ItemTimeline(Viz):
                 if pd.api.types.is_datetime64_any_dtype(meta.series()):
                     keys['datetime'] = k
                     break
-            raise LookupError(f"No meta found with datetime dtype. {corpus.meta.keys()}")
+            if not keys.get('datetime'): raise LookupError(f"No meta found with datetime dtype. {corpus.meta.keys()}")
         datetime_meta_key = keys.get('datetime')
-        return cls.from_corpus_groups(corpus.slicer.group_by(datetime_meta_key, pd.Grouper(freq)), custom_dtm)
+        return cls.from_corpus_groups(corpus.slicer.group_by(datetime_meta_key, pd.Grouper(freq=freq)), custom_dtm)
 
     @classmethod
     def from_corpus_groups(cls, groups, custom_dtm: bool = False):
