@@ -28,9 +28,11 @@ class TestDTM(unittest.TestCase):
         assert self.c.dtm.shares_vocab(tfidf), "Vocabulary did not inherit properly in tfidf dtm"
 
     def test_init_empty_dtm(self):
+        import re
+        from sklearn.feature_extraction.text import CountVectorizer
         dtm = DTM()
-        dtm.initialise([])
-        assert dtm.shape == (0, 0)
+        dtm.initialise(['something'], vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=lambda text: re.findall(r'#\w+', text)))
+        assert dtm.shape == (1, 0)
 
     def test_clone_empty_dtm(self):
         dtm = DTM()

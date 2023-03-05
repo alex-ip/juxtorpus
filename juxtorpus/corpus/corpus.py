@@ -125,7 +125,7 @@ class Corpus:
         """ Document-Term Matrix. """
         if not self._dtm_registry.get_tokens_dtm().is_built:
             root = self.find_root()
-            root._dtm_registry.get_tokens_dtm().initialise(root.texts())
+            root._dtm_registry.get_tokens_dtm().initialise(root.docs())
         return self._dtm_registry.get_tokens_dtm()
 
     @property
@@ -140,14 +140,22 @@ class Corpus:
             parent = parent._parent
         return parent
 
-    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
+    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]) -> DTM:
+        """ Detaches from root corpus and then build a custom dtm. """
+        _ = self.detached()
+        return self._update_custom_dtm(tokeniser_func)
+
+    def _update_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]) -> DTM:
         """ Create a custom DTM based on custom tokeniser function. """
+        root = self.find_root()
         dtm = DTM()
-        dtm.initialise(self.texts(),
+        dtm.initialise(root.docs(),
                        vectorizer=CountVectorizer(preprocessor=lambda x: x, tokenizer=tokeniser_func))
 
-        self._dtm_registry.set_custom_dtm(dtm)
-        return dtm
+        root._dtm_registry.set_custom_dtm(dtm)
+        if not self.is_root:
+            self._dtm_registry.set_custom_dtm(dtm.cloned(self.docs().index))
+        return self._dtm_registry.get_custom_dtm()
 
     # meta data
     @property
@@ -171,7 +179,7 @@ class Corpus:
     def unique_terms(self) -> set[str]:
         return set(self.dtm.vocab(nonzero=True))
 
-    def texts(self) -> 'pd.Series[str]':
+    def docs(self) -> 'pd.Series[str]':
         return self._df.loc[:, self.COL_TEXT]
 
     def summary(self):
@@ -194,40 +202,38 @@ class Corpus:
         })
         return pd.concat([other_info, docs_info, meta_info])
 
+    def sample(self, n: int, rand_stat=None):
+        """ Uniformly sample from the corpus. """
+        mask = self._df.isna().squeeze()  # Return a mask of all False
+        mask[mask.sample(n=n, random_state=rand_stat).index] = True
+        return self.cloned(mask)
+
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
-        texts = self.texts()
+        texts = self.docs()
         for i in range(len(texts)):
             yield self._gen_words_from(texts.iloc[i])
 
     def _gen_words_from(self, text) -> Generator[str, None, None]:
         return (token.lower() for token in re.findall('[A-Za-z]+', text))
 
-    def generate_tokens(self):
-        texts = self.texts()
-        for i in range(len(texts)):
-            yield self._gen_tokens_from(texts.iloc[i])
-
-    def _gen_tokens_from(self, text) -> Generator[str, None, None]:
-        return (token.lower() for token in text.split(" "))
-
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
-        cloned_texts = self._cloned_texts(mask)
+        cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
 
-        clone = Corpus(cloned_texts, cloned_metas)
+        clone = self.__class__(cloned_docs, cloned_metas)
         clone._parent = self
 
-        clone._dtm_registry = self._cloned_dtms(cloned_texts.index)
+        clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
         clone._processing_history = self._cloned_history()
         return clone
 
-    def _cloned_texts(self, mask):
-        return self.texts()[mask]
+    def _cloned_docs(self, mask):
+        return self.docs().loc[mask]
 
     def _cloned_metas(self, mask):
-        cloned_meta_registry = dict()
+        cloned_meta_registry = MetaRegistry()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return cloned_meta_registry
@@ -277,12 +283,6 @@ class Corpus:
             if stop is None: stop = len(self._df)
             if item.step is not None: raise NotImplementedError("Slicing with step is currently not implemented.")
             mask = self._df.iloc[start:stop].index
-        return self.cloned(mask)
-
-    def sample(self, n: int, rand_stat=None):
-        """ Uniformly sample from the corpus. """
-        mask = self._df.isna().squeeze()  # Return a mask of all False
-        mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
 
@@ -338,45 +338,15 @@ class SpacyCorpus(Corpus):
                                                                                       tokenizer=self._gen_words_from))
         return self._dtm_registry.get_tokens_dtm()
 
-    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]):
-        """ Create a custom DTM with tokens returned by the tokeniser_func."""
-        dtm = DTM()
-        dtm.initialise(self.docs(),
-                       vectorizer=CountVectorizer(preprocessor=lambda doc: doc, tokenizer=tokeniser_func))
-        self._dtm_registry.set_custom_dtm(dtm)
-        return dtm
-
-    def texts(self) -> 'pd.Series[str]':
-        return self._df.loc[:, self.COL_TEXT].map(lambda doc: doc.text)
-
     def docs(self) -> 'pd.Series[Doc]':
+        return self._spacy_docs()
+
+    def _spacy_docs(self):
         return self._df.loc[:, self.COL_TEXT]
 
-    def _gen_words_from(self, doc):
-        return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
-
-    def generate_lemmas(self):
-        texts = self.texts()
-        for i in range(len(texts)):
-            yield self._gen_lemmas_from(texts.iloc[i])
-
-    def _gen_lemmas_from(self, doc):
-        return (doc[start: end].lemma_ for _, start, end in self._is_word_matcher(doc))
-
-    def _cloned_docs(self, mask):
-        return self.docs().loc[mask]
-
     def cloned(self, mask: 'pd.Series[bool]'):
-        # cloned_texts = self._cloned_texts(mask)
-        cloned_docs = self._cloned_docs(mask)
-        cloned_metas = self._cloned_metas(mask)
-
-        clone = SpacyCorpus(cloned_docs, cloned_metas, self._nlp)
-        clone._parent = self
-
-        clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
-        clone._processing_history = self._cloned_history()
-        return clone
+        clone = super().cloned(mask)
+        return self.__class__.from_corpus(clone, clone.docs(), self.nlp)
 
     def summary(self, spacy: bool = False):
         df = super(SpacyCorpus, self).summary()
@@ -388,3 +358,14 @@ class SpacyCorpus(Corpus):
             }
             return pd.concat([df, pd.DataFrame.from_dict(spacy_info, orient='index')])
         return df
+
+    def _gen_words_from(self, doc):
+        return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
+
+    def generate_lemmas(self):
+        texts = self.docs()
+        for i in range(len(texts)):
+            yield self._gen_lemmas_from(texts.iloc[i])
+
+    def _gen_lemmas_from(self, doc):
+        return (doc[start: end].lemma_ for _, start, end in self._is_word_matcher(doc))

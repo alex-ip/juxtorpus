@@ -69,7 +69,7 @@ class TestBuilder(unittest.TestCase):
         pattern = re.compile("[ ]?<TWEET[/]>[ ]?")
         builder.set_text_preprocessors([lambda text: pattern.sub(text, '')])
         corpus = builder.build()
-        assert '<TWEET>' not in corpus.texts().iloc[0]
+        assert '<TWEET>' not in corpus.docs().iloc[0]
 
     def test_summary(self):
         builder = self.builder

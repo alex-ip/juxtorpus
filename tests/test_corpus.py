@@ -1,3 +1,4 @@
+import re
 import unittest
 
 import pandas as pd
@@ -33,14 +34,14 @@ class TestCorpus(unittest.TestCase):
         cloned = self.corpus.cloned(mask)
         assert len(cloned) == num_trues
         assert cloned.dtm.matrix.shape[0] == num_trues
-        assert set(cloned.metas().keys()) == set(self.corpus.metas().keys())
+        assert set(cloned.meta.keys()) == set(self.corpus.meta.keys())
 
     def test_cloned_dtm(self):
         mask, num_trues = random_mask(self.corpus)
         cloned = self.corpus.cloned(mask)
         # check if the cloned corpus dtm have the correct document term vectors
         # randomly chooses 5
-        texts = cloned.texts()
+        texts = cloned.docs()
         cloned_indices = np.random.randint(0, len(texts), size=5)
         for cloned_idx in cloned_indices:
             original_idx = texts.index[cloned_idx]
@@ -48,7 +49,7 @@ class TestCorpus(unittest.TestCase):
 
         mask, num_trues = random_mask(cloned)
         cloned_again = cloned.cloned(mask)
-        texts = cloned_again.texts()
+        texts = cloned_again.docs()
         cloned_indices = np.random.randint(0, len(texts), size=5)
         for cloned_idx in cloned_indices:
             original_idx = texts.index[cloned_idx]
@@ -65,3 +66,16 @@ class TestCorpus(unittest.TestCase):
         clone.detached()
         assert clone.is_root, "Clone is detached. It should be root."
         assert clone.dtm.shape[1] != orig_num_uniqs
+
+
+    def test_create_custom_dtm_detach_behaviour(self):
+        """ Creating custom dtm should automatically detach from root, update its custom dtm and return custom dtm.
+
+        Note: This is used a convenience method for users.
+        """
+        mask, _ = random_mask(self.corpus)
+        clone = self.corpus.cloned(mask)
+
+        cdtm = clone.create_custom_dtm(lambda text: re.findall(r'#\w+', text))
+        assert clone.is_root, "Creating custom dtm should automatically detach from root corpus."
+        assert cdtm is clone.custom_dtm, "Custom dtm was not updated to the detached subcorpus."
