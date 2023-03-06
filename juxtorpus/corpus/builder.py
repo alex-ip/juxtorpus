@@ -11,9 +11,9 @@ from juxtorpus.loader import LazySeries
 from juxtorpus.viz import Widget
 from juxtorpus.utils.utils_pandas import row_concat
 
-import colorlog
+import logging
 
-logger = colorlog.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 PROMPT_MISMATCHED_COLUMNS = "There are mismatched columns. These will be filled with NaN. " \
                             "Would you like to proceed? (y/n): "
