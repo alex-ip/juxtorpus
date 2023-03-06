@@ -18,7 +18,7 @@ class MetaRegistry(dict):
     def summary(self):
         """ Returns a summary of the metadata information. """
         infos = (meta.summary() for meta in self.values())
-        df = pd.concat(infos, axis=0)
+        df = pd.concat(infos, axis=0).fillna('')
 
         return df.T
 

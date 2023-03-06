@@ -42,14 +42,14 @@ class SeriesMeta(Meta):
                 'sample': series.iloc[0]}
 
         # uniques
-        if self._show_uniqs(series):
-            vc = series.value_counts(ascending=False).head(1)
-            info['top'] = str(vc.index.values[0])
-            info['top_freq'] = vc.values[0]
+        # if self._show_uniqs(series):
+        vc = series.value_counts(ascending=False).head(1)
+        info['top'] = str(vc.index.values[0])
+        info['top_freq'] = vc.values[0]
 
-            uniqs = series.unique()
-            info['uniqs'] = [uniqs]
-            info['num_uniqs'] = len(uniqs)
+        uniqs = series.unique()
+        info['uniqs'] = ', '.join(str(u) for u in uniqs)
+        info['num_uniqs'] = len(uniqs)
 
         # mean, min, max, quantiles
         if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_datetime64_any_dtype(series):
@@ -61,7 +61,7 @@ class SeriesMeta(Meta):
             info['75%'] = series.quantile(0.75)
             info['max'] = series.max()
 
-        df = pd.DataFrame(info, index=[self.id])
+        df = pd.DataFrame(info, index=[self.id]).fillna('')
         return df
 
     def _show_uniqs(self, series) -> bool:
