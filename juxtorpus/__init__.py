@@ -1,9 +1,9 @@
-import logging.config
+# import logging.config
 from pathlib import Path
 import logging
 
 conf_path = Path("logging_conf.ini")
-logging.config.fileConfig(conf_path)
+# logging.config.fileConfig(conf_path)
 rlogger = logging.getLogger()
 
 # ARCHIVED: FileConfig unable to read key: log_colors
