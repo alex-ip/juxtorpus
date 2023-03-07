@@ -24,30 +24,34 @@ class LDA(Widget):
 
     def __init__(self, corpus: Corpus, num_topics: int):
         self._corpus = wr.ref(corpus)
-        self.model = LatentDirichletAllocation(n_components=num_topics, random_state=42)
+        self._model = LatentDirichletAllocation(n_components=num_topics, random_state=42)
 
-    def build(self, mode: str):
+    @property
+    def model(self):
+        return self._model
+
+    def _build(self, mode: str):
         assert mode in {'tf', 'tfidf'}, "Only supports mode tf or tfidf."
         if mode == 'tf':
             with self._corpus().dtm.without_terms(terms=list(stopwords.words('english'))) as dtm_nosw:
-                self.model.fit(dtm_nosw.matrix)
-                args = self.get_pyLDAvis_prepare_args(dtm_nosw)
+                self._model.fit(dtm_nosw.matrix)
+                args = self._get_pyLDAvis_prepare_args(dtm_nosw)
                 return prepare(**args)
         if mode == 'tfidf':
             dtm_tfidf = self._corpus().dtm.tfidf()
-            self.model.fit(dtm_tfidf.matrix)
-            args = self.get_pyLDAvis_prepare_args(dtm_tfidf)
+            self._model.fit(dtm_tfidf.matrix)
+            args = self._get_pyLDAvis_prepare_args(dtm_tfidf)
             return prepare(**args)
 
     def widget(self):
-        return self.build('tf')
+        return self._build('tf')
 
-    def get_pyLDAvis_prepare_args(self, dtm) -> dict:
+    def _get_pyLDAvis_prepare_args(self, dtm) -> dict:
         vocab = dtm.term_names
         doc_lengths = dtm.total_docs_vector
         term_freqs = dtm.total_terms_vector
-        topic_term_dists = _row_norm(self.model.components_)
-        doc_topic_dists = self.model.transform(dtm.matrix)
+        topic_term_dists = _row_norm(self._model.components_)
+        doc_topic_dists = self._model.transform(dtm.matrix)
 
         return {
             'vocab': vocab,
