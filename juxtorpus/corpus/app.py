@@ -70,6 +70,10 @@ class App(object):
         self._corpus_slicer_operations: dict = None  # corpus_slicer - stores all slicer operations.
         self._corpus_slicer_current_mask: pd.Series[bool] = None  # corpus_slicer - mask from all ops hist
 
+    @property
+    def corpus(self):
+        return self._selected_corpus
+
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
         if corpus_id in self.REGISTRY.keys(): raise KeyError(f"{corpus_id} already exists.")
