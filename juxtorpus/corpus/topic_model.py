@@ -52,11 +52,12 @@ class LDA(Widget):
         return self
 
     def widget(self):
-        if not self._is_built: raise ValueError(f"You haven't built the model yet. Call {self.build.__name__}")
+        if not self._is_built: raise ValueError(ERR_NOT_BUILT)
         pyLDAvis.enable_notebook()
         return prepare(**self._pyldavis_args)
 
-    def add_to_corpus(self):
+    def add_results_to_corpus(self):
+        if not self._is_built: raise ValueError(ERR_NOT_BUILT)
         meta = SeriesMeta(id_='#lda_topic', series=self._get_best_topic_series())
         self._corpus().update_meta(meta)
         meta = SeriesMeta(id_='#lda_topics_scores', series=self._get_topics_dataframe())
@@ -84,3 +85,6 @@ class LDA(Widget):
 
     def set_callback(self, callback: Callable):
         raise NotImplementedError()
+
+
+ERR_NOT_BUILT = f"You haven't built the model yet. Call {LDA.build.__name__}"
