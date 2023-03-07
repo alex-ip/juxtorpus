@@ -7,7 +7,7 @@ import re
 
 from juxtorpus.corpus.meta import MetaRegistry, Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
-from juxtorpus.matchers import is_word
+from juxtorpus.matchers import is_word, is_word_tweets, is_hashtag, is_mention
 
 import logging
 
@@ -104,6 +104,11 @@ class Corpus:
 
         # processing
         self._processing_history = list()
+
+        # regex patterns
+        self._pattern_words = re.compile(r'\w+')
+        self._pattern_hashtags = re.compile(r'#[A-Za-z0-9_-]+')
+        self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]')
 
     @property
     def parent(self):
@@ -224,8 +229,24 @@ class Corpus:
             for word in self._gen_words_from(texts.iloc[i]):
                 yield word
 
-    def _gen_words_from(self, text) -> Generator[str, None, None]:
-        return (token.lower() for token in re.findall('[A-Za-z]+', text))
+    def _gen_words_from(self, doc) -> Generator[str, None, None]:
+        return (token.lower() for token in self._pattern_words.findall(doc))
+
+    def generate_hashtags(self):
+        for doc in self.docs():
+            for word in self._gen_hashtags_from(doc):
+                yield word
+
+    def _gen_hashtags_from(self, doc: str):
+        return (ht for ht in self._pattern_hashtags.findall(doc))
+
+    def generate_mentions(self):
+        for doc in self.docs():
+            for word in self._gen_mentions_from(doc):
+                yield word
+
+    def _gen_mentions_from(self, doc: str):
+        return (m for m in self._pattern_mentions.findall(doc))
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
@@ -321,14 +342,22 @@ class SpacyCorpus(Corpus):
     """
 
     @classmethod
-    def from_corpus(cls, corpus: Corpus, docs, nlp):
-        return cls(docs, corpus._meta_registry, nlp)
+    def from_corpus(cls, corpus: Corpus, docs, nlp, source=None):
+        return cls(docs, corpus._meta_registry, nlp, source)
 
-    def __init__(self, docs, metas, nlp: spacy.Language):
+    def __init__(self, docs, metas, nlp: spacy.Language, source=None):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
-        self._is_word_matcher = is_word(self._nlp.vocab)
-        # self._df.reset_index(inplace=True)
+        self._source = source
+        self.source_to_word_matcher = {
+            None: is_word,
+            'tweets': is_word_tweets,
+        }
+        matcher_func = self.source_to_word_matcher.get(source, None)
+        if matcher_func is None:
+            raise LookupError(f"Source {source} is not supported. "
+                              f"Must be one of {', '.join(self.source_to_word_matcher.keys())}")
+        self._is_word_matcher = matcher_func(self._nlp.vocab)
 
     @property
     def nlp(self):
