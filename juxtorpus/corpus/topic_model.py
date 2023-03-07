@@ -63,7 +63,7 @@ class LDA(Widget):
         self._corpus().update_meta(meta)
 
     def _get_topics_dataframe(self):
-        return pd.DataFrame(self._topics, columns=[f"#lda_topic_{i}" for i in range(self._topics.shape[1])])
+        return pd.DataFrame(_row_norm(self._topics), columns=[f"#lda_topic_{i}" for i in range(self._topics.shape[1])])
 
     def _get_best_topic_series(self):
         return pd.Series(self._topics.argmax(axis=1))
@@ -73,7 +73,7 @@ class LDA(Widget):
         doc_lengths = dtm.total_docs_vector
         term_freqs = dtm.total_terms_vector
         topic_term_dists = _row_norm(self._model.components_)
-        doc_topic_dists = self._topics
+        doc_topic_dists = _row_norm(self._topics)
         return {
             'vocab': vocab,
             'doc_lengths': doc_lengths.tolist(),
