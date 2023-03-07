@@ -24,3 +24,8 @@ class MetaRegistry(dict):
 
     def copy(self):
         return deepcopy(self)
+
+    def get_or_raise_err(self, id_: str):
+        meta = self.get(id_, None)
+        if meta is None: raise LookupError(f"{id_} does not exist.")
+        return meta
