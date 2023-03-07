@@ -58,10 +58,11 @@ class LDA(Widget):
 
     def add_results_to_corpus(self):
         if not self._is_built: raise ValueError(ERR_NOT_BUILT)
-        meta = SeriesMeta(id_='#lda_topic', series=self._get_best_topic_series())
-        self._corpus().update_meta(meta)
-        meta = SeriesMeta(id_='#lda_topics_scores', series=self._get_topics_dataframe())
-        self._corpus().update_meta(meta)
+        df = self._get_topics_dataframe()
+        for col in df.columns:
+            id_ = col
+            meta = SeriesMeta(id_=id_, series=df[col])
+            self._corpus().update_meta(meta)
 
     def _get_topics_dataframe(self):
         return pd.DataFrame(_row_norm(self._topics), columns=[f"#lda_topic_{i}" for i in range(self._topics.shape[1])])
