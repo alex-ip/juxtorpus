@@ -169,7 +169,7 @@ class CorpusBuilder(object):
 
     def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
-                  lazy=True):
+                  lazy=False):
         """ Add a column to add as metadata OR a list of columns to add.
 
         :param columns: The columns to add to the corpus.
