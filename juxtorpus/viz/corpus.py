@@ -10,9 +10,18 @@ import pandas as pd
 from juxtorpus.corpus import Corpus
 
 
-def wordcloud(corpus: Corpus):
+def wordcloud(corpus: Corpus, mode: str = 'word'):
+    modes = {'word', 'hashtag', 'mention'}
     wc = WordCloud(background_color='white', max_words=500, height=600, width=1200)
-    counter = Counter(corpus.generate_words())
+    if mode == 'word':
+        generator = corpus.generate_words()
+    elif mode == 'hashtag':
+        generator = corpus.generate_hashtags()
+    elif mode == 'mention':
+        generator = corpus.generate_mentions()
+    else:
+        raise ValueError(f"Mode {mode} is not supported. Must be one of {', '.join(modes)}")
+    counter = Counter(generator)
     for sw in stopwords.words('english'):
         try:
             del counter[sw]
