@@ -474,8 +474,8 @@ class App(object):
         """ DType: whole number; filter_by_item, filter_by_range """
         WIDGET_NUM = widgets.IntText
 
-        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'))
-        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'))
+        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'), value=meta.series().min())
+        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'), value=meta.series().max())
         vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
         ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
         box_num = Box([ft_num], layout=Layout(width='98%'))
@@ -514,12 +514,14 @@ class App(object):
 
         def observe_min(event):
             r = config.get('range', dict())
-            r['min'] = event.get('new')
+            r['min'] = ft_min.value
+            r['max'] = ft_max.value
             config['range'] = r
 
         def observe_max(event):
             r = config.get('range', dict())
-            r['max'] = event.get('new')
+            r['min'] = ft_min.value
+            r['max'] = ft_max.value
             config['range'] = r
 
         toggle.observe(observe_toggle, names='value')
@@ -532,8 +534,8 @@ class App(object):
         """ Dtype: decimal; filter_by_item, filter_by_range """
         WIDGET_NUM = widgets.FloatText
 
-        ft_min = WIDGET_NUM(description='Min:')
-        ft_max = WIDGET_NUM(description='Max:')
+        ft_min = WIDGET_NUM(description='Min:', value=meta.series().min())
+        ft_max = WIDGET_NUM(description='Max:', value=meta.series().max())
         vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
         ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
         box_num = Box([ft_num], layout=Layout(width='98%'))
@@ -552,6 +554,10 @@ class App(object):
 
         # CALLBACKs
         config['mode'] = toggle.value
+        config['number'] = ft_num.value
+        config['range'] = dict()
+        config['range']['min'] = ft_min.value
+        config['range']['max'] = ft_max.value
 
         def observe_toggle(event):
             config['mode'] = event.get('new')
@@ -568,12 +574,14 @@ class App(object):
 
         def observe_min(event):
             r = config.get('range', dict())
-            r['min'] = event.get('new')
+            r['min'] = ft_min.value
+            r['max'] = ft_max.value
             config['range'] = r
 
         def observe_max(event):
             r = config.get('range', dict())
-            r['max'] = event.get('new')
+            r['min'] = ft_min.value
+            r['max'] = ft_max.value
             config['range'] = r
 
         toggle.observe(observe_toggle, names='value')
