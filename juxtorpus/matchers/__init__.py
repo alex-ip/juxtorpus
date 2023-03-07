@@ -2,6 +2,8 @@
 Spacy Matchers
 https://spacy.io/usage/rule-based-matching
 
+For interactive demo: https://explosion.ai/demos/matcher
+
 NOTE: Each dictionary represents 1 token.
 """
 
@@ -21,7 +23,7 @@ is_noun = {"POS": "NOUN"}
 is_verb = {"POS": "VERB"}
 
 
-def hashtags(vocab: Vocab):
+def is_hashtag(vocab: Vocab):
     _hashtags = Matcher(vocab)
     _hashtags.add("hashtags", patterns=[
         [{"TEXT": "#"}, {"IS_ASCII": True}]
@@ -29,7 +31,7 @@ def hashtags(vocab: Vocab):
     return _hashtags
 
 
-def at_mentions(vocab: Vocab):
+def is_mention(vocab: Vocab):
     _at_mentions = Matcher(vocab)
     _at_mentions.add("mentions", patterns=[
         [{"TEXT": {"REGEX": r"^@[\S\d]+"}}]
@@ -51,6 +53,14 @@ def is_word(vocab: Vocab):
         [{"IS_PUNCT": False, 'IS_ALPHA': True}]
     ])
     return _no_puncs
+
+
+def is_word_tweets(vocab: Vocab):
+    _no_puncs_no_rt = Matcher(vocab)
+    _no_puncs_no_rt.add("no_punctuations", patterns=[
+        [{"IS_PUNCT": False, 'IS_ALPHA': True, "LOWER": {"NOT_IN": ['rt']}}]
+    ])
+    return _no_puncs_no_rt
 
 
 def no_puncs_no_stopwords(vocab: Vocab):
