@@ -358,6 +358,8 @@ class SpacyCorpus(Corpus):
             raise LookupError(f"Source {source} is not supported. "
                               f"Must be one of {', '.join(self.source_to_word_matcher.keys())}")
         self._is_word_matcher = matcher_func(self._nlp.vocab)
+        self._is_hashtag_matcher = is_hashtag(self._nlp.vocab)
+        self._is_mention_matcher = is_mention(self._nlp.vocab)
 
     @property
     def nlp(self):
@@ -398,8 +400,14 @@ class SpacyCorpus(Corpus):
             return pd.concat([df, pd.DataFrame.from_dict(spacy_info, orient='index')])
         return df
 
-    def _gen_words_from(self, doc):
+    def _gen_words_from(self, doc: Doc):
         return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
+
+    def _gen_hashtags_from(self, doc: Doc):
+        return (doc[start: end].text.lower() for _, start, end in self._is_hashtag_matcher(doc))
+
+    def _gen_mentions_from(self, doc: Doc):
+        return (doc[start: end].text.lower() for _, start, end in self._is_mention_matcher(doc))
 
     def generate_lemmas(self):
         texts = self.docs()
