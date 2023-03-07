@@ -208,6 +208,15 @@ class Corpus:
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
+    def add_meta(self, meta: Meta):
+        self._meta_registry[meta.id] = meta
+
+    def remove_meta(self, id_: str):
+        del self._meta_registry[id_]
+
+    def update_meta(self, meta: Meta):
+        self._meta_registry[meta.id] = meta
+
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
         texts = self.docs()
