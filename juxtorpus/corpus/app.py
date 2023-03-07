@@ -692,6 +692,14 @@ class App(object):
     def reset(self):
         self._corpus_selector = None
 
+    def __getitem__(self, corpus_id: str):
+        return self.REGISTRY.get(corpus_id, None)
+
+    def __setitem__(self, corpus_id: str, corpus: Corpus):
+        if not isinstance(corpus, Corpus):
+            raise ValueError(f"{corpus} must be an instance of {Corpus.__class__.__name__}")
+        self.REGISTRY[corpus_id] = corpus
+
 
 ######################################################################################################
 hbox_layout = Layout(display='inline-flex',
