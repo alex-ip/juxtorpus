@@ -203,8 +203,9 @@ class App(object):
                 if config.get('text'):
                     self._builder.set_text_column(key)
                 else:
-                    dtype = config.get('dtype')
-                    self._builder.add_metas(key, dtypes=dtype)
+                    if config.get('meta'):
+                        dtype = config.get('dtype')
+                        self._builder.add_metas(key, dtypes=dtype)
             button_output.clear_output()
             try:
                 corpus = self._builder.build()
