@@ -221,7 +221,8 @@ class Corpus:
         """ Generate list of words for each document in the corpus. """
         texts = self.docs()
         for i in range(len(texts)):
-            yield self._gen_words_from(texts.iloc[i])
+            for word in self._gen_words_from(texts.iloc[i]):
+                yield word
 
     def _gen_words_from(self, text) -> Generator[str, None, None]:
         return (token.lower() for token in re.findall('[A-Za-z]+', text))
