@@ -87,7 +87,7 @@ class Polarity(object):
         assert len(colours) == 2, "You may only "
         polarity_wordcloud_func(tokeniser_func).render(16, 16)
 
-    def _wordcloud_tf(self, tokeniser_func, colours):
+    def _wordcloud_tf(self, tokeniser_func):
         from nltk.corpus import stopwords
         sw = stopwords.words('english')
 
