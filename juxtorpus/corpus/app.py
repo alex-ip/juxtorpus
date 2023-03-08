@@ -3,6 +3,7 @@
 Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fly access.
 """
 import pandas as pd
+#import numpy as np
 from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, \
     Box, Button, Select, DatePicker, Output, Text, HTML
 import ipywidgets as widgets
@@ -40,7 +41,7 @@ class App(object):
     DTYPES_MAP = {
         'auto': None,
         'decimal': 'float',
-        'whole number': 'int',
+        'whole number': 'Int64',
         'text': 'str',
         'datetime': 'datetime',
         'category': 'category'
@@ -404,7 +405,7 @@ class App(object):
             meta_value_selector = self._create_category_ops_selector(meta, config)
         elif pd.api.types.is_datetime64_any_dtype(dtype):
             meta_value_selector = self._create_datetime_ops_selector(meta, config)
-        elif dtype == int:
+        elif dtype in [int, pd.Int64Dtype()]:
             meta_value_selector = self._create_wholenumber_ops_selector(meta, config)
         elif dtype == float:
             meta_value_selector = self._create_decimal_ops_selector(meta, config)
