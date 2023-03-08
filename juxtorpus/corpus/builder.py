@@ -72,7 +72,7 @@ class DateTimeMetaConfig(MetaConfig):
         if self.is_multi_columned():
             return {self.column: self.columns}
         else:
-            return self.column
+            return [self.column]
 
 
 class CorpusBuilder(object):
@@ -306,7 +306,8 @@ class CorpusBuilder(object):
         series_and_dtypes[self._col_text] = self._dtype_text
 
         all_cols = set(series_and_dtypes.keys())
-        meta_config_datetimes = [meta for meta in self._meta_configs.values() if type(meta) == DateTimeMetaConfig]
+        meta_config_datetimes = [meta for meta in self._meta_configs.values()
+                                 if type(meta) == DateTimeMetaConfig and not meta.lazy]
         parse_dates = list()
         for meta_dt_config in meta_config_datetimes:
             if not meta_dt_config.is_multi_columned():
@@ -314,7 +315,7 @@ class CorpusBuilder(object):
             else:
                 raise NotImplementedError("Multicolumned datetimes not implemented yet.")
                 # all_cols = all_cols.union(set(meta_dt_config.columns))
-            parse_dates.append(meta_dt_config.get_parsed_dates())
+            parse_dates.extend(meta_dt_config.get_parsed_dates())
 
         # parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME)
         # if parse_dates:
