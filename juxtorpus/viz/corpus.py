@@ -6,6 +6,7 @@ from nltk.corpus import stopwords
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.graph_objects as go
 
 from juxtorpus.corpus import Corpus
 
@@ -42,12 +43,21 @@ def wordcloud(corpus: Corpus, max_words: int = 50, mode: str = 'word'):
 def timeline(corpus: Corpus, datetime_meta: str, freq: str):
     meta = corpus.meta.get_or_raise_err(datetime_meta)
     df = pd.DataFrame([False] * len(meta.series()), index=meta.series())
-    df.groupby(pd.Grouper(level=0, freq=freq)).count().plot(kind='line', figsize=(12, 6), legend=None)
+    # df.groupby(pd.Grouper(level=0, freq=freq)).count().plot(kind='line', figsize=(12, 6), legend=None)
+    # plt.title(f"Count by {freq_to_label.get(key)}s")
+    # plt.ylabel('Count')
+    # plt.xlabel(freq_to_label.get(key))
+    # plt.show()
+    df = df.groupby(pd.Grouper(level=0, freq=freq)).count()
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=df.index.tolist(), y=df[0].tolist())
+    )
 
     freq_to_label = {'w': 'Week', 'm': 'Month', 'y': 'Year'}
     key = freq.strip()[-1]
 
-    plt.title(f"Count by {freq_to_label.get(key)}s")
-    plt.ylabel('Count')
-    plt.xlabel(freq_to_label.get(key))
-    plt.show()
+    title = f"Count by {freq_to_label.get(key, key)}"
+    xaxis_title, yaxis_title = "Count", f"{freq_to_label.get(key, key)}"
+    fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
+    return fig
