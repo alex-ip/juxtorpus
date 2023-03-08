@@ -97,7 +97,7 @@ class App(object):
 
         box_df = Box(layout=_create_layout(**box_df_layout))
 
-        hbox_corpus_builder = self._create_corpus_builder()
+        # hbox_corpus_builder = self._create_corpus_builder()
 
         def _observe_file_selected(event):
             # from pprint import pprint
@@ -121,14 +121,14 @@ class App(object):
                               VBox([box_df, button_confirm], layout=Layout(width='50%', height='200px'))],
                              layout=Layout(width='100%', height='100%'))
 
-        vbox = VBox([hbox_uploader, hbox_corpus_builder])
+        vbox = VBox([hbox_uploader, Box()])
 
         def on_click_confirm(_):
             selected_files = [d.get('path') for d in self._files.values() if d.get('selected')]
             if len(selected_files) <= 0: return
-            self._builder = CorpusBuilder(selected_files)
+            # self._builder = CorpusBuilder(selected_files)
             # hbox_corpus_builder.children = tuple((Label(p.name) for p in self._builder.paths))
-            hbox_corpus_builder = self._create_corpus_builder()
+            hbox_corpus_builder = self._create_corpus_builder(selected_files)
             vbox.children = (vbox.children[0], hbox_corpus_builder)
 
         button_confirm.on_click(on_click_confirm)
@@ -173,8 +173,9 @@ class App(object):
         dtype_dd.observe(_update_dtype, names='value')
         return widgets.HBox([label, t_checkbox, m_checkbox, dtype_dd])
 
-    def _create_corpus_builder(self):
-        if self._builder is None: return VBox()  # self._builder must first be set up before.
+    def _create_corpus_builder(self, paths):
+        # if self._builder is None: return VBox()  # self._builder must first be set up before.
+        self._builder = CorpusBuilder(paths)
 
         # creates the top labels.
         top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('data type', '30%')]
