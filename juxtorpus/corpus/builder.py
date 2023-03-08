@@ -57,8 +57,8 @@ class DateTimeMetaConfig(MetaConfig):
     COL_DATETIME = 'datetime'
 
     def __init__(self, columns: Union[str, list[str]], lazy: bool):
-        if isinstance(columns, str):
-            column = columns
+        if isinstance(columns, str) or len(columns) == 1:
+            column = columns if isinstance(columns, str) else columns[0]
             self.columns = None
         else:
             column = self.COL_DATETIME
@@ -72,7 +72,7 @@ class DateTimeMetaConfig(MetaConfig):
         if self.is_multi_columned():
             return {self.column: self.columns}
         else:
-            return [self.column]
+            return self.column
 
 
 class CorpusBuilder(object):
@@ -180,6 +180,9 @@ class CorpusBuilder(object):
         """
         if isinstance(columns, str):
             columns = [columns]
+        if dtypes == 'datetime':
+            self._add_datetime_meta(columns, lazy)
+            return
         if isinstance(dtypes, str) or dtypes is None:
             dtypes = [dtypes] * len(columns)
         if len(columns) != len(dtypes): raise ValueError("Number of columns and dtypes must match.")
@@ -188,7 +191,6 @@ class CorpusBuilder(object):
             if col == self._col_text: self._col_text = None  # reset text column
             if dtype is not None and dtype not in self.allowed_dtypes:
                 raise ValueError(f"{dtype} is not a valid dtype.\nValid dtypes: {sorted(self.allowed_dtypes)}")
-            if dtype == 'datetime': self._add_datetime_meta(col, lazy)
             else: self._add_meta(col, dtype, lazy)
 
     def _add_meta(self, column: str, dtype: Optional[str], lazy: bool):
@@ -299,13 +301,25 @@ class CorpusBuilder(object):
     def _build_series_meta_and_text(self, metas: dict):
         series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
                              if not mc.lazy and type(mc) != DateTimeMetaConfig}
+        # series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
+        #                      if not mc.lazy}
         series_and_dtypes[self._col_text] = self._dtype_text
 
         all_cols = set(series_and_dtypes.keys())
-        parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME, False)
-        if parse_dates:
-            all_cols = all_cols.union(set(parse_dates.columns))
-            parse_dates: dict = parse_dates.get_parsed_dates()
+        meta_config_datetimes = [meta for meta in self._meta_configs.values() if type(meta) == DateTimeMetaConfig]
+        parse_dates = list()
+        for meta_dt_config in meta_config_datetimes:
+            if not meta_dt_config.is_multi_columned():
+                all_cols = all_cols.union({meta_dt_config.column})
+            else:
+                raise NotImplementedError("Multicolumned datetimes not implemented yet.")
+                # all_cols = all_cols.union(set(meta_dt_config.columns))
+            parse_dates.append(meta_dt_config.get_parsed_dates())
+
+        # parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME)
+        # if parse_dates:
+        #     all_cols = all_cols.union(set(parse_dates.columns))
+        #     parse_dates: dict = parse_dates.get_parsed_dates()
         current = 0
         dfs = list()
         for path in self._paths:
@@ -329,7 +343,7 @@ class CorpusBuilder(object):
         # set up corpus dependencies here
         series_text = df.loc[:, self._col_text]
         del series_and_dtypes[self._col_text]
-        for col in series_and_dtypes.keys():
+        for col in all_cols:
             series = df[col]
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please use a different column name.")
