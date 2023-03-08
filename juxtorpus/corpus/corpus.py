@@ -253,17 +253,17 @@ class Corpus:
         cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
 
-        clone = self.__class__(cloned_docs, cloned_metas)
+        clone = Corpus(cloned_docs, cloned_metas)
         clone._parent = self
 
         clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
         clone._processing_history = self._cloned_history()
         return clone
 
-    def _cloned_docs(self, mask):
+    def _cloned_docs(self, mask) -> pd.Series:
         return self.docs().loc[mask]
 
-    def _cloned_metas(self, mask):
+    def _cloned_metas(self, mask) -> MetaRegistry:
         cloned_meta_registry = MetaRegistry()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
@@ -272,7 +272,7 @@ class Corpus:
     def _cloned_history(self):
         return [h for h in self.history()]
 
-    def _cloned_dtms(self, indices):
+    def _cloned_dtms(self, indices) -> DTMRegistry:
         registry = Corpus.DTMRegistry()
         for k, dtm in self._dtm_registry.items():
             registry[k] = dtm.cloned(indices)
@@ -345,7 +345,7 @@ class SpacyCorpus(Corpus):
     def from_corpus(cls, corpus: Corpus, docs, nlp, source=None):
         return cls(docs, corpus._meta_registry, nlp, source)
 
-    def __init__(self, docs, metas, nlp: spacy.Language, source=None):
+    def __init__(self, docs, metas, nlp: spacy.Language, source: str):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
         self._source = source
@@ -357,9 +357,14 @@ class SpacyCorpus(Corpus):
         if matcher_func is None:
             raise LookupError(f"Source {source} is not supported. "
                               f"Must be one of {', '.join(self.source_to_word_matcher.keys())}")
+
         self._is_word_matcher = matcher_func(self._nlp.vocab)
         self._is_hashtag_matcher = is_hashtag(self._nlp.vocab)
         self._is_mention_matcher = is_mention(self._nlp.vocab)
+
+    @property
+    def source(self):
+        return self._source
 
     @property
     def nlp(self):
@@ -387,7 +392,7 @@ class SpacyCorpus(Corpus):
 
     def cloned(self, mask: 'pd.Series[bool]'):
         clone = super().cloned(mask)
-        return self.__class__.from_corpus(clone, clone.docs(), self.nlp)
+        return self.__class__.from_corpus(clone, clone.docs(), self.nlp, self._source)
 
     def summary(self, spacy: bool = False):
         df = super(SpacyCorpus, self).summary()
