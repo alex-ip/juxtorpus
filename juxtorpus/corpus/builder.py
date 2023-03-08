@@ -344,6 +344,7 @@ class CorpusBuilder(object):
         # set up corpus dependencies here
         series_text = df.loc[:, self._col_text]
         del series_and_dtypes[self._col_text]
+        all_cols = all_cols.difference({self._col_text})
         for col in all_cols:
             series = df[col]
             if metas.get(col, None) is not None:
