@@ -691,7 +691,6 @@ class App(object):
                 mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('number'))
             elif mode == 'MIN/MAX':
                 min_, max_ = config.get('range').get('min'), config.get('range').get('max')
-                print(min_, max_)
                 mask = self._selected_corpus.slicer._filter_by_range_mask(meta, min_, max_)
             elif mode == 'TEXT':
                 mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('text'))
