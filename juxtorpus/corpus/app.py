@@ -543,22 +543,16 @@ class App(object):
         def observe_num(event):
             config['number'] = event.get('new')
 
-        def observe_min(event):
-            r = config.get('range', dict())
-            r['min'] = ft_min.value
-            r['max'] = ft_max.value
-            config['range'] = r
-
-        def observe_max(event):
-            r = config.get('range', dict())
+        def observe_minmax(event):
+            r = config.get('range')
             r['min'] = ft_min.value
             r['max'] = ft_max.value
             config['range'] = r
 
         toggle.observe(observe_toggle, names='value')
         ft_num.observe(observe_num, names='value')
-        ft_min.observe(observe_min, names='value')
-        ft_max.observe(observe_max, names='value')
+        ft_min.observe(observe_minmax, names='value')
+        ft_max.observe(observe_minmax, names='value')
         return vbox
 
     def _create_decimal_ops_selector(self, meta: SeriesMeta, config):
@@ -603,22 +597,16 @@ class App(object):
         def observe_num(event):
             config['number'] = event.get('new')
 
-        def observe_min(event):
-            r = config.get('range', dict())
-            r['min'] = ft_min.value
-            r['max'] = ft_max.value
-            config['range'] = r
-
-        def observe_max(event):
-            r = config.get('range', dict())
+        def observe_minmax(event):
+            r = config.get('range')
             r['min'] = ft_min.value
             r['max'] = ft_max.value
             config['range'] = r
 
         toggle.observe(observe_toggle, names='value')
         ft_num.observe(observe_num, names='value')
-        ft_min.observe(observe_min, names='value')
-        ft_max.observe(observe_max, names='value')
+        ft_min.observe(observe_minmax, names='value')
+        ft_max.observe(observe_minmax, names='value')
         return vbox
 
     def _create_text_ops_selector(self, meta: SeriesMeta, config):
