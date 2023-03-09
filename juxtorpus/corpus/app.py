@@ -653,7 +653,7 @@ class App(object):
             # calculates a mask given the checked boxes, outputs preview of corpus size.
             self._update_corpus_slicer_preview(html=f"<h4>Calculating...</h4>")
             self._corpus_slicer_current_mask = None
-            mask = pd.Series([True] * len(self._selected_corpus))
+            mask = pd.Series([True] * len(self._selected_corpus), index=self._selected_corpus._df.index)
             for cb, (selected, config) in self._corpus_slicer_operations.items():
                 if cb.value:
                     tmp_mask = self._filter_by_mask_triage(selected, config)
@@ -691,6 +691,7 @@ class App(object):
                 mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('number'))
             elif mode == 'MIN/MAX':
                 min_, max_ = config.get('range').get('min'), config.get('range').get('max')
+                print(min_, max_)
                 mask = self._selected_corpus.slicer._filter_by_range_mask(meta, min_, max_)
             elif mode == 'TEXT':
                 mask = self._selected_corpus.slicer._filter_by_item_mask(meta, config.get('text'))
