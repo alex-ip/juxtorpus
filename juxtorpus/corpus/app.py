@@ -11,6 +11,7 @@ from pathlib import Path
 import math
 from datetime import timedelta, datetime
 import spacy
+from copy import deepcopy
 
 from juxtorpus.corpus.processors import process
 from juxtorpus.corpus import Corpus, CorpusBuilder
@@ -647,7 +648,7 @@ class App(object):
         cb = Checkbox(description=self._beautify_ops_checkbox_description(selected, config),
                       layout=_create_layout(**{'width': '98%'}))
         cb.style = {'description_width': '0px'}
-        self._corpus_slicer_operations[cb] = (selected, config.copy())
+        self._corpus_slicer_operations[cb] = (selected, deepcopy(config))
 
         def observe_cb(_):
             # calculates a mask given the checked boxes, outputs preview of corpus size.
