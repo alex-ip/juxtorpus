@@ -180,7 +180,7 @@ class App(object):
         self._builder = CorpusBuilder(paths)
 
         # creates the top labels.
-        top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('data type', '30%')]
+        top_labels = [('id', '30%'), ('document', '15%'), ('meta', '15%'), ('data type', '30%')]
         selection_top_labels = HBox(
             list(map(lambda ls: widgets.HTML(f"<b>{ls[0]}</b>", layout=Layout(width=ls[1])), top_labels))
         )
