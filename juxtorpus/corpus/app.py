@@ -39,6 +39,10 @@ def format_size(size_bytes):
     return "%s %s" % (s, size_name[i])
 
 
+# used in datepicker, and when slicing will use this for filter_by_datetime
+STRFORMAT = ' %d %b %Y '
+
+
 class App(object):
     DTYPES_MAP = {
         'auto': None,
@@ -457,8 +461,11 @@ class App(object):
         widget_s = DatePicker(description='start', value=start, layout=Layout(**{'width': '98%'}))
         widget_e = DatePicker(description='end', value=end, layout=Layout(**{'width': '98%'}))
 
-        def date_to_slider_idx(date):
-            return date.strftime(' %d %b %Y '), date
+        def date_to_slider_idx(date) -> str:
+            return date.strftime(STRFORMAT)
+
+        def slider_option_to_date(option: str) -> datetime:
+            return datetime.strptime(option, STRFORMAT)
 
         dates = pd.date_range(start, end, freq='D')
         options = [date_to_slider_idx(date) for date in dates]
@@ -466,16 +473,21 @@ class App(object):
         slider = widgets.SelectionRangeSlider(options=options, index=index, layout={'width': '98%'})
 
         def update_datetime_datepicker(event):
-            slider.index = (options.index(date_to_slider_idx(pd.Timestamp(widget_s.value))),
-                            options.index(date_to_slider_idx(pd.Timestamp(widget_e.value))))
+            try:
+                slider.index = (options.index(date_to_slider_idx(widget_s.value)),
+                                options.index(date_to_slider_idx(widget_e.value)))
+            except ValueError as ve:
+                # datepicker selected a date that's out of range from the slider.
+                pass
+
             config['start'] = slider.value[0]
             config['end'] = slider.value[1]
 
         def update_datetime_slider(event):
             config['start'] = slider.value[0]
             config['end'] = slider.value[1]
-            widget_s.value = config['start']
-            widget_e.value = config['end']
+            widget_s.value = slider_option_to_date(config['start'])
+            widget_e.value = slider_option_to_date(config['end'])
 
         update_datetime_slider(None)
         widget_s.observe(update_datetime_datepicker, names='value')
@@ -664,7 +676,7 @@ class App(object):
         meta = self._selected_corpus.slicer._get_meta_or_raise_err(selected)
         if 'start' in config.keys() and 'end' in config.keys():
             start, end = config.get('start'), config.get('end')
-            mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end)
+            mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end, strftime=STRFORMAT)
         elif 'item' in config.keys():
             items = config.get('item')
             mask = self._selected_corpus.slicer._filter_by_item_mask(meta, items)
