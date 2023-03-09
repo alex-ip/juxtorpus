@@ -738,6 +738,7 @@ class App(object):
         if not isinstance(corpus, Corpus):
             raise ValueError(f"{corpus} must be an instance of {Corpus.__class__.__name__}")
         self.REGISTRY[corpus_id] = corpus
+        self._update_corpus_selector()
 
 
 ######################################################################################################
