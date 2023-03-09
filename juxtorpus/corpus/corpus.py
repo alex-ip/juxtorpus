@@ -193,14 +193,14 @@ class Corpus:
         docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop)
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
-        mapper = {row_idx: f"Number of Words [{row_idx}]" for row_idx in docs_info.index}
+        mapper = {row_idx: f"{row_idx} Words per Document" for row_idx in docs_info.index}
         docs_info.rename(index=mapper, inplace=True)
 
         other_info = pd.Series({
             "Corpus Type": self.__class__.__name__,
             "Number of Documents": len(self),
-            "Number of Words": self.dtm.total,
-            "Vocabulary size": len(self.dtm.vocab(nonzero=True)),
+            "Number of Total Words": self.dtm.total,
+            "Size of Vocabulary": len(self.dtm.vocab(nonzero=True)),
         })
 
         meta_info = pd.Series({
