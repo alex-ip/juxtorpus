@@ -461,27 +461,32 @@ class App(object):
         widget_s = DatePicker(description='start', value=start, layout=Layout(**{'width': '98%'}))
         widget_e = DatePicker(description='end', value=end, layout=Layout(**{'width': '98%'}))
 
-        def date_to_slider_idx(date) -> str:
+        def date_to_slider_option(date) -> str:
             return date.strftime(STRFORMAT)
 
         def slider_option_to_date(option: str) -> datetime:
             return datetime.strptime(option, STRFORMAT)
 
         dates = pd.date_range(start, end, freq='D')
-        options = [date_to_slider_idx(date) for date in dates]
+        options = [date_to_slider_option(date) for date in dates]
         index = (int(len(dates) / 4), int(3 * len(dates) / 4))
         slider = widgets.SelectionRangeSlider(options=options, index=index, layout={'width': '98%'})
 
         def update_datetime_datepicker(event):
+            sv, ev = widget_s.value, widget_e.value
+            config['start'] = date_to_slider_option(sv) if sv is not None else options[0]
+            config['end'] = date_to_slider_option(ev) if ev is not None else options[-1]
             try:
-                slider.index = (options.index(date_to_slider_idx(widget_s.value)),
-                                options.index(date_to_slider_idx(widget_e.value)))
+                # slider.index = (options.index(date_to_slider_option(widget_s.value)),
+                #                 options.index(date_to_slider_option(widget_e.value)))
+                slider.index = (options.index(config['start']),
+                                options.index(config['end']))
             except ValueError as ve:
                 # datepicker selected a date that's out of range from the slider.
                 pass
-
-            config['start'] = slider.value[0]
-            config['end'] = slider.value[1]
+            except Exception as e:
+                # any other exceptions that can occur e.g. datepicker suddenly jumps to value = None
+                pass
 
         def update_datetime_slider(event):
             config['start'] = slider.value[0]
