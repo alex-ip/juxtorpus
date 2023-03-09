@@ -275,8 +275,8 @@ class Corpus:
 
     def _cloned_dtms(self, indices) -> DTMRegistry:
         registry = Corpus.DTMRegistry()
-        for k, dtm in self._dtm_registry.items():
-            registry[k] = dtm.cloned(indices)
+        registry.set_tokens_dtm(self._dtm_registry.get_tokens_dtm().cloned(indices))
+        registry.set_custom_dtm(self._dtm_registry.get_custom_dtm().cloned(indices))
         return registry
 
     def detached(self):
@@ -344,9 +344,11 @@ class SpacyCorpus(Corpus):
 
     @classmethod
     def from_corpus(cls, corpus: Corpus, docs, nlp, source=None):
-        return cls(docs, corpus._meta_registry, nlp, source)
+        scorpus = cls(docs, corpus._meta_registry, nlp, source)
+        scorpus._dtm_registry = corpus._dtm_registry
+        return scorpus
 
-    def __init__(self, docs, metas, nlp: spacy.Language, source: str):
+    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
         self._source = source
