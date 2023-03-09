@@ -346,6 +346,7 @@ class SpacyCorpus(Corpus):
     def from_corpus(cls, corpus: Corpus, docs, nlp, source=None):
         scorpus = cls(docs, corpus._meta_registry, nlp, source)
         scorpus._dtm_registry = corpus._dtm_registry
+        scorpus._parent = corpus.parent
         return scorpus
 
     def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):
