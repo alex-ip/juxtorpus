@@ -701,7 +701,8 @@ class App(object):
         prefix = f"[{selected.ljust(30)}] "
         if 'start' in config.keys() and 'end' in config.keys():
             start, end = config.get('start'), config.get('end')
-            text = f"{start.strftime('%d %b %Y')} - {end.strftime('%d %b %Y')}"
+            # text = f"{start.strftime('%d %b %Y')} - {end.strftime('%d %b %Y')}"
+            text = f"{start} - {end}"
         elif 'item' in config.keys():
             items = config.get('item')
             text = f"Items: {', '.join(items)}"
