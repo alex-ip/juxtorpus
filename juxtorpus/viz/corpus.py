@@ -8,10 +8,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
 
-from juxtorpus.corpus import Corpus
 
-
-def wordcloud(corpus: Corpus, max_words: int = 50, word_type: str = 'word'):
+def wordcloud(corpus, max_words: int = 50, word_type: str = 'word'):
     modes = {'word', 'hashtag', 'mention'}
     wc = WordCloud(background_color='white', max_words=max_words, height=600, width=1200)
     if word_type == 'word':
@@ -40,7 +38,7 @@ def wordcloud(corpus: Corpus, max_words: int = 50, word_type: str = 'word'):
     plt.show()
 
 
-def timeline(corpus: Corpus, datetime_meta: str, freq: str):
+def timeline(corpus, datetime_meta: str, freq: str):
     meta = corpus.meta.get_or_raise_err(datetime_meta)
     df = pd.DataFrame([False] * len(meta.series()), index=meta.series())
     df = df.groupby(pd.Grouper(level=0, freq=freq)).count()

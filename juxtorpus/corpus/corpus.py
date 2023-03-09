@@ -5,6 +5,7 @@ from spacy.tokens import Doc
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
+from juxtorpus.corpus.viz import CorpusViz
 from juxtorpus.corpus.meta import MetaRegistry, Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
 from juxtorpus.matchers import is_word, is_word_tweets, is_hashtag, is_mention
@@ -110,6 +111,9 @@ class Corpus:
         self._pattern_hashtags = re.compile(r'#[A-Za-z0-9_-]+')
         self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]')
 
+        # standard viz
+        self._viz = CorpusViz(self)
+
     @property
     def parent(self):
         return self._parent
@@ -136,6 +140,10 @@ class Corpus:
     @property
     def custom_dtm(self):
         return self._dtm_registry.get_custom_dtm()
+
+    @property
+    def viz(self):
+        return self._viz
 
     def find_root(self):
         """ Find and return the root corpus. """
@@ -190,7 +198,8 @@ class Corpus:
     def summary(self):
         """ Basic summary statistics of the corpus. """
         describe_cols_to_drop = ['count', 'std', '25%', '50%', '75%']
-        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop).astype(int) # Show only integer numbers.
+        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop).astype(
+            int)  # Show only integer numbers.
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
         mapper = {row_idx: f"{row_idx} Words per Document" for row_idx in docs_info.index}
