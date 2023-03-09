@@ -11,17 +11,17 @@ import plotly.graph_objects as go
 from juxtorpus.corpus import Corpus
 
 
-def wordcloud(corpus: Corpus, max_words: int = 50, mode: str = 'word'):
+def wordcloud(corpus: Corpus, max_words: int = 50, word_type: str = 'word'):
     modes = {'word', 'hashtag', 'mention'}
     wc = WordCloud(background_color='white', max_words=max_words, height=600, width=1200)
-    if mode == 'word':
+    if word_type == 'word':
         generator = corpus.generate_words()
-    elif mode == 'hashtag':
+    elif word_type == 'hashtag':
         generator = corpus.generate_hashtags()
-    elif mode == 'mention':
+    elif word_type == 'mention':
         generator = corpus.generate_mentions()
     else:
-        raise ValueError(f"Mode {mode} is not supported. Must be one of {', '.join(modes)}")
+        raise ValueError(f"Mode {word_type} is not supported. Must be one of {', '.join(modes)}")
     counter = Counter(generator)
     for sw in stopwords.words('english'):
         try:
