@@ -189,16 +189,17 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop("count")
+        describe_cols_to_drop = ['count', 'std', '25%', '50%', '75%']
+        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop)
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
-        mapper = {row_idx: f"No. Terms {row_idx}" for row_idx in docs_info.index}
+        mapper = {row_idx: f"Number of Words [{row_idx}]" for row_idx in docs_info.index}
         docs_info.rename(index=mapper, inplace=True)
 
         other_info = pd.Series({
             "Corpus Type": self.__class__.__name__,
-            "No. Documents": len(self),
-            "No. Terms": self.dtm.total,
+            "Number of Documents": len(self),
+            "Number of Words": self.dtm.total,
             "Vocabulary size": len(self.dtm.vocab(nonzero=True)),
         })
 
