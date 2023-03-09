@@ -190,7 +190,7 @@ class Corpus:
     def summary(self):
         """ Basic summary statistics of the corpus. """
         describe_cols_to_drop = ['count', 'std', '25%', '50%', '75%']
-        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop)
+        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop).astype(int) # Show only integer numbers.
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
         mapper = {row_idx: f"{row_idx} Words per Document" for row_idx in docs_info.index}
