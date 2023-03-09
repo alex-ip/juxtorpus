@@ -3,14 +3,16 @@
 Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fly access.
 """
 import pandas as pd
-#import numpy as np
+# import numpy as np
 from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, \
     Box, Button, Select, DatePicker, Output, Text, HTML
 import ipywidgets as widgets
 from pathlib import Path
 import math
 from datetime import timedelta, datetime
+import spacy
 
+from juxtorpus.corpus.processors import process
 from juxtorpus.corpus import Corpus, CorpusBuilder
 from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.viz.widgets import FileUploadWidget
@@ -211,6 +213,9 @@ class App(object):
             button_output.clear_output()
             try:
                 corpus = self._builder.build()
+                # todo: remove this quick hack - for DH demo only.
+                corpus = process(corpus, nlp=spacy.blank('en'), source='tweets')
+
                 with button_output: print(f"{corpus_id.get('name')} added to registry.")
                 self.update_registry(corpus_id.get('name'), corpus)
             except Exception as e:
