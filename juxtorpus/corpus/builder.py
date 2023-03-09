@@ -169,7 +169,7 @@ class CorpusBuilder(object):
 
     def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
-                  lazy=True):
+                  lazy=False):
         """ Add a column to add as metadata OR a list of columns to add.
 
         :param columns: The columns to add to the corpus.
@@ -199,7 +199,7 @@ class CorpusBuilder(object):
         self._meta_configs[meta_config.column] = meta_config
 
     def _add_datetime_meta(self, columns: Union[str, list[str]], lazy: bool):
-        if isinstance(columns, list):
+        if isinstance(columns, list) and len(columns) > 1:
             for column in columns:
                 if column not in self._columns:
                     raise ValueError(f"{column} column does not exist.")
