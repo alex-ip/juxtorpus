@@ -54,3 +54,28 @@ def timeline(corpus, datetime_meta: str, freq: str):
     xaxis_title, yaxis_title = "Count", f"{freq_to_label.get(key, key)}"
     fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
     return fig
+
+
+def timelines(corpora, names: list[str], datetime_meta: str, freq: str):
+    # datetime_series = None
+    for name in names:
+        corpus = corpora[name]
+        assert corpus, f"{name} does not exist in corpora."
+        # meta = corpus.meta.get_or_raise_err(datetime_meta)
+        # if not datetime_series: datetime_series = meta.series()
+    fig = go.Figure()
+    for name in names:
+        corpus = corpora[name]
+        meta = corpus.meta.get_or_raise_err(datetime_meta)
+        df = pd.DataFrame([False] * len(meta.series()), index=meta.series())
+        df = df.groupby(pd.Grouper(level=0, freq=freq)).count()
+        fig.add_trace(
+            go.Scatter(x=df.index.tolist(), y=df[0].tolist(), name=name, showlegend=True)
+        )
+    freq_to_label = {'w': 'Week', 'm': 'Month', 'y': 'Year'}
+    key = freq.strip()[-1]
+
+    title = f"Count by {freq_to_label.get(key, key)}"
+    xaxis_title, yaxis_title = "Count", f"{freq_to_label.get(key, key)}"
+    fig.update_layout(title=title, xaxis_title=xaxis_title, yaxis_title=yaxis_title)
+    return fig
