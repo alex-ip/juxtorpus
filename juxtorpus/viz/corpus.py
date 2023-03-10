@@ -7,9 +7,42 @@ from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
+import math
+
+
+def wordclouds(corpora, names: list[str], max_words: int = 50, word_type: str = 'word'):
+    MAX_COLS = 2
+    nrows = math.ceil(len(names) / 2)
+    fig, axes = plt.subplots(nrows=nrows, ncols=MAX_COLS, figsize=(16, 16 * 1.5))
+    r, c = 0, 0
+    for name in names:
+        assert corpora[name], f"{name} does not exist in Corpora."
+        corpus = corpora[name]
+        wc = _wordcloud(corpus, max_words, word_type)
+        if nrows == 1:
+            ax = axes[c]
+        else:
+            ax = axes[r][c]
+        ax.imshow(wc, interpolation='bilinear')
+        ax.axis('off')
+        if c == MAX_COLS - 1: r += 1
+        c = (c + 1) % MAX_COLS
+
+    plt.tight_layout(pad=0)
+    plt.show()
 
 
 def wordcloud(corpus, max_words: int = 50, word_type: str = 'word'):
+    wc = _wordcloud(corpus, max_words, word_type)
+    h, w = 16, 16 * 1.5
+    plt.figure(figsize=(h, w))
+    plt.imshow(wc, interpolation='bilinear')
+    plt.axis('off')
+    plt.tight_layout(pad=0)
+    plt.show()
+
+
+def _wordcloud(corpus, max_words, word_type):
     modes = {'word', 'hashtag', 'mention'}
     wc = WordCloud(background_color='white', max_words=max_words, height=600, width=1200)
     if word_type == 'word':
@@ -27,15 +60,8 @@ def wordcloud(corpus, max_words: int = 50, word_type: str = 'word'):
         except:
             continue
 
-    h, w = 16, 16 * 1.5
-
     wc.generate_from_frequencies(counter)
-
-    plt.figure(figsize=(h, w))
-    plt.imshow(wc, interpolation='bilinear')
-    plt.axis('off')
-    plt.tight_layout(pad=0)
-    plt.show()
+    return wc
 
 
 def timeline(corpus, datetime_meta: str, freq: str):
