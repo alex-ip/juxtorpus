@@ -10,7 +10,7 @@ import plotly.graph_objects as go
 import math
 
 
-def wordclouds(corpora, names: list[str], max_words: int = 50, word_type: str = 'word'):
+def wordclouds(corpora, names: list[str], max_words: int = 50, metric: str = 'tf', word_type: str = 'word'):
     MAX_COLS = 2
     nrows = math.ceil(len(names) / 2)
     fig, axes = plt.subplots(nrows=nrows, ncols=MAX_COLS, figsize=(16, 16 * 1.5))
@@ -18,7 +18,7 @@ def wordclouds(corpora, names: list[str], max_words: int = 50, word_type: str = 
     for name in names:
         assert corpora[name], f"{name} does not exist in Corpora."
         corpus = corpora[name]
-        wc = _wordcloud(corpus, max_words, word_type)
+        wc = _wordcloud(corpus, max_words, metric, word_type)
         if nrows == 1:
             ax = axes[c]
         else:
@@ -32,8 +32,8 @@ def wordclouds(corpora, names: list[str], max_words: int = 50, word_type: str = 
     plt.show()
 
 
-def wordcloud(corpus, max_words: int = 50, word_type: str = 'word'):
-    wc = _wordcloud(corpus, max_words, word_type)
+def wordcloud(corpus, max_words: int = 50, metric: str = 'tf', word_type: str = 'word'):
+    wc = _wordcloud(corpus, max_words, metric, word_type)
     h, w = 16, 16 * 1.5
     plt.figure(figsize=(h, w))
     plt.imshow(wc, interpolation='bilinear')
@@ -42,26 +42,35 @@ def wordcloud(corpus, max_words: int = 50, word_type: str = 'word'):
     plt.show()
 
 
-def _wordcloud(corpus, max_words: int, word_type: str):
-    modes = {'word', 'hashtag', 'mention'}
+def _wordcloud(corpus, max_words: int, metric: str, word_type: str):
+    word_types = {'word', 'hashtag', 'mention'}
+    metrics = {'tf', 'tfidf'}
+    assert word_type in word_types, f"{word_type} not in {', '.join(word_types)}"
+    assert metric in metrics, f"{metric} not in {', '.join(metrics)}"
     wc = WordCloud(background_color='white', max_words=max_words, height=600, width=1200)
     if word_type == 'word':
-        generator = corpus.generate_words()
+        # generator = corpus.generate_words()
+        dtm = corpus.dtm
     elif word_type == 'hashtag':
-        generator = corpus.generate_hashtags()
+        # generator = corpus.generate_hashtags()
+        dtm = corpus.create_custom_dtm(corpus._gen_hashtags_from)
     elif word_type == 'mention':
-        generator = corpus.generate_mentions()
+        # generator = corpus.generate_mentions()
+        dtm = corpus.create_custom_dtm(corpus._gen_mentions_from)
     else:
-        raise ValueError(f"Mode {word_type} is not supported. Must be one of {', '.join(modes)}")
-    counter = Counter(generator)
-    for sw in stopwords.words('english'):
-        try:
-            del counter[sw]
-        except:
-            continue
+        raise ValueError(f"Word type {word_type} is not supported. Must be one of {', '.join(word_types)}")
 
-    wc.generate_from_frequencies(counter)
-    return wc
+    if metric == 'tf':
+        with dtm.without_terms(stopwords.words('english')) as dtm:
+            counter = dtm.freq_table().series.to_dict()
+            wc.generate_from_frequencies(counter)
+            return wc
+    elif metric == 'tfidf':
+        counter = dtm.tfidf().freq_table().series.to_dict()
+        wc.generate_from_frequencies(counter)
+        return wc
+    else:
+        raise ValueError(f"Metric {metric} is not supported. Must be one of {', '.join(metrics)}")
 
 
 def timeline(corpus, datetime_meta: str, freq: str):
