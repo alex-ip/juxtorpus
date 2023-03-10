@@ -16,6 +16,8 @@ import weakref as wr
 import pandas as pd
 from typing import Generator
 from nltk.corpus import stopwords
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 from juxtorpus.corpus.dtm import DTM
 from juxtorpus.viz.polarity_wordcloud import PolarityWordCloud
@@ -85,8 +87,20 @@ class Polarity(object):
         polarity_wordcloud_func = self.modes.get(mode, None)
         if polarity_wordcloud_func is None:
             raise LookupError(f"Mode {mode} does not exist. Choose either {', '.join(self.modes.keys())}")
-        assert len(colours) == 2, "You may only "
-        polarity_wordcloud_func(top, colours, tokeniser_func).render(16, 16)
+        assert len(colours) == 2, "There can only be 2 colours. e.g. ('blue', 'red')."
+
+        height, width = 24, 24
+        pwc, add_legend = polarity_wordcloud_func(top, colours, tokeniser_func)
+        pwc._build(resolution_scale=int(height * width * 0.005))
+        fig, ax = plt.subplots(figsize=(height, width))
+
+        legend_elements = [Patch(facecolor=colours[0], label='Corpus 1'), Patch(facecolor=colours[1], label='Corpus 2')]
+        legend_elements.extend(add_legend)
+
+        ax.imshow(pwc.wc, interpolation='bilinear')
+        ax.legend(handles=legend_elements, prop={'size': 16}, loc='upper right')
+        ax.axis('off')
+        plt.show()
 
     def _wordcloud_tf(self, top: int, colours: tuple[str], tokeniser_func):
         assert len(colours) == 2, "Only supports 2 colours."
@@ -101,7 +115,11 @@ class Polarity(object):
 
         pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='polarity_div_summed')
         pwc.gradate(colours[0], colours[1])
-        return pwc
+
+        add_legend = [Patch(facecolor='None', label='Size: Polarised and Rare'),
+                      Patch(facecolor='None', label='Solid: Higher frequency to one corpus'),
+                      Patch(facecolor='None', label='Opaque: Similar frequency'), ]
+        return pwc, add_legend
 
     def _wordcloud_tfidf(self, top: int, colours: tuple[str], tokeniser_func):
         assert len(colours) == 2, "Only supports 2 colours."
@@ -111,7 +129,11 @@ class Polarity(object):
         df_tmp = df.sort_values(by='size', ascending=False).iloc[:top]
         pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='size')
         pwc.gradate(colours[0], colours[1])
-        return pwc
+
+        add_legend = [Patch(facecolor='None', label='Size: Tfidf of both'),
+                      Patch(facecolor='None', label='Solid: Higher Tfidf to one corpus'),
+                      Patch(facecolor='None', label='Opaque: Similar tfidf')]
+        return pwc, add_legend
 
     def _wordcloud_log_likelihood(self, top: int, colours: tuple[str], tokeniser_func, ):
         assert len(colours) == 2, "Only supports 2 colours."
@@ -124,4 +146,8 @@ class Polarity(object):
         df_tmp = df.sort_values(by='size', ascending=False).iloc[:top]
         pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='size')
         pwc.gradate(colours[0], colours[1])
-        return pwc
+
+        add_legend = [Patch(facecolor='None', label='Size: Frequency'),
+                      Patch(facecolor='None', label='Solid: Higher log likelihood to one corpus'),
+                      Patch(facecolor='None', label='Opaque: Similar log likelihood')]
+        return pwc, add_legend
