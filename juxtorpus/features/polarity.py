@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Optional, Callable
 import weakref as wr
 import pandas as pd
 from typing import Generator
+from nltk.corpus import stopwords
 
 from juxtorpus.corpus.dtm import DTM
 from juxtorpus.viz.polarity_wordcloud import PolarityWordCloud
@@ -80,15 +81,15 @@ class Polarity(object):
         else:
             return (corpus.dtm for corpus in self._jux().corpora)
 
-    def wordcloud(self, mode: str, tokeniser_func: Optional[Callable] = None, colours=('blue', 'red')):
+    def wordcloud(self, mode: str, top: int = 50, colours=('blue', 'red'), tokeniser_func: Optional[Callable] = None):
         polarity_wordcloud_func = self.modes.get(mode, None)
         if polarity_wordcloud_func is None:
             raise LookupError(f"Mode {mode} does not exist. Choose either {', '.join(self.modes.keys())}")
         assert len(colours) == 2, "You may only "
-        polarity_wordcloud_func(tokeniser_func).render(16, 16)
+        polarity_wordcloud_func(top, colours, tokeniser_func).render(16, 16)
 
-    def _wordcloud_tf(self, tokeniser_func):
-        from nltk.corpus import stopwords
+    def _wordcloud_tf(self, top: int, colours: tuple[str], tokeniser_func):
+        assert len(colours) == 2, "Only supports 2 colours."
         sw = stopwords.words('english')
 
         df = self.tf(tokeniser_func)
@@ -96,30 +97,31 @@ class Polarity(object):
         df['summed'] = df['freq_corpus_0'] + df['freq_corpus_1']
         df['polarity_div_summed'] = df['polarity'].abs() / df['summed']
 
-        top = 50
         df_tmp = df.sort_values(by='summed', ascending=False).iloc[:top]
 
         pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='polarity_div_summed')
-        pwc.gradate('blue', 'red')
+        pwc.gradate(colours[0], colours[1])
         return pwc
 
-    def _wordcloud_tfidf(self, tokeniser_func):
+    def _wordcloud_tfidf(self, top: int, colours: tuple[str], tokeniser_func):
+        assert len(colours) == 2, "Only supports 2 colours."
+
         df = self.tfidf(tokeniser_func)
         df['size'] = df.polarity.abs()
-        df_tmp = df.sort_values(by='size', ascending=False).iloc[:30]
+        df_tmp = df.sort_values(by='size', ascending=False).iloc[:top]
         pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='size')
-        pwc.gradate('blue', 'red')
+        pwc.gradate(colours[0], colours[1])
         return pwc
 
-    def _wordcloud_log_likelihood(self, tokeniser_func):
-        from nltk.corpus import stopwords
+    def _wordcloud_log_likelihood(self, top: int, colours: tuple[str], tokeniser_func, ):
+        assert len(colours) == 2, "Only supports 2 colours."
         sw = stopwords.words('english')
 
         df = self.log_likelihood(tokeniser_func)
         tf_df = self.tf()
         df['size'] = tf_df['freq_corpus_0'] + tf_df['freq_corpus_1']
         df = df[~df.index.isin(sw)]
-        df_tmp = df.sort_values(by='size', ascending=False).iloc[:30]
+        df_tmp = df.sort_values(by='size', ascending=False).iloc[:top]
         pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='size')
-        pwc.gradate('blue', 'red')
+        pwc.gradate(colours[0], colours[1])
         return pwc
