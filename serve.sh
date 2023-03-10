@@ -19,6 +19,6 @@ fi
 
 jupyter notebook \
   --config "$PATH_CONFIG" \
-  --NotebookApp.browser='safari' \
+  --NotebookApp.browser='chrome' \
   $@ \
   $DIR_NOTEBOOKS
