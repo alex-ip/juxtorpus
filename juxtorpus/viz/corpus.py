@@ -42,7 +42,7 @@ def wordcloud(corpus, max_words: int = 50, word_type: str = 'word'):
     plt.show()
 
 
-def _wordcloud(corpus, max_words, word_type):
+def _wordcloud(corpus, max_words: int, word_type: str):
     modes = {'word', 'hashtag', 'mention'}
     wc = WordCloud(background_color='white', max_words=max_words, height=600, width=1200)
     if word_type == 'word':
