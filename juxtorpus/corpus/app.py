@@ -202,10 +202,13 @@ class App(object):
         # create build button
         key_textbox = Text(description='Corpus ID:', placeholder='ID to be stored in the registry')
         corpus_id = {'name': ''}
-        key_textbox.observe(lambda event: corpus_id.update({'name': event.get('new')}), names='value')
 
         button = Button(description='Build')
         button_output = Output(layout=Layout(overflow='scroll hidden'))
+
+        def _on_click_key_textbox(event):
+            corpus_id.update({'name': event.get('new')}, names='value')
+            button.disabled = len(corpus_id.get('name')) <= 0
 
         def _on_click_build_corpus(_):
             for key, config in configs.items():
@@ -227,6 +230,7 @@ class App(object):
                 with button_output: print(f"Failed to build. {e}")
                 return
 
+        key_textbox.observe(_on_click_key_textbox, names='value')
         button.on_click(_on_click_build_corpus)
 
         return HBox([VBox(selection_widgets, layout=Layout(width='70%')),
