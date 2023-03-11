@@ -65,11 +65,8 @@ class Corpus:
             self['custom'] = dtm
 
         def get_custom_dtm(self):
-            custom = self.get('custom', None)
-            if not custom:
-                raise LookupError(f"You have not created a custom dtm. "
-                                  f"Use {Corpus.create_custom_dtm.__name__} to create one.")
-            return custom
+            return self.get('custom', None)
+
 
     COL_TEXT: str = 'text'
 
@@ -285,7 +282,8 @@ class Corpus:
     def _cloned_dtms(self, indices) -> DTMRegistry:
         registry = Corpus.DTMRegistry()
         registry.set_tokens_dtm(self._dtm_registry.get_tokens_dtm().cloned(indices))
-        registry.set_custom_dtm(self._dtm_registry.get_custom_dtm().cloned(indices))
+        if self._dtm_registry.get_custom_dtm() is not None:
+            registry.set_custom_dtm(self._dtm_registry.get_custom_dtm().cloned(indices))
         return registry
 
     def detached(self):
