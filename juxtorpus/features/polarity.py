@@ -141,13 +141,14 @@ class Polarity(object):
 
         df = self.log_likelihood(tokeniser_func)
         tf_df = self.tf()
-        df['size'] = tf_df['freq_corpus_0'] + tf_df['freq_corpus_1']
+        df['summed'] = tf_df['freq_corpus_0'] + tf_df['freq_corpus_1']
+        df['polarity_div_summed'] = df['polarity'].abs() / df['summed']
         df = df[~df.index.isin(sw)]
-        df_tmp = df.sort_values(by='size', ascending=False).iloc[:top]
-        pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='size')
+        df_tmp = df.sort_values(by='summed', ascending=False).iloc[:top]
+        pwc = PolarityWordCloud(df_tmp, col_polarity='polarity', col_size='polarity_div_summed')
         pwc.gradate(colours[0], colours[1])
 
-        add_legend = [Patch(facecolor='None', label='Size: Frequency'),
+        add_legend = [Patch(facecolor='None', label='Size: Polarised and Rare'),
                       Patch(facecolor='None', label='Solid: Higher log likelihood to one corpus'),
                       Patch(facecolor='None', label='Opaque: Similar log likelihood')]
         return pwc, add_legend
