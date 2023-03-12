@@ -66,8 +66,9 @@ def _wordcloud(corpus, max_words: int, metric: str, word_type: str):
             wc.generate_from_frequencies(counter)
             return wc
     elif metric == 'tfidf':
-        counter = dtm.tfidf().freq_table().series.to_dict()
-        wc.generate_from_frequencies(counter)
+        with dtm.tfidf().without_terms(stopwords.words('english')) as dtm:
+            counter = dtm.tfidf().freq_table().series.to_dict()
+            wc.generate_from_frequencies(counter)
         return wc
     else:
         raise ValueError(f"Metric {metric} is not supported. Must be one of {', '.join(metrics)}")
