@@ -730,7 +730,12 @@ class App(object):
     def __setitem__(self, corpus_id: str, corpus: Corpus):
         if not isinstance(corpus, Corpus):
             raise ValueError(f"{corpus} must be an instance of {Corpus.__class__.__name__}")
-        self.REGISTRY[corpus_id] = corpus
+        # self.REGISTRY[corpus_id] = corpus
+        # self._update_corpus_selector()
+        self.update_registry(corpus_id, corpus)
+
+    def __delitem__(self, corpus_id: str):
+        del self.REGISTRY[corpus_id]
         self._update_corpus_selector()
 
 
