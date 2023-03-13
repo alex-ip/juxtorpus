@@ -2,7 +2,7 @@
 
 """
 from collections import Counter
-from nltk.corpus import stopwords
+from nltk.corpus import stopwords as sw
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -42,7 +42,7 @@ def wordcloud(corpus, max_words: int = 50, metric: str = 'tf', word_type: str = 
     plt.show()
 
 
-def _wordcloud(corpus, max_words: int, metric: str, word_type: str):
+def _wordcloud(corpus, max_words: int, metric: str, word_type: str, stopwords=sw.words('english')):
     word_types = {'word', 'hashtag', 'mention'}
     metrics = {'tf', 'tfidf'}
     assert word_type in word_types, f"{word_type} not in {', '.join(word_types)}"
@@ -61,15 +61,15 @@ def _wordcloud(corpus, max_words: int, metric: str, word_type: str):
         raise ValueError(f"Word type {word_type} is not supported. Must be one of {', '.join(word_types)}")
 
     if metric == 'tf':
-        with dtm.without_terms(stopwords.words('english')) as dtm:
+        with dtm.without_terms(stopwords) as dtm:
             counter = dtm.freq_table().series.to_dict()
             wc.generate_from_frequencies(counter)
             return wc
     elif metric == 'tfidf':
-        with dtm.tfidf().without_terms(stopwords.words('english')) as dtm:
+        with dtm.tfidf().without_terms(stopwords) as dtm:
             counter = dtm.tfidf().freq_table().series.to_dict()
             wc.generate_from_frequencies(counter)
-        return wc
+            return wc
     else:
         raise ValueError(f"Metric {metric} is not supported. Must be one of {', '.join(metrics)}")
 
@@ -83,7 +83,7 @@ def timeline(corpus, datetime_meta: str, freq: str):
         go.Scatter(x=df.index.tolist(), y=df[0].tolist(), name=meta.id, showlegend=True)
     )
 
-    freq_to_label = {'w': 'Week', 'm': 'Month', 'y': 'Year'}
+    freq_to_label = {'w': 'Week', 'm': 'Month', 'y': 'Year', 'd': 'Day'}
     key = freq.strip()[-1]
 
     title = f"Count by {freq_to_label.get(key, key)}"
@@ -108,7 +108,7 @@ def timelines(corpora, names: list[str], datetime_meta: str, freq: str):
         fig.add_trace(
             go.Scatter(x=df.index.tolist(), y=df[0].tolist(), name=name, showlegend=True)
         )
-    freq_to_label = {'w': 'Week', 'm': 'Month', 'y': 'Year'}
+    freq_to_label = {'w': 'Week', 'm': 'Month', 'y': 'Year', 'd': 'Day'}
     key = freq.strip()[-1]
 
     title = f"Count by {freq_to_label.get(key, key)}"
