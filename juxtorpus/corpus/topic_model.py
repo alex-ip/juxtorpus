@@ -65,7 +65,7 @@ class LDA(Widget):
             self._corpus().update_meta(meta)
 
     def _get_topics_dataframe(self):
-        return pd.DataFrame(_row_norm(self._topics), columns=[f"#lda_topic_{i}" for i in range(self._topics.shape[1])])
+        return pd.DataFrame(_row_norm(self._topics), columns=[f"#lda_topic_{i+1}" for i in range(self._topics.shape[1])])
 
     def _get_best_topic_series(self):
         return pd.Series(self._topics.argmax(axis=1))
