@@ -4,6 +4,9 @@ import pandas as pd
 
 from juxtorpus.loader import LazySeries
 
+# from juxtorpus.corpus.app import App
+# inverted_dtypes_map = {v: k for k, v in App.DTYPES_MAP.items()}
+
 
 class SeriesMeta(Meta):
     dtypes = {'float', 'float16', 'float32', 'float64',
@@ -70,6 +73,10 @@ class SeriesMeta(Meta):
         if series.dtype == 'category': return True
         if len(uniqs) < 12: return True  # hard cap
         return False
+
+    def __repr__(self) -> str:
+        prev = super().__repr__()
+        return prev[:-2] + f" dtype: {self.series().dtype}]>"
 
 
 """Example Child Class (Archived): 
