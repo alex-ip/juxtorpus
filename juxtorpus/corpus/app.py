@@ -244,15 +244,20 @@ class App(object):
                                             layout=Layout(grid_template_columns="repeat(2, 1fr)"))
         return self._corpus_selector
 
-    def _update_corpus_selector(self):
+    def _update_corpus_selector(self, selected_key: str = None):
         """ Updates the Corpus Selector live with new registry. NO refresh required. """
         cs = self.corpus_registry()
-        cs.children = (self._create_corpus_selector_table(),)
+        cs.children = (self._create_corpus_selector_table(selected_key),)
         # todo: triage/create new corpus table if it's full.
 
-    def _create_corpus_selector_table(self):
+    def _create_corpus_selector_table(self, selected_key: str = None):
         hbox_registry_labels = HBox(self._corpus_selector_labels, layout=hbox_layout)
-        return VBox([hbox_registry_labels] + [self._create_corpus_selector_row(k) for k in self.REGISTRY.keys()])
+        rows = [self._create_corpus_selector_row(k) for k in self.REGISTRY.keys()]
+        if selected_key:
+            for r in rows:
+                checkbox = r.children[0]
+                checkbox.value = checkbox.description == selected_key
+        return VBox([hbox_registry_labels] + rows)
 
     def _create_corpus_selector_row(self, corpus_id):
         checkbox = widgets.Checkbox(description=f"{corpus_id}", layout=_create_layout(**corpus_id_layout))
@@ -262,8 +267,11 @@ class App(object):
         corpus = self.REGISTRY.get(corpus_id, None)
         if corpus is None: raise KeyError(f"Corpus ID: {corpus_id} does not exist.")
         size = len(corpus)
-        parent_corpus = corpus.find_root()
-        parent = list(self.REGISTRY.keys())[list(self.REGISTRY.values()).index(parent_corpus)]
+        parent_corpus = corpus.parent
+        if parent_corpus is not None:
+            parent = list(self.REGISTRY.keys())[list(self.REGISTRY.values()).index(parent_corpus)]
+        else:
+            parent = corpus_id
         if parent == corpus_id: parent = ''
         checkbox.add_class('corpus_id_focus_colour')  # todo: add this HTML to code
         return HBox([checkbox,
@@ -402,9 +410,15 @@ class App(object):
                 return
             if self._corpus_slicer_current_mask is None: return
             try:
+                self.update_registry(id_, self._selected_corpus.cloned(self._corpus_slicer_current_mask))
+                selected_corpus_id = None
+                for corpus_id, corpus in self.REGISTRY.items():
+                    if corpus == self._selected_corpus:
+                        selected_corpus_id = corpus_id
+                        break
+                self._update_corpus_selector(selected_corpus_id)
                 if id_ not in self.REGISTRY.keys():
                     with output: print(f"Added {id_} to registry.")
-                self.update_registry(id_, self._selected_corpus.cloned(self._corpus_slicer_current_mask))
             except KeyError as ke:
                 with output: print(f"'{id_}' already exists. Please choose another key.")
 
