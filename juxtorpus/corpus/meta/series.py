@@ -20,7 +20,7 @@ class SeriesMeta(Meta):
 
     def series(self):
         if isinstance(self._series, LazySeries):
-            return self._series.load()
+            self._series = self._series.load()
         return self._series
 
     def apply(self, func):
