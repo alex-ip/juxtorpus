@@ -67,7 +67,6 @@ class Corpus:
         def get_custom_dtm(self):
             return self.get('custom', None)
 
-
     COL_TEXT: str = 'text'
 
     @classmethod
@@ -221,12 +220,17 @@ class Corpus:
         return self.cloned(mask)
 
     def add_meta(self, meta: Meta):
+        if meta.id in self._meta_registry.keys(): raise ValueError(f"{meta.id} already exists.")
+        if isinstance(meta, SeriesMeta) and not meta.series().index.equals(self._df.index):
+            meta.series().set_axis(self._df.index, inplace=True)
         self._meta_registry[meta.id] = meta
 
     def remove_meta(self, id_: str):
         del self._meta_registry[id_]
 
     def update_meta(self, meta: Meta):
+        if isinstance(meta, SeriesMeta) and not meta.series().index.equals(self._df.index):
+            meta.series().set_axis(self._df.index, inplace=True)
         self._meta_registry[meta.id] = meta
 
     def generate_words(self):
