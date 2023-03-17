@@ -1,2 +1,1 @@
-# https://mybinder.readthedocs.io/en/latest/howto/languages.html
 python-3.9
