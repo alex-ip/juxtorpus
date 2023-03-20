@@ -186,7 +186,7 @@ class Corpus:
         return self.dtm.total
 
     @property
-    def unique_terms(self) -> set[str]:
+    def vocab(self) -> set[str]:
         return set(self.dtm.vocab(nonzero=True))
 
     def docs(self) -> 'pd.Series[str]':
