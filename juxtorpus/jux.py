@@ -80,5 +80,5 @@ class Jux:
         """
         ld = dict()
         for i, corpus in enumerate(self.corpora):
-            ld[f"corpus_{i}"] = len(corpus.unique_terms) / np.log(corpus.num_terms)
+            ld[f"corpus_{i}"] = len(corpus.vocab) / np.log(corpus.num_terms)
         return ld
