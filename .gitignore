@@ -139,7 +139,7 @@ dmypy.json
 # dev
 _scrap/
 juxtorpus_metaslicing_oop_design.png
-tests/
+tests/ltest*
 wiki-news-*
 /assets/data/
 meeting_notes/
