@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Optional, Callable
 import weakref as wr
 import pandas as pd
 from typing import Generator
-from nltk.corpus import stopwords
+from sklearn.feature_extraction._stop_words import ENGLISH_STOP_WORDS
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
@@ -105,7 +105,7 @@ class Polarity(object):
 
     def _wordcloud_tf(self, top: int, colours: tuple[str], tokeniser_func):
         assert len(colours) == 2, "Only supports 2 colours."
-        sw = stopwords.words('english')
+        sw = ENGLISH_STOP_WORDS
 
         df = self.tf(tokeniser_func)
         df = df[~df.index.isin(sw)]
@@ -138,7 +138,7 @@ class Polarity(object):
 
     def _wordcloud_log_likelihood(self, top: int, colours: tuple[str], tokeniser_func, ):
         assert len(colours) == 2, "Only supports 2 colours."
-        sw = stopwords.words('english')
+        sw = ENGLISH_STOP_WORDS
 
         df = self.log_likelihood(tokeniser_func)
         tf_df = self.tf()

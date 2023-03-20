@@ -1,7 +1,5 @@
 import math
 
-import nltk
-
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Set, Dict
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer

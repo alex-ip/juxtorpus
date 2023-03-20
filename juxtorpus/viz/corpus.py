@@ -1,9 +1,8 @@
 """ Collection of Visualisation functions for Corpus
 
 """
-from collections import Counter
-from nltk.corpus import stopwords as sw
 from wordcloud import WordCloud
+from sklearn.feature_extraction._stop_words import ENGLISH_STOP_WORDS
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.graph_objects as go
@@ -42,7 +41,7 @@ def wordcloud(corpus, max_words: int = 50, metric: str = 'tf', word_type: str = 
     plt.show()
 
 
-def _wordcloud(corpus, max_words: int, metric: str, word_type: str, stopwords=sw.words('english')):
+def _wordcloud(corpus, max_words: int, metric: str, word_type: str, stopwords=ENGLISH_STOP_WORDS):
     word_types = {'word', 'hashtag', 'mention'}
     metrics = {'tf', 'tfidf'}
     assert word_type in word_types, f"{word_type} not in {', '.join(word_types)}"

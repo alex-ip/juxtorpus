@@ -14,8 +14,8 @@ from typing import Callable
 import pyLDAvis
 from pyLDAvis import prepare
 from pyLDAvis.sklearn import _row_norm
-from nltk.corpus import stopwords
 from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.feature_extraction._stop_words import ENGLISH_STOP_WORDS
 import pandas as pd
 
 from juxtorpus.corpus import Corpus
@@ -39,7 +39,7 @@ class LDA(Widget):
     def build(self, mode: str):
         assert mode in {'tf', 'tfidf'}, "Only supports mode tf or tfidf."
         if mode == 'tf':
-            with self._corpus().dtm.without_terms(terms=list(stopwords.words('english'))) as dtm_nosw:
+            with self._corpus().dtm.without_terms(terms=ENGLISH_STOP_WORDS) as dtm_nosw:
                 self._topics = self._model.fit_transform(dtm_nosw.matrix)
                 args = self._get_pyLDAvis_prepare_args(dtm_nosw)
                 self._pyldavis_args = args
@@ -65,7 +65,8 @@ class LDA(Widget):
             self._corpus().update_meta(meta)
 
     def _get_topics_dataframe(self):
-        return pd.DataFrame(_row_norm(self._topics), columns=[f"#lda_topic_{i+1}" for i in range(self._topics.shape[1])])
+        return pd.DataFrame(_row_norm(self._topics),
+                            columns=[f"#lda_topic_{i + 1}" for i in range(self._topics.shape[1])])
 
     def _get_best_topic_series(self):
         return pd.Series(self._topics.argmax(axis=1))
