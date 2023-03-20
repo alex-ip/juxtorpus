@@ -172,14 +172,6 @@ class Corpus:
     def meta(self):
         return self._meta_registry.copy()
 
-    # processing
-    def history(self):
-        """ Returns a list of processing history. """
-        return self._processing_history.copy()
-
-    def add_process_episode(self, episode):
-        self._processing_history.append(episode)
-
     # statistics
     @property
     def num_terms(self) -> int:
@@ -269,7 +261,6 @@ class Corpus:
         clone._parent = self
 
         clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
-        clone._processing_history = self._cloned_history()
         return clone
 
     def _cloned_docs(self, mask) -> pd.Series:
@@ -280,9 +271,6 @@ class Corpus:
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return cloned_meta_registry
-
-    def _cloned_history(self):
-        return [h for h in self.history()]
 
     def _cloned_dtms(self, indices) -> DTMRegistry:
         registry = Corpus.DTMRegistry()
