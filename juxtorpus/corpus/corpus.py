@@ -2,6 +2,7 @@ from typing import Dict, Generator, Optional, Callable
 import pandas as pd
 import spacy.vocab
 from spacy.tokens import Doc
+from spacy import Language
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
@@ -354,11 +355,14 @@ class SpacyCorpus(Corpus):
     """
 
     @classmethod
-    def from_corpus(cls, corpus: Corpus, docs, nlp, source=None):
-        scorpus = cls(docs, corpus._meta_registry, nlp, source)
-        scorpus._dtm_registry = corpus._dtm_registry
-        scorpus._parent = corpus.parent
-        return scorpus
+    def from_corpus(cls, corpus: Corpus, nlp: Language, source=None):
+        from juxtorpus.corpus.processors import process
+        return process(corpus, nlp=nlp, source=source)
+
+    @classmethod
+    def from_dataframe(cls, df: pd.DataFrame, col_text: str = Corpus.COL_TEXT, nlp: Language = spacy.blank('en')):
+        corpus = super().from_dataframe(df, col_text)
+        return cls.from_corpus(corpus, nlp)
 
     def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):
         super(SpacyCorpus, self).__init__(docs, metas)
@@ -407,7 +411,7 @@ class SpacyCorpus(Corpus):
 
     def cloned(self, mask: 'pd.Series[bool]'):
         clone = super().cloned(mask)
-        return self.__class__.from_corpus(clone, clone.docs(), self.nlp, self._source)
+        return SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source)
 
     def summary(self, spacy: bool = False):
         df = super(SpacyCorpus, self).summary()
