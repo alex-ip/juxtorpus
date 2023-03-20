@@ -1,8 +1,5 @@
 import math
 
-import nltk
-
-from rake_nltk import Rake
 from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Set, Dict
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
@@ -25,34 +22,6 @@ class Keywords(metaclass=ABCMeta):
     @abstractmethod
     def extracted(self) -> List[str]:
         raise NotImplemented("You are calling from the base class. Use one of the concrete ones.")
-
-
-class RakeKeywords(Keywords):
-    """ Implementation of Keywords extraction using Rake.
-    package: https://pypi.org/project/rake-nltk/
-    paper: https://www.researchgate.net/profile/Stuart_Rose/publication/227988510_Automatic_Keyword_Extraction_from_Individual_Documents/links/55071c570cf27e990e04c8bb.pdf
-
-    RAKE begins keyword extraction on a document by parsing its text into a set of candidate keywords.
-    First, the document text is split into an array of words by the specified word delimiters.
-    This array is then split into sequences of contiguous words at phrase delimiters and stop word positions.
-    Words within a sequence are assigned the same position in the text and together are considered a candidate keyword.
-    """
-
-    def extracted(self):
-        _kw_A = Counter(RakeKeywords._rake(sentences=self.corpus.docs().tolist()))
-        return _kw_A.most_common(20)
-
-    @staticmethod
-    def _rake(sentences: List[str]):
-        import nltk
-        try:
-            nltk.data.find('corpora/stopwords')
-        except LookupError:
-            nltk.download('stopwords')
-
-        r = Rake()
-        r.extract_keywords_from_sentences(sentences)
-        return r.get_ranked_phrases()
 
 
 class TFIDFKeywords(Keywords):

@@ -9,7 +9,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import pandas as pd
-import nltk
+from sklearn.feature_extraction._stop_words import ENGLISH_STOP_WORDS
 from typing import TYPE_CHECKING, Union
 import weakref as wr
 
@@ -134,6 +134,6 @@ if __name__ == '__main__':
     jaccard = sim.jaccard()
     print(f"{jaccard=}")
 
-    sw = nltk.corpus.stopwords.words('english')
+    sw = ENGLISH_STOP_WORDS
     term_vec_cos = sim.cosine_similarity(metric='tf', without=sw + ['climate', 'tweet', 'https'])
     print(f"{term_vec_cos=}")

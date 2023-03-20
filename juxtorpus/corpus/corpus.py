@@ -5,9 +5,10 @@ from spacy.tokens import Doc
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
+from juxtorpus.corpus.viz import CorpusViz
 from juxtorpus.corpus.meta import MetaRegistry, Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
-from juxtorpus.matchers import is_word
+from juxtorpus.matchers import is_word, is_word_tweets, is_hashtag, is_mention
 
 import logging
 
@@ -64,11 +65,7 @@ class Corpus:
             self['custom'] = dtm
 
         def get_custom_dtm(self):
-            custom = self.get('custom', None)
-            if not custom:
-                raise LookupError(f"You have not created a custom dtm. "
-                                  f"Use {Corpus.create_custom_dtm.__name__} to create one.")
-            return custom
+            return self.get('custom', None)
 
     COL_TEXT: str = 'text'
 
@@ -105,6 +102,14 @@ class Corpus:
         # processing
         self._processing_history = list()
 
+        # regex patterns
+        self._pattern_words = re.compile(r'\w+')
+        self._pattern_hashtags = re.compile(r'#[A-Za-z0-9_-]+')
+        self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]')
+
+        # standard viz
+        self._viz = CorpusViz(self)
+
     @property
     def parent(self):
         return self._parent
@@ -131,6 +136,10 @@ class Corpus:
     @property
     def custom_dtm(self):
         return self._dtm_registry.get_custom_dtm()
+
+    @property
+    def viz(self):
+        return self._viz
 
     def find_root(self):
         """ Find and return the root corpus. """
@@ -184,17 +193,19 @@ class Corpus:
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
-        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop("count")
+        describe_cols_to_drop = ['count', 'std', '25%', '50%', '75%']
+        docs_info = pd.Series(self.dtm.total_docs_vector).describe().drop(describe_cols_to_drop).astype(
+            int)  # Show only integer numbers.
         # docs_info = docs_info.loc[['mean', 'std', 'min', '25%', '50%', '75%', 'max']]
 
-        mapper = {row_idx: f"No. Terms {row_idx}" for row_idx in docs_info.index}
+        mapper = {row_idx: f"{row_idx} Words per Document" for row_idx in docs_info.index}
         docs_info.rename(index=mapper, inplace=True)
 
         other_info = pd.Series({
             "Corpus Type": self.__class__.__name__,
-            "No. Documents": len(self),
-            "No. Terms": self.dtm.total,
-            "Vocabulary size": len(self.dtm.vocab(nonzero=True)),
+            "Number of Documents": len(self),
+            "Number of Total Words": self.dtm.total,
+            "Size of Vocabulary": len(self.dtm.vocab(nonzero=True)),
         })
 
         meta_info = pd.Series({
@@ -208,31 +219,62 @@ class Corpus:
         mask[mask.sample(n=n, random_state=rand_stat).index] = True
         return self.cloned(mask)
 
+    def add_meta(self, meta: Meta):
+        if meta.id in self._meta_registry.keys(): raise ValueError(f"{meta.id} already exists.")
+        if isinstance(meta, SeriesMeta) and not meta.series().index.equals(self._df.index):
+            meta.series().set_axis(self._df.index, inplace=True)
+        self._meta_registry[meta.id] = meta
+
+    def remove_meta(self, id_: str):
+        del self._meta_registry[id_]
+
+    def update_meta(self, meta: Meta):
+        if isinstance(meta, SeriesMeta) and not meta.series().index.equals(self._df.index):
+            meta.series().set_axis(self._df.index, inplace=True)
+        self._meta_registry[meta.id] = meta
+
     def generate_words(self):
         """ Generate list of words for each document in the corpus. """
         texts = self.docs()
         for i in range(len(texts)):
-            yield self._gen_words_from(texts.iloc[i])
+            for word in self._gen_words_from(texts.iloc[i]):
+                yield word
 
-    def _gen_words_from(self, text) -> Generator[str, None, None]:
-        return (token.lower() for token in re.findall('[A-Za-z]+', text))
+    def _gen_words_from(self, doc) -> Generator[str, None, None]:
+        return (token.lower() for token in self._pattern_words.findall(doc))
+
+    def generate_hashtags(self):
+        for doc in self.docs():
+            for word in self._gen_hashtags_from(doc):
+                yield word
+
+    def _gen_hashtags_from(self, doc: str):
+        return (ht for ht in self._pattern_hashtags.findall(doc))
+
+    def generate_mentions(self):
+        for doc in self.docs():
+            for word in self._gen_mentions_from(doc):
+                yield word
+
+    def _gen_mentions_from(self, doc: str):
+        return (m for m in self._pattern_mentions.findall(doc))
 
     def cloned(self, mask: 'pd.Series[bool]'):
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
 
-        clone = self.__class__(cloned_docs, cloned_metas)
+        clone = Corpus(cloned_docs, cloned_metas)
         clone._parent = self
 
         clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
         clone._processing_history = self._cloned_history()
         return clone
 
-    def _cloned_docs(self, mask):
+    def _cloned_docs(self, mask) -> pd.Series:
         return self.docs().loc[mask]
 
-    def _cloned_metas(self, mask):
+    def _cloned_metas(self, mask) -> MetaRegistry:
         cloned_meta_registry = MetaRegistry()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
@@ -241,10 +283,11 @@ class Corpus:
     def _cloned_history(self):
         return [h for h in self.history()]
 
-    def _cloned_dtms(self, indices):
+    def _cloned_dtms(self, indices) -> DTMRegistry:
         registry = Corpus.DTMRegistry()
-        for k, dtm in self._dtm_registry.items():
-            registry[k] = dtm.cloned(indices)
+        registry.set_tokens_dtm(self._dtm_registry.get_tokens_dtm().cloned(indices))
+        if self._dtm_registry.get_custom_dtm() is not None:
+            registry.set_custom_dtm(self._dtm_registry.get_custom_dtm().cloned(indices))
         return registry
 
     def detached(self):
@@ -311,14 +354,32 @@ class SpacyCorpus(Corpus):
     """
 
     @classmethod
-    def from_corpus(cls, corpus: Corpus, docs, nlp):
-        return cls(docs, corpus._meta_registry, nlp)
+    def from_corpus(cls, corpus: Corpus, docs, nlp, source=None):
+        scorpus = cls(docs, corpus._meta_registry, nlp, source)
+        scorpus._dtm_registry = corpus._dtm_registry
+        scorpus._parent = corpus.parent
+        return scorpus
 
-    def __init__(self, docs, metas, nlp: spacy.Language):
+    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):
         super(SpacyCorpus, self).__init__(docs, metas)
         self._nlp = nlp
-        self._is_word_matcher = is_word(self._nlp.vocab)
-        # self._df.reset_index(inplace=True)
+        self._source = source
+        self.source_to_word_matcher = {
+            None: is_word,
+            'tweets': is_word_tweets,
+        }
+        matcher_func = self.source_to_word_matcher.get(source, None)
+        if matcher_func is None:
+            raise LookupError(f"Source {source} is not supported. "
+                              f"Must be one of {', '.join(self.source_to_word_matcher.keys())}")
+
+        self._is_word_matcher = matcher_func(self._nlp.vocab)
+        self._is_hashtag_matcher = is_hashtag(self._nlp.vocab)
+        self._is_mention_matcher = is_mention(self._nlp.vocab)
+
+    @property
+    def source(self):
+        return self._source
 
     @property
     def nlp(self):
@@ -346,7 +407,7 @@ class SpacyCorpus(Corpus):
 
     def cloned(self, mask: 'pd.Series[bool]'):
         clone = super().cloned(mask)
-        return self.__class__.from_corpus(clone, clone.docs(), self.nlp)
+        return self.__class__.from_corpus(clone, clone.docs(), self.nlp, self._source)
 
     def summary(self, spacy: bool = False):
         df = super(SpacyCorpus, self).summary()
@@ -359,8 +420,14 @@ class SpacyCorpus(Corpus):
             return pd.concat([df, pd.DataFrame.from_dict(spacy_info, orient='index')])
         return df
 
-    def _gen_words_from(self, doc):
+    def _gen_words_from(self, doc: Doc):
         return (doc[start: end].text.lower() for _, start, end in self._is_word_matcher(doc))
+
+    def _gen_hashtags_from(self, doc: Doc):
+        return (doc[start: end].text.lower() for _, start, end in self._is_hashtag_matcher(doc))
+
+    def _gen_mentions_from(self, doc: Doc):
+        return (doc[start: end].text.lower() for _, start, end in self._is_mention_matcher(doc))
 
     def generate_lemmas(self):
         texts = self.docs()

@@ -78,7 +78,7 @@ class CorpusSlicer(object):
 
         return cond_func
 
-    def filter_by_range(self, id_, min_: Optional[Union[int, float]], max_: Optional[Union[int, float]]):
+    def filter_by_range(self, id_, min_: Optional[Union[int, float]] = None, max_: Optional[Union[int, float]] = None):
         meta = self._get_meta_or_raise_err(id_)
         mask = self._filter_by_range_mask(meta, min_, max_)
         return self.corpus.cloned(mask)

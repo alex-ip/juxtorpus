@@ -18,9 +18,14 @@ class MetaRegistry(dict):
     def summary(self):
         """ Returns a summary of the metadata information. """
         infos = (meta.summary() for meta in self.values())
-        df = pd.concat(infos, axis=0)
+        df = pd.concat(infos, axis=0).fillna('')
 
         return df.T
 
     def copy(self):
         return deepcopy(self)
+
+    def get_or_raise_err(self, id_: str):
+        meta = self.get(id_, None)
+        if meta is None: raise LookupError(f"{id_} does not exist.")
+        return meta

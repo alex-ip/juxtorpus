@@ -1,10 +1,10 @@
-import logging.config
-import colorlog
+# import logging.config
 from pathlib import Path
+import logging
 
 conf_path = Path("logging_conf.ini")
-logging.config.fileConfig(conf_path)
-rlogger = colorlog.getLogger()
+# logging.config.fileConfig(conf_path)
+rlogger = logging.getLogger()
 
 # ARCHIVED: FileConfig unable to read key: log_colors
 # Comment above and uncomment below if you want to change the log colours.

@@ -4,10 +4,13 @@ import pandas as pd
 
 from juxtorpus.loader import LazySeries
 
+# from juxtorpus.corpus.app import App
+# inverted_dtypes_map = {v: k for k, v in App.DTYPES_MAP.items()}
+
 
 class SeriesMeta(Meta):
     dtypes = {'float', 'float16', 'float32', 'float64',
-              'int', 'int8', 'int16', 'int32', 'int64', 'uint8', 'uint16', 'uint32', 'uint64',
+              'int', 'int8', 'int16', 'int32', 'int64', 'Int64', 'uint8', 'uint16', 'uint32', 'uint64',
               'str', 'bool', 'category'}
 
     def __init__(self, id_, series: Union[pd.Series, LazySeries]):
@@ -17,7 +20,7 @@ class SeriesMeta(Meta):
 
     def series(self):
         if isinstance(self._series, LazySeries):
-            return self._series.load()
+            self._series = self._series.load()
         return self._series
 
     def apply(self, func):
@@ -42,14 +45,14 @@ class SeriesMeta(Meta):
                 'sample': series.iloc[0]}
 
         # uniques
-        if self._show_uniqs(series):
-            vc = series.value_counts(ascending=False).head(1)
-            info['top'] = str(vc.index.values[0])
-            info['top_freq'] = vc.values[0]
+        # if self._show_uniqs(series):
+        vc = series.value_counts(ascending=False).head(1)
+        info['top'] = str(vc.index.values[0])
+        info['top_freq'] = vc.values[0]
 
-            uniqs = series.unique()
-            info['uniqs'] = [uniqs]
-            info['num_uniqs'] = len(uniqs)
+        uniqs = series.unique()
+        info['uniqs'] = ', '.join(str(u) for u in uniqs)
+        info['num_uniqs'] = len(uniqs)
 
         # mean, min, max, quantiles
         if pd.api.types.is_numeric_dtype(series) or pd.api.types.is_datetime64_any_dtype(series):
@@ -61,7 +64,7 @@ class SeriesMeta(Meta):
             info['75%'] = series.quantile(0.75)
             info['max'] = series.max()
 
-        df = pd.DataFrame(info, index=[self.id])
+        df = pd.DataFrame(info, index=[self.id]).fillna('')
         return df
 
     def _show_uniqs(self, series) -> bool:
@@ -70,6 +73,10 @@ class SeriesMeta(Meta):
         if series.dtype == 'category': return True
         if len(uniqs) < 12: return True  # hard cap
         return False
+
+    def __repr__(self) -> str:
+        prev = super().__repr__()
+        return prev[:-2] + f" dtype: {self.series().dtype}]>"
 
 
 """Example Child Class (Archived): 

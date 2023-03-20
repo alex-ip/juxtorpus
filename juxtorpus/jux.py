@@ -1,7 +1,7 @@
 from juxtorpus.corpus import Corpus
 from juxtorpus.stats import Statistics
 from juxtorpus.features.similarity import Similarity
-from juxtorpus.features.keywords import Keywords, RakeKeywords, TFKeywords, TFIDFKeywords
+from juxtorpus.features.keywords import TFKeywords, TFIDFKeywords
 from juxtorpus.features.polarity import Polarity
 
 import numpy as np
@@ -66,7 +66,6 @@ class Jux:
     def keywords(self, method: str):
         """ Extract and return the keywords of the two corpus ranked by frequency. """
         method_map = {
-            'rake': RakeKeywords,
             'tf': TFKeywords,
             'tfidf': TFIDFKeywords
         }

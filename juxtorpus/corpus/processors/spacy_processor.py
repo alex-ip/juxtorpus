@@ -88,8 +88,9 @@ class SpacyProcessor(Processor):
         'ner': 'ents'
     }
 
-    def __init__(self, nlp: Language):
+    def __init__(self, nlp: Language, source: str):
         self._nlp = nlp
+        self._source = source
 
     @property
     def nlp(self):
@@ -97,14 +98,14 @@ class SpacyProcessor(Processor):
 
     def _process(self, corpus: Corpus) -> SpacyCorpus:
         start = datetime.now()
-        logger.info(f"Processing corpus of {len(corpus)} documents...")
+        logger.debug(f"Processing corpus of {len(corpus)} documents...")        # TODO: DH demo changed to debug
         texts = corpus.docs()
         # doc_generator = (doc for doc in tqdm(self.nlp.pipe(texts)))
         doc_generator = self.nlp.pipe(texts)
         docs = pd.Series(doc_generator, index=texts.index)
-        logger.info("Done.")
+        logger.debug("Done.")# TODO: DH demo changed to debug
         logger.debug(f"Elapsed time: {datetime.now() - start}s.")
-        return SpacyCorpus.from_corpus(corpus, docs, self.nlp)
+        return SpacyCorpus.from_corpus(corpus, docs, self.nlp, self._source)
 
     def _add_metas(self, corpus: Corpus):
         """ Add the relevant meta-objects into the Corpus class.

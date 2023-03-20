@@ -28,9 +28,9 @@ if [[ -f $POETRY_FILE ]]; then
 elif [[ -f $REQ_FILE ]]; then
   set +e
   pip install --upgrade pip
-  pip install -r requirements.dev.txt
+  pip install -r $REQ_FILE
 else
-  echo "++ Neither $POETRY_FILE or $REQ_FILE is found. No dependencies installed."
+  echo "-- Neither $POETRY_FILE or $REQ_FILE is found. No dependencies installed."
   exit 1
 fi;
 

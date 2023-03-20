@@ -185,7 +185,7 @@ class DTM(object):
         """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
         try:
             features = self.root._feature_names_out
-            self._col_indices = np.isin(features, set(terms), invert=True).nonzero()[0]
+            self._col_indices = np.isin(features, list(terms), invert=True).nonzero()[0]
             yield self
         finally:
             self._col_indices = None
@@ -313,7 +313,7 @@ if __name__ == '__main__':
 
     sub_df = df[df['processed_text'].str.contains('the')]
 
-    child_dtm = dtm.cloned(dtm, sub_df.index)
+    child_dtm = dtm.cloned(sub_df.index)
     print(child_dtm.terms_column_vectors('the').shape)
     print(child_dtm.terms_column_vectors(['the', 'he', 'she']).shape)
 

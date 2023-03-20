@@ -17,8 +17,8 @@ fi
 # debug purposes only
 [[ $1 == "--debug" ]] && jupyter notebook --config "$PATH_CONFIG" --NotebookApp.show_config True && exit 0
 
-jupyter notebook \
+jupyter lab \
   --config "$PATH_CONFIG" \
-  --NotebookApp.browser='safari' \
+  --NotebookApp.browser='chrome' \
   $@ \
   $DIR_NOTEBOOKS

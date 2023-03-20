@@ -3,13 +3,17 @@
 Registry holds all the corpus and sliced subcorpus in memory. Allowing on the fly access.
 """
 import pandas as pd
+# import numpy as np
 from ipywidgets import Layout, Label, HBox, VBox, GridBox, Checkbox, SelectMultiple, \
     Box, Button, Select, DatePicker, Output, Text, HTML
 import ipywidgets as widgets
 from pathlib import Path
 import math
 from datetime import timedelta, datetime
+import spacy
+from copy import deepcopy
 
+from juxtorpus.corpus.processors import process
 from juxtorpus.corpus import Corpus, CorpusBuilder
 from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.viz.widgets import FileUploadWidget
@@ -36,11 +40,15 @@ def format_size(size_bytes):
     return "%s %s" % (s, size_name[i])
 
 
+# used in datepicker, and when slicing will use this for filter_by_datetime
+STRFORMAT = ' %d %b %Y '
+
+
 class App(object):
     DTYPES_MAP = {
         'auto': None,
         'decimal': 'float',
-        'whole number': 'int',
+        'whole number': 'Int64',
         'text': 'str',
         'datetime': 'datetime',
         'category': 'category'
@@ -70,6 +78,10 @@ class App(object):
         self._corpus_slicer_operations: dict = None  # corpus_slicer - stores all slicer operations.
         self._corpus_slicer_current_mask: pd.Series[bool] = None  # corpus_slicer - mask from all ops hist
 
+    @property
+    def corpus(self):
+        return self._selected_corpus
+
     ## Corpus Registry ##
     def update_registry(self, corpus_id, corpus):
         if corpus_id in self.REGISTRY.keys(): raise KeyError(f"{corpus_id} already exists.")
@@ -92,7 +104,7 @@ class App(object):
 
         box_df = Box(layout=_create_layout(**box_df_layout))
 
-        hbox_corpus_builder = self._create_corpus_builder()
+        # hbox_corpus_builder = self._create_corpus_builder()
 
         def _observe_file_selected(event):
             # from pprint import pprint
@@ -116,14 +128,14 @@ class App(object):
                               VBox([box_df, button_confirm], layout=Layout(width='50%', height='200px'))],
                              layout=Layout(width='100%', height='100%'))
 
-        vbox = VBox([hbox_uploader, hbox_corpus_builder])
+        vbox = VBox([hbox_uploader, Box()])
 
         def on_click_confirm(_):
             selected_files = [d.get('path') for d in self._files.values() if d.get('selected')]
             if len(selected_files) <= 0: return
-            self._builder = CorpusBuilder(selected_files)
+            # self._builder = CorpusBuilder(selected_files)
             # hbox_corpus_builder.children = tuple((Label(p.name) for p in self._builder.paths))
-            hbox_corpus_builder = self._create_corpus_builder()
+            hbox_corpus_builder = self._create_corpus_builder(selected_files)
             vbox.children = (vbox.children[0], hbox_corpus_builder)
 
         button_confirm.on_click(on_click_confirm)
@@ -168,11 +180,12 @@ class App(object):
         dtype_dd.observe(_update_dtype, names='value')
         return widgets.HBox([label, t_checkbox, m_checkbox, dtype_dd])
 
-    def _create_corpus_builder(self):
-        if self._builder is None: return VBox()  # self._builder must first be set up before.
+    def _create_corpus_builder(self, paths):
+        # if self._builder is None: return VBox()  # self._builder must first be set up before.
+        self._builder = CorpusBuilder(paths)
 
         # creates the top labels.
-        top_labels = [('id', '30%'), ('text', '15%'), ('meta', '15%'), ('data type', '30%')]
+        top_labels = [('id', '30%'), ('document', '15%'), ('meta', '15%'), ('data type', '30%')]
         selection_top_labels = HBox(
             list(map(lambda ls: widgets.HTML(f"<b>{ls[0]}</b>", layout=Layout(width=ls[1])), top_labels))
         )
@@ -189,27 +202,35 @@ class App(object):
         # create build button
         key_textbox = Text(description='Corpus ID:', placeholder='ID to be stored in the registry')
         corpus_id = {'name': ''}
-        key_textbox.observe(lambda event: corpus_id.update({'name': event.get('new')}), names='value')
 
         button = Button(description='Build')
         button_output = Output(layout=Layout(overflow='scroll hidden'))
+
+        def _on_click_key_textbox(event):
+            corpus_id.update({'name': event.get('new')}, names='value')
+            button.disabled = len(corpus_id.get('name')) <= 0
 
         def _on_click_build_corpus(_):
             for key, config in configs.items():
                 if config.get('text'):
                     self._builder.set_text_column(key)
                 else:
-                    dtype = config.get('dtype')
-                    self._builder.add_metas(key, dtypes=dtype)
+                    if config.get('meta'):
+                        dtype = config.get('dtype')
+                        self._builder.add_metas(key, dtypes=dtype)
             button_output.clear_output()
             try:
                 corpus = self._builder.build()
+                # todo: remove this quick hack - for DH demo only.
+                corpus = process(corpus, nlp=spacy.blank('en'), source='tweets')
+
                 with button_output: print(f"{corpus_id.get('name')} added to registry.")
                 self.update_registry(corpus_id.get('name'), corpus)
             except Exception as e:
                 with button_output: print(f"Failed to build. {e}")
                 return
 
+        key_textbox.observe(_on_click_key_textbox, names='value')
         button.on_click(_on_click_build_corpus)
 
         return HBox([VBox(selection_widgets, layout=Layout(width='70%')),
@@ -223,15 +244,20 @@ class App(object):
                                             layout=Layout(grid_template_columns="repeat(2, 1fr)"))
         return self._corpus_selector
 
-    def _update_corpus_selector(self):
+    def _update_corpus_selector(self, selected_key: str = None):
         """ Updates the Corpus Selector live with new registry. NO refresh required. """
         cs = self.corpus_registry()
-        cs.children = (self._create_corpus_selector_table(),)
+        cs.children = (self._create_corpus_selector_table(selected_key),)
         # todo: triage/create new corpus table if it's full.
 
-    def _create_corpus_selector_table(self):
+    def _create_corpus_selector_table(self, selected_key: str = None):
         hbox_registry_labels = HBox(self._corpus_selector_labels, layout=hbox_layout)
-        return VBox([hbox_registry_labels] + [self._create_corpus_selector_row(k) for k in self.REGISTRY.keys()])
+        rows = [self._create_corpus_selector_row(k) for k in self.REGISTRY.keys()]
+        if selected_key:
+            for r in rows:
+                checkbox = r.children[0]
+                checkbox.value = checkbox.description == selected_key
+        return VBox([hbox_registry_labels] + rows)
 
     def _create_corpus_selector_row(self, corpus_id):
         checkbox = widgets.Checkbox(description=f"{corpus_id}", layout=_create_layout(**corpus_id_layout))
@@ -241,8 +267,11 @@ class App(object):
         corpus = self.REGISTRY.get(corpus_id, None)
         if corpus is None: raise KeyError(f"Corpus ID: {corpus_id} does not exist.")
         size = len(corpus)
-        parent_corpus = corpus.find_root()
-        parent = list(self.REGISTRY.keys())[list(self.REGISTRY.values()).index(parent_corpus)]
+        parent_corpus = corpus.parent
+        if parent_corpus is not None:
+            parent = list(self.REGISTRY.keys())[list(self.REGISTRY.values()).index(parent_corpus)]
+        else:
+            parent = corpus_id
         if parent == corpus_id: parent = ''
         checkbox.add_class('corpus_id_focus_colour')  # todo: add this HTML to code
         return HBox([checkbox,
@@ -268,20 +297,23 @@ class App(object):
 
     ## Widget: Corpus Slicer ##
     def corpus_slicer(self):
-        if self._selected_corpus is None:
-            raise ValueError(f"No corpus selected. First run {self.corpus_registry.__name__}.")
+        # if self._selected_corpus is None:
+        #     raise ValueError(f"No corpus selected. First run {self.corpus_registry.__name__}.")
 
         # reset dependencies
         self._corpus_slicer_dashboard = None  # corpus_slicer - for referencing
         self._corpus_slicer_operations = dict()  # corpus_slicer - stores all slicer operations.
         self._corpus_slicer_current_mask = None  # corpus_slicer - mask from all ops hist
 
-        self._corpus_slicer = VBox([self._create_slice_operations_dashboard(), ], layout=Layout(width='100%'))
+        self._corpus_slicer = VBox([
+            self.corpus_registry(),
+            self._create_slice_operations_dashboard(), ],
+            layout=Layout(width='100%'))
         return self._corpus_slicer
 
     def _refresh_corpus_slicer(self):
         if self._corpus_slicer is None: return
-        self._corpus_slicer.children = (self._create_slice_operations_dashboard(),)
+        self._corpus_slicer.children = (self._corpus_slicer.children[0], self._create_slice_operations_dashboard(),)
 
     def _create_meta_slicer(self):
         """ Creates the preview and slicing widget. """
@@ -289,6 +321,8 @@ class App(object):
 
     def _create_slice_operations_dashboard(self):
         """ Creates a meta selector. """
+        if self._selected_corpus is None: return Box()
+
         self._corpus_slicer_operations = dict()
         # meta
         options_meta = [id_ for id_ in self._selected_corpus.meta.keys()]
@@ -376,9 +410,15 @@ class App(object):
                 return
             if self._corpus_slicer_current_mask is None: return
             try:
+                self.update_registry(id_, self._selected_corpus.cloned(self._corpus_slicer_current_mask))
+                selected_corpus_id = None
+                for corpus_id, corpus in self.REGISTRY.items():
+                    if corpus == self._selected_corpus:
+                        selected_corpus_id = corpus_id
+                        break
+                self._update_corpus_selector(selected_corpus_id)
                 if id_ not in self.REGISTRY.keys():
                     with output: print(f"Added {id_} to registry.")
-                self.update_registry(id_, self._selected_corpus.cloned(self._corpus_slicer_current_mask))
             except KeyError as ke:
                 with output: print(f"'{id_}' already exists. Please choose another key.")
 
@@ -399,7 +439,7 @@ class App(object):
             meta_value_selector = self._create_category_ops_selector(meta, config)
         elif pd.api.types.is_datetime64_any_dtype(dtype):
             meta_value_selector = self._create_datetime_ops_selector(meta, config)
-        elif dtype == int:
+        elif dtype in [int, pd.Int64Dtype()]:
             meta_value_selector = self._create_wholenumber_ops_selector(meta, config)
         elif dtype == float:
             meta_value_selector = self._create_decimal_ops_selector(meta, config)
@@ -440,25 +480,38 @@ class App(object):
         widget_s = DatePicker(description='start', value=start, layout=Layout(**{'width': '98%'}))
         widget_e = DatePicker(description='end', value=end, layout=Layout(**{'width': '98%'}))
 
-        def date_to_slider_idx(date):
-            return date.strftime(' %d %b %Y '), date
+        def date_to_slider_option(date) -> str:
+            return date.strftime(STRFORMAT)
+
+        def slider_option_to_date(option: str) -> datetime:
+            return datetime.strptime(option, STRFORMAT)
 
         dates = pd.date_range(start, end, freq='D')
-        options = [date_to_slider_idx(date) for date in dates]
+        options = [date_to_slider_option(date) for date in dates]
         index = (int(len(dates) / 4), int(3 * len(dates) / 4))
         slider = widgets.SelectionRangeSlider(options=options, index=index, layout={'width': '98%'})
 
         def update_datetime_datepicker(event):
-            slider.index = (options.index(date_to_slider_idx(pd.Timestamp(widget_s.value))),
-                            options.index(date_to_slider_idx(pd.Timestamp(widget_e.value))))
-            config['start'] = slider.value[0]
-            config['end'] = slider.value[1]
+            sv, ev = widget_s.value, widget_e.value
+            config['start'] = date_to_slider_option(sv) if sv is not None else options[0]
+            config['end'] = date_to_slider_option(ev) if ev is not None else options[-1]
+            try:
+                # slider.index = (options.index(date_to_slider_option(widget_s.value)),
+                #                 options.index(date_to_slider_option(widget_e.value)))
+                slider.index = (options.index(config['start']),
+                                options.index(config['end']))
+            except ValueError as ve:
+                # datepicker selected a date that's out of range from the slider.
+                pass
+            except Exception as e:
+                # any other exceptions that can occur e.g. datepicker suddenly jumps to value = None
+                pass
 
         def update_datetime_slider(event):
             config['start'] = slider.value[0]
             config['end'] = slider.value[1]
-            widget_s.value = config['start']
-            widget_e.value = config['end']
+            widget_s.value = slider_option_to_date(config['start'])
+            widget_e.value = slider_option_to_date(config['end'])
 
         update_datetime_slider(None)
         widget_s.observe(update_datetime_datepicker, names='value')
@@ -470,8 +523,8 @@ class App(object):
         """ DType: whole number; filter_by_item, filter_by_range """
         WIDGET_NUM = widgets.IntText
 
-        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'))
-        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'))
+        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'), value=meta.series().min())
+        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'), value=meta.series().max())
         vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
         ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
         box_num = Box([ft_num], layout=Layout(width='98%'))
@@ -508,28 +561,24 @@ class App(object):
         def observe_num(event):
             config['number'] = event.get('new')
 
-        def observe_min(event):
-            r = config.get('range', dict())
-            r['min'] = event.get('new')
-            config['range'] = r
-
-        def observe_max(event):
-            r = config.get('range', dict())
-            r['max'] = event.get('new')
+        def observe_minmax(event):
+            r = config.get('range')
+            r['min'] = ft_min.value
+            r['max'] = ft_max.value
             config['range'] = r
 
         toggle.observe(observe_toggle, names='value')
         ft_num.observe(observe_num, names='value')
-        ft_min.observe(observe_min, names='value')
-        ft_max.observe(observe_max, names='value')
+        ft_min.observe(observe_minmax, names='value')
+        ft_max.observe(observe_minmax, names='value')
         return vbox
 
     def _create_decimal_ops_selector(self, meta: SeriesMeta, config):
         """ Dtype: decimal; filter_by_item, filter_by_range """
         WIDGET_NUM = widgets.FloatText
 
-        ft_min = WIDGET_NUM(description='Min:')
-        ft_max = WIDGET_NUM(description='Max:')
+        ft_min = WIDGET_NUM(description='Min:', value=meta.series().min())
+        ft_max = WIDGET_NUM(description='Max:', value=meta.series().max())
         vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
         ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
         box_num = Box([ft_num], layout=Layout(width='98%'))
@@ -548,6 +597,10 @@ class App(object):
 
         # CALLBACKs
         config['mode'] = toggle.value
+        config['number'] = ft_num.value
+        config['range'] = dict()
+        config['range']['min'] = ft_min.value
+        config['range']['max'] = ft_max.value
 
         def observe_toggle(event):
             config['mode'] = event.get('new')
@@ -562,20 +615,16 @@ class App(object):
         def observe_num(event):
             config['number'] = event.get('new')
 
-        def observe_min(event):
-            r = config.get('range', dict())
-            r['min'] = event.get('new')
-            config['range'] = r
-
-        def observe_max(event):
-            r = config.get('range', dict())
-            r['max'] = event.get('new')
+        def observe_minmax(event):
+            r = config.get('range')
+            r['min'] = ft_min.value
+            r['max'] = ft_max.value
             config['range'] = r
 
         toggle.observe(observe_toggle, names='value')
         ft_num.observe(observe_num, names='value')
-        ft_min.observe(observe_min, names='value')
-        ft_max.observe(observe_max, names='value')
+        ft_min.observe(observe_minmax, names='value')
+        ft_max.observe(observe_minmax, names='value')
         return vbox
 
     def _create_text_ops_selector(self, meta: SeriesMeta, config):
@@ -605,13 +654,13 @@ class App(object):
         cb = Checkbox(description=self._beautify_ops_checkbox_description(selected, config),
                       layout=_create_layout(**{'width': '98%'}))
         cb.style = {'description_width': '0px'}
-        self._corpus_slicer_operations[cb] = (selected, config.copy())
+        self._corpus_slicer_operations[cb] = (selected, deepcopy(config))
 
         def observe_cb(_):
             # calculates a mask given the checked boxes, outputs preview of corpus size.
             self._update_corpus_slicer_preview(html=f"<h4>Calculating...</h4>")
             self._corpus_slicer_current_mask = None
-            mask = pd.Series([True] * len(self._selected_corpus))
+            mask = pd.Series([True] * len(self._selected_corpus), index=self._selected_corpus._df.index)
             for cb, (selected, config) in self._corpus_slicer_operations.items():
                 if cb.value:
                     tmp_mask = self._filter_by_mask_triage(selected, config)
@@ -639,7 +688,7 @@ class App(object):
         meta = self._selected_corpus.slicer._get_meta_or_raise_err(selected)
         if 'start' in config.keys() and 'end' in config.keys():
             start, end = config.get('start'), config.get('end')
-            mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end)
+            mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end, strftime=STRFORMAT)
         elif 'item' in config.keys():
             items = config.get('item')
             mask = self._selected_corpus.slicer._filter_by_item_mask(meta, items)
@@ -664,7 +713,8 @@ class App(object):
         prefix = f"[{selected.ljust(30)}] "
         if 'start' in config.keys() and 'end' in config.keys():
             start, end = config.get('start'), config.get('end')
-            text = f"{start.strftime('%d %b %Y')} - {end.strftime('%d %b %Y')}"
+            # text = f"{start.strftime('%d %b %Y')} - {end.strftime('%d %b %Y')}"
+            text = f"{start} - {end}"
         elif 'item' in config.keys():
             items = config.get('item')
             text = f"Items: {', '.join(items)}"
@@ -687,6 +737,20 @@ class App(object):
 
     def reset(self):
         self._corpus_selector = None
+
+    def __getitem__(self, corpus_id: str):
+        return self.REGISTRY.get(corpus_id, None)
+
+    def __setitem__(self, corpus_id: str, corpus: Corpus):
+        if not isinstance(corpus, Corpus):
+            raise ValueError(f"{corpus} must be an instance of {Corpus.__class__.__name__}")
+        # self.REGISTRY[corpus_id] = corpus
+        # self._update_corpus_selector()
+        self.update_registry(corpus_id, corpus)
+
+    def __delitem__(self, corpus_id: str):
+        del self.REGISTRY[corpus_id]
+        self._update_corpus_selector()
 
 
 ######################################################################################################
