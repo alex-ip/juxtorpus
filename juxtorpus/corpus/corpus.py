@@ -88,7 +88,7 @@ class Corpus:
 
         def get_or_raise_err(self, id_: str):
             meta = self.get(id_, None)
-            if meta is None: raise LookupError(f"{id_} does not exist.")
+            if meta is None: raise KeyError(f"{id_} does not exist.")
             return meta
 
     COL_TEXT: str = 'text'
