@@ -191,11 +191,6 @@ class CorpusSlicer(object):
         return ((gid, self.corpus.cloned(g.index)) for gid, g in
                 series.groupby(by=by, axis=0, group_keys=RETURN_GROUP_KEYS))
 
-    def _get_meta_or_raise_err(self, id_):
-        meta = self.corpus.meta.get(id_)
-        if meta is None: raise KeyError(f"{id_} metadata does not exist. Try calling metas().")
-        return meta
-
 
 class SpacyCorpusSlicer(CorpusSlicer, ABC):
     def __init__(self, corpus: SpacyCorpus):
