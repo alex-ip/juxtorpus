@@ -147,11 +147,11 @@ class CorpusSlicer(object):
             logger.debug(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
 
         if None not in (start, end):
-            cond_func = lambda dt: start < dt <= end
+            cond_func = lambda dt: start <= dt < end
         elif start is not None:
-            cond_func = lambda dt: start < dt
+            cond_func = lambda dt: start <= dt
         elif end is not None:
-            cond_func = lambda dt: dt <= end
+            cond_func = lambda dt: dt < end
         else:
             cond_func = lambda dt: True
         return cond_func
