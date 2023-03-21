@@ -84,7 +84,7 @@ class ItemTimeline(Viz):
         if datetime_meta_key is None:
             for k, meta in corpus.meta.items():
                 if type(meta) != SeriesMeta: continue
-                if pd.api.types.is_datetime64_any_dtype(meta.series()):
+                if pd.api.types.is_datetime64_any_dtype(meta.series):
                     keys['datetime'] = k
                     break
             if not keys.get('datetime'): raise LookupError(f"No meta found with datetime dtype. {corpus.meta.keys()}")

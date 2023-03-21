@@ -18,27 +18,28 @@ class SeriesMeta(Meta):
         self._series = series
         # print(self._series)
 
+    @property
     def series(self):
         if isinstance(self._series, LazySeries):
             self._series = self._series.load()
         return self._series
 
     def apply(self, func):
-        return self.series().apply(func)
+        return self.series.apply(func)
 
     def __iter__(self):
-        for x in iter(self.series().__iter__()):
+        for x in iter(self.series.__iter__()):
             yield x
 
     def cloned(self, texts, mask):
-        return SeriesMeta(self._id, self.series().loc[mask])
+        return SeriesMeta(self._id, self.series.loc[mask])
 
     def head(self, n):
-        return self.series().head(n)
+        return self.series.head(n)
 
     def summary(self) -> pd.DataFrame:
         """ Return a summary of the series in a dataframe. """
-        series = self.series()
+        series = self.series
 
         # dtype
         info = {'dtype': series.dtype,
@@ -76,7 +77,7 @@ class SeriesMeta(Meta):
 
     def __repr__(self) -> str:
         prev = super().__repr__()
-        return prev[:-2] + f" dtype: {self.series().dtype}]>"
+        return prev[:-2] + f" dtype: {self.series.dtype}]>"
 
 
 """Example Child Class (Archived): 
@@ -87,9 +88,9 @@ class DelimitedStrSeriesMeta(SeriesMeta):
         self.delimiter = delimiter
 
     def apply(self, func):
-        return self.series().apply(lambda x: x.split(self.delimiter)).apply(func)
+        return self.series.apply(lambda x: x.split(self.delimiter)).apply(func)
 
     def cloned(self, texts, mask):
-        return DelimitedStrSeriesMeta(self._id, self.series()[mask], self.delimiter)
+        return DelimitedStrSeriesMeta(self._id, self.series[mask], self.delimiter)
 
 """

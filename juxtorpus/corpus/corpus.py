@@ -235,16 +235,16 @@ class Corpus:
 
     def add_meta(self, meta: Meta):
         if meta.id in self._meta_registry.keys(): raise ValueError(f"{meta.id} already exists.")
-        if isinstance(meta, SeriesMeta) and not meta.series().index.equals(self._df.index):
-            meta.series().set_axis(self._df.index, inplace=True)
+        if isinstance(meta, SeriesMeta) and not meta.series.index.equals(self._df.index):
+            meta.series.set_axis(self._df.index, inplace=True)
         self._meta_registry[meta.id] = meta
 
     def remove_meta(self, id_: str):
         del self._meta_registry[id_]
 
     def update_meta(self, meta: Meta):
-        if isinstance(meta, SeriesMeta) and not meta.series().index.equals(self._df.index):
-            meta.series().set_axis(self._df.index, inplace=True)
+        if isinstance(meta, SeriesMeta) and not meta.series.index.equals(self._df.index):
+            meta.series.set_axis(self._df.index, inplace=True)
         self._meta_registry[meta.id] = meta
 
     def generate_words(self) -> Generator[str, None, None]:
@@ -310,7 +310,7 @@ class Corpus:
         meta_reg = Corpus.MetaRegistry()
         for k, meta in self.meta.items():
             if isinstance(meta, SeriesMeta):
-                sm = SeriesMeta(meta.id, meta.series().copy().reset_index(drop=True))
+                sm = SeriesMeta(meta.id, meta.series.copy().reset_index(drop=True))
                 meta_reg[sm.id] = sm
             else:
                 meta_reg[k] = meta

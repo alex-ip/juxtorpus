@@ -130,7 +130,7 @@ class CorpusSlicer(object):
         return self.corpus.cloned(mask)
 
     def _filter_by_datetime_mask(self, meta, start, end, strftime=None):
-        if isinstance(meta, SeriesMeta) and not pd.api.types.is_datetime64_any_dtype(meta.series()):
+        if isinstance(meta, SeriesMeta) and not pd.api.types.is_datetime64_any_dtype(meta.series):
             raise ValueError("The meta specified is not a datetime.")
         # return corpus if no start or end time specified.
         cond_func = self._datetime_cond_func(start, end, strftime)
@@ -176,7 +176,7 @@ class CorpusSlicer(object):
                                       f"Please use {self.group_by_conditions.__name__}.")
 
         RETURN_GROUP_KEYS = True  # NOTE: this is a dependency in downstream classes (e.g. ItemTimeline)
-        series = meta.series()
+        series = meta.series
         # using pd.Grouper on datetime requires it to be an index.
         if grouper is not None:
             by = grouper
