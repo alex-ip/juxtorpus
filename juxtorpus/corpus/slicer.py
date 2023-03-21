@@ -96,7 +96,7 @@ class CorpusSlicer(object):
             cond_func = lambda num: num <= max_
         return cond_func
 
-    def filter_by_regex(self, id_, regex: str, ignore_case: bool):
+    def filter_by_regex(self, id_, regex: str, ignore_case: bool = False):
         """ Filter by regex.
         :arg id - meta id
         :arg regex - the regex pattern
