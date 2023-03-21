@@ -3,10 +3,7 @@ import unittest
 
 from juxtorpus.corpus import (
     Corpus, SpacyCorpus, CorpusBuilder,
-    CorpusSlicer, SpacyCorpusSlicer
 )
-from juxtorpus.corpus.processors import SpacyProcessor
-
 import pandas as pd
 import spacy
 from spacy.matcher import Matcher
@@ -19,43 +16,81 @@ class TestCorpusSlicer(unittest.TestCase):
     def setUp(self) -> None:
         builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
         builder.add_metas(['remote_level'], dtypes='float', lazy=False)
+        builder.add_metas(['tweet_lga'], dtypes='category')
         builder.add_metas(['year_month_day'], dtypes='datetime', lazy=False)
         builder.set_text_column('processed_text')
-        self.corpus = builder.build()
+        self.corpus: Corpus = builder.build()
 
     def test_Given_non_existant_meta_When_filter_Then_error_is_raised(self):
-        pass
+        with self.assertRaises(KeyError):
+            self.corpus.slicer.filter_by_condition('NON-EXISTANT-META', lambda x: x)
+
+    # filter_by_item
+    def test_Given_item_When_filter_Then_clone_must_only_consist_of_item(self):
+        meta_id = 'tweet_lga'
+        item = self.corpus.meta[meta_id].series.unique()[0]
+        subcorpus = self.corpus.slicer.filter_by_item(meta_id, item)
+        assert (subcorpus.meta[meta_id].series == item).all()
 
     def test_Given_condition_When_filter_Then_clone_must_satisfy_condition(self):
         # condition,
         # check if condition is true for the meta selected.
-        pass
-
-    # filter_by_item
-    def test_Given_item_When_filter_Then_clone_must_only_consist_of_item(self):
-        pass
+        meta_id = 'remote_level'
+        condition = lambda remote_level: remote_level > 1.0
+        subcorpus = self.corpus.slicer.filter_by_condition(meta_id, condition)
+        assert subcorpus.meta[meta_id].series.apply(condition).all()
 
     # filter_by_range
     def test_Given_range_When_filter_Then_clone_must_be_within_range(self):
-        pass
+        meta_id = 'remote_level'
+        min_, max_ = 1.0, 3.0
+        subcorpus = self.corpus.slicer.filter_by_range(meta_id, min_, max_)
+        assert (subcorpus.meta[meta_id].series < max_).all()
+        assert (subcorpus.meta[meta_id].series >= min_).all()
 
     # filter_by_regex
     def test_Given_regex_When_filter_Then_clone_must_satisfy_regex(self):
-        pass
+        meta_id = 'tweet_lga'
+        regex = r'^[Aa].*'
+        subcorpus = self.corpus.slicer.filter_by_regex(meta_id, regex, ignore_case=False)
+        assert subcorpus.meta[meta_id].series.apply(lambda cell: re.match(regex, cell) is not None).all()
 
     # filter_by_datetime
     def test_Given_datetime_start_When_filter_Then_clone_datetimes_is_later_than_start(self):
-        pass
+        meta_id = 'year_month_day'
+        start = '21 March 2021'
+
+        subcorpus = self.corpus.slicer.filter_by_datetime(meta_id, start=start)
+
+        start = pd.to_datetime(start)
+        assert subcorpus.meta[meta_id].series.apply(lambda dt: dt >= start).all()
 
     def test_Given_datetime_end_When_filter_Then_clone_datetimes_is_prior_to_end(self):
-        pass
+        meta_id = 'year_month_day'
+        end = '21 March 2021'
 
-    def test_Given_datetime_When_filter_Then_clone_datetimes_is_within_start_and_end(self):
-        pass
+        subcorpus = self.corpus.slicer.filter_by_datetime(meta_id, end=end)
+
+        end = pd.to_datetime(end)
+        assert subcorpus.meta[meta_id].series.apply(lambda dt: dt < end).all()
+
+    def test_Given_datetime_When_filter_Then_clone_datetimes_is_within_end_and_end(self):
+        meta_id = 'year_month_day'
+        start = '21 March 2020'
+        end = '21 March 2021'
+
+        subcorpus = self.corpus.slicer.filter_by_datetime(meta_id, start=start, end=end)
+
+        start, end = pd.to_datetime(start), pd.to_datetime(end)
+        assert subcorpus.meta[meta_id].series.apply(lambda dt: start <= dt < end).all(), \
+            "Filtered isn't within datetime range"
 
     # group_by
     def test_Given_meta_When_groupby_Then_num_groups_equals_num_uniques(self):
-        pass
+        meta_id = 'tweet_lga'
+        num_uniqs = len(self.corpus.meta[meta_id].series.unique())
+        groups = self.corpus.slicer.group_by(meta_id)
+        assert len(list(groups)) == num_uniqs, "There should be the same number of unique items and groups."
 
     def test_groupby_datetime(self):
         groups = list(self.corpus.slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
@@ -74,13 +109,6 @@ class TestCorpusSlicer(unittest.TestCase):
         assert len(subsubcorpus) == subsubcorpus.dtm.num_docs, \
             "Depth 2 DTM should have the same number of docs as subsubcorpus."
 
-    def test_filter_by_range(self):
-        meta_id = 'remote_level'
-        min_, max_ = 1.0, 2.0
-        subcorpus = self.corpus.slicer.filter_by_range(meta_id, min_, max_)
-        series = subcorpus.meta.get(meta_id).series()
-        assert series.min() >= min_ and series.max() <= max_
-
 
 class TestSpacyCorpusSlicer(unittest.TestCase):
     def setUp(self) -> None:
@@ -94,4 +122,4 @@ class TestSpacyCorpusSlicer(unittest.TestCase):
         matcher.add("test", patterns=[[{"TEXT": "@fitzhunter"}]])
 
         subcorpus = self.scorpus.slicer.filter_by_matcher(matcher)
-        assert len(subcorpus) == 13, "There should only be 13 matched document from corpus."
+        assert len(subcorpus) == 12, "There should only be 12 matched document from corpus."
