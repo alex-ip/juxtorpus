@@ -141,8 +141,11 @@ class CorpusSlicer(object):
     def _datetime_cond_func(self, start, end, strftime):
         start = pd.to_datetime(start, infer_datetime_format=True, format=strftime)  # returns None if start=None
         end = pd.to_datetime(end, infer_datetime_format=True, format=strftime)
-        logger.debug(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
-        logger.debug(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
+        if start is not None:
+            logger.debug(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
+        if end is not None:
+            logger.debug(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
+
         if None not in (start, end):
             cond_func = lambda dt: start < dt <= end
         elif start is not None:
