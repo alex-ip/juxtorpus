@@ -33,6 +33,14 @@ class TestSpacyCorpus(TestCase):
         clone = self.scorpus.cloned(mask)
         assert clone.parent == self.scorpus, "Cloned parent is not inherited properly."
 
+    def test_Given_scorpus_When_cloned_twice_Then_final_clone_root_is_scorpus(self):
+        """ Ensure that the root of the second clone is the root corpus. """
+        num_clones = 2
+        for i in range(num_clones):
+            mask, _ = random_mask(self.scorpus)
+            clone = self.scorpus.cloned(mask)
+            assert clone.find_root() == self.scorpus, "Clone's root is not the correct root corpus."
+
     def test_Given_cloned_When_detached_Then_cloned_is_root(self):
         mask, _ = random_mask(self.scorpus)
         clone = self.scorpus.cloned(mask)
@@ -85,6 +93,7 @@ class TestSpacyCorpus(TestCase):
             assert is_equal(self.scorpus.dtm.matrix[original_idx, :], clone_again.dtm.matrix[clone_idx, :])
 
     def test_Given_clone_When_create_custom_dtm_Then_clone_is_detached(self):
+        # note: delete this test when this behaviour is no longer.
         mask, _ = random_mask(self.scorpus)
         clone = self.scorpus.cloned(mask)
         _ = clone.create_custom_dtm(tokeniser_func=lambda doc: [t.text.lower() for t in doc])
@@ -108,11 +117,3 @@ class TestSpacyCorpus(TestCase):
             original_idx = docs.index[clone_idx]
             assert is_equal(self.scorpus.custom_dtm.matrix[original_idx, :],
                             clone_again.custom_dtm.matrix[clone_idx, :])
-
-    def test_Given_scorpus_When_cloned_twice_Then_final_clone_root_is_scorpus(self):
-        """ Ensure that the root of the second clone is the root corpus. """
-        num_clones = 2
-        for i in range(num_clones):
-            mask, _ = random_mask(self.scorpus)
-            clone = self.scorpus.cloned(mask)
-            assert clone.find_root() == self.scorpus, "Clone's root is not the correct root corpus."
