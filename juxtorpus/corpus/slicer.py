@@ -78,6 +78,7 @@ class CorpusSlicer(object):
         return cond_func
 
     def filter_by_range(self, id_, min_: Optional[Union[int, float]] = None, max_: Optional[Union[int, float]] = None):
+        """ Filter by a range [min, max). Max is non inclusive. """
         meta = self.corpus.meta.get_or_raise_err(id_)
         mask = self._filter_by_range_mask(meta, min_, max_)
         return self.corpus.cloned(mask)
@@ -89,11 +90,11 @@ class CorpusSlicer(object):
     def _range_cond_func(self, min_, max_):
         if min_ is None and max_ is None: return self.corpus
         if None not in (min_, max_):
-            cond_func = lambda num: min_ <= num <= max_
+            cond_func = lambda num: min_ <= num < max_
         elif min_ is not None:
             cond_func = lambda num: min_ <= num
         else:
-            cond_func = lambda num: num <= max_
+            cond_func = lambda num: num < max_
         return cond_func
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool = False):
