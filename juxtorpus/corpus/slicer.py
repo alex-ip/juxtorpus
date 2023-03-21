@@ -2,7 +2,6 @@ from abc import ABC
 
 import pandas as pd
 
-from juxtorpus.corpus import Corpus, SpacyCorpus
 from juxtorpus.corpus.meta import *
 
 from typing import Union, Callable, Optional, Any
@@ -39,7 +38,7 @@ class CorpusSlicer(object):
         :arg id_ - meta's id
         :arg cond_func -  Callable that returns a boolean.
         """
-        meta = self.corpus.meta.get_or_raise_error(id_)
+        meta = self.corpus.meta.get_or_raise_err(id_)
 
         mask = self._mask_by_condition(meta, cond_func)
         return self.corpus.cloned(mask)
@@ -50,7 +49,7 @@ class CorpusSlicer(object):
         :arg id_ - meta's id.
         :arg items - the list of items to include OR just a single item.
         """
-        meta = self.corpus.meta.get_or_raise_error(id_)
+        meta = self.corpus.meta.get_or_raise_err(id_)
         mask = self._filter_by_item_mask(meta, items)
         return self.corpus.cloned(mask)
 
@@ -79,7 +78,7 @@ class CorpusSlicer(object):
         return cond_func
 
     def filter_by_range(self, id_, min_: Optional[Union[int, float]] = None, max_: Optional[Union[int, float]] = None):
-        meta = self.corpus.meta.get_or_raise_error(id_)
+        meta = self.corpus.meta.get_or_raise_err(id_)
         mask = self._filter_by_range_mask(meta, min_, max_)
         return self.corpus.cloned(mask)
 
@@ -103,7 +102,7 @@ class CorpusSlicer(object):
         :arg regex - the regex pattern
         :arg ignore_case - whether to ignore case
         """
-        meta = self.corpus.meta.get_or_raise_error(id_)
+        meta = self.corpus.meta.get_or_raise_err(id_)
         mask = self._filter_by_regex_mask(meta, regex, ignore_case)
         return self.corpus.cloned(mask)
 
@@ -125,7 +124,7 @@ class CorpusSlicer(object):
 
         If no start or end is provided, it'll return the corpus unsliced.
         """
-        meta = self.corpus.meta.get_or_raise_error(id_)
+        meta = self.corpus.meta.get_or_raise_err(id_)
         if start is None and end is None: return self.corpus
         mask = self._filter_by_datetime_mask(meta, start, end, strftime)
         return self.corpus.cloned(mask)
@@ -171,7 +170,7 @@ class CorpusSlicer(object):
         :arg grouper: pd.Grouper - as you would in pandas
         :return tuple[groupid, subcorpus]
         """
-        meta = self.corpus.meta.get_or_raise_error(id_)
+        meta = self.corpus.meta.get_or_raise_err(id_)
         if not isinstance(meta, SeriesMeta):
             raise NotImplementedError(f"Unable to groupby non SeriesMeta. "
                                       f"Please use {self.group_by_conditions.__name__}.")
@@ -193,7 +192,7 @@ class CorpusSlicer(object):
 
 
 class SpacyCorpusSlicer(CorpusSlicer, ABC):
-    def __init__(self, corpus: SpacyCorpus):
+    def __init__(self, corpus: 'SpacyCorpus'):
         if not isinstance(corpus, SpacyCorpus): raise ValueError(f"Must be a SpacyCorpus. Got {type(corpus)}.")
         super(SpacyCorpusSlicer, self).__init__(corpus)
 
@@ -217,6 +216,8 @@ class SpacyCorpusSlicer(CorpusSlicer, ABC):
 
 
 if __name__ == '__main__':
+    from juxtorpus.corpus import Corpus, SpacyCorpus
+
     metas: dict[str, Meta] = {
         'col': SeriesMeta('col', pd.Series(['z', 'y', 'x'])),
         'col_num': SeriesMeta('col_2', pd.Series([1, 2, 3]))
