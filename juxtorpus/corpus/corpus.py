@@ -1,4 +1,4 @@
-from typing import Dict, Generator, Optional, Callable
+from typing import Dict, Generator, Optional, Callable, Union
 import pandas as pd
 import spacy.vocab
 from spacy.tokens import Doc
@@ -15,6 +15,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+TDoc = Union[str, Doc]
 
 class Corpus:
     """ Corpus
@@ -150,12 +151,12 @@ class Corpus:
             parent = parent._parent
         return parent
 
-    def create_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]) -> DTM:
+    def create_custom_dtm(self, tokeniser_func: Callable[[TDoc], list[str]]) -> DTM:
         """ Detaches from root corpus and then build a custom dtm. """
         _ = self.detached()
         return self._update_custom_dtm(tokeniser_func)
 
-    def _update_custom_dtm(self, tokeniser_func: Callable[[str], list[str]]) -> DTM:
+    def _update_custom_dtm(self, tokeniser_func: Callable[[TDoc], list[str]]) -> DTM:
         """ Create a custom DTM based on custom tokeniser function. """
         root = self.find_root()
         dtm = DTM()
