@@ -197,6 +197,7 @@ class CorpusSlicer(object):
 
 class SpacyCorpusSlicer(CorpusSlicer, ABC):
     def __init__(self, corpus: 'SpacyCorpus'):
+        from juxtorpus.corpus import SpacyCorpus
         if not isinstance(corpus, SpacyCorpus): raise ValueError(f"Must be a SpacyCorpus. Got {type(corpus)}.")
         super(SpacyCorpusSlicer, self).__init__(corpus)
 
