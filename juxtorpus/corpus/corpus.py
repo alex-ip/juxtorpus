@@ -6,9 +6,10 @@ from spacy import Language
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
-from juxtorpus.corpus.viz import CorpusViz
-from juxtorpus.corpus.meta import MetaRegistry, Meta, SeriesMeta
+from juxtorpus.corpus.slicer import CorpusSlicer, SpacyCorpusSlicer
+from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
+from juxtorpus.corpus.viz import CorpusViz
 from juxtorpus.matchers import is_word, is_word_tweets, is_hashtag, is_mention
 
 import logging
@@ -16,6 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 TDoc = Union[str, Doc]
+
 
 class Corpus:
     """ Corpus
@@ -69,6 +71,26 @@ class Corpus:
         def get_custom_dtm(self) -> DTM:
             return self.get('custom', None)
 
+    class MetaRegistry(dict):
+        def __init__(self, *args, **kwargs):
+            super(Corpus.MetaRegistry, self).__init__(*args, **kwargs)
+
+        def __setitem__(self, key, value):
+            if not isinstance(value, Meta): raise ValueError(f"MetaRegistry only holds {Meta.__name__} objects.")
+            super(Corpus.MetaRegistry, self).__setitem__(key, value)
+
+        def summary(self):
+            """ Returns a summary of the metadata information. """
+            infos = (meta.summary() for meta in self.values())
+            df = pd.concat(infos, axis=0).fillna('')
+
+            return df.T
+
+        def get_or_raise_err(self, id_: str):
+            meta = self.get(id_, None)
+            if meta is None: raise LookupError(f"{id_} does not exist.")
+            return meta
+
     COL_TEXT: str = 'text'
 
     @classmethod
@@ -77,7 +99,7 @@ class Corpus:
             raise ValueError(f"Column {col_text} not found. You must set the col_text argument.\n"
                              f"Available columns: {df.columns}")
         meta_df: pd.DataFrame = df.drop(col_text, axis=1)
-        metas: dict[str, SeriesMeta] = dict()
+        metas: Corpus.MetaRegistry = Corpus.MetaRegistry()
         for col in meta_df.columns:
             # create series meta
             if metas.get(col, None) is not None:
@@ -85,8 +107,7 @@ class Corpus:
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
         return Corpus(df[col_text], metas)
 
-    def __init__(self, text: pd.Series,
-                 metas: Dict[str, Meta] = None):
+    def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None):
         text.name = self.COL_TEXT
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
         # ensure initiated object is well constructed.
@@ -96,7 +117,7 @@ class Corpus:
         self._parent: Optional[Corpus] = None
 
         # meta data
-        self._meta_registry: MetaRegistry = MetaRegistry(metas)
+        self._meta_registry: Corpus.MetaRegistry = Corpus.MetaRegistry(metas)
 
         # document term matrix - DTM
         self._dtm_registry: Corpus.DTMRegistry = Corpus.DTMRegistry()
@@ -122,8 +143,7 @@ class Corpus:
 
     # slicing
     @property
-    def slicer(self) -> 'CorpusSlicer':
-        from juxtorpus.corpus import CorpusSlicer
+    def slicer(self) -> CorpusSlicer:
         return CorpusSlicer(self)
 
     # document term matrix
@@ -268,7 +288,7 @@ class Corpus:
         return self.docs().loc[mask]
 
     def _cloned_metas(self, mask) -> MetaRegistry:
-        cloned_meta_registry = MetaRegistry()
+        cloned_meta_registry = Corpus.MetaRegistry()
         for id_, meta in self._meta_registry.items():
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return cloned_meta_registry
@@ -287,7 +307,7 @@ class Corpus:
         """
         self._parent = None
         self._dtm_registry = Corpus.DTMRegistry()
-        meta_reg = MetaRegistry()
+        meta_reg = Corpus.MetaRegistry()
         for k, meta in self.meta.items():
             if isinstance(meta, SeriesMeta):
                 sm = SeriesMeta(meta.id, meta.series().copy().reset_index(drop=True))
@@ -380,8 +400,7 @@ class SpacyCorpus(Corpus):
         return self._nlp
 
     @property
-    def slicer(self) -> 'SpacyCorpusSlicer':
-        from juxtorpus.corpus import SpacyCorpusSlicer
+    def slicer(self) -> SpacyCorpusSlicer:
         return SpacyCorpusSlicer(self)
 
     @property
