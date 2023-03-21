@@ -256,8 +256,10 @@ class Corpus:
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
+        cloned_dtms = self._cloned_dtms(cloned_docs.index)
 
         clone = Corpus(cloned_docs, cloned_metas)
+        clone._dtm_registry = cloned_dtms
         clone._parent = self
 
         clone._dtm_registry = self._cloned_dtms(cloned_docs.index)
@@ -397,9 +399,12 @@ class SpacyCorpus(Corpus):
     def _spacy_docs(self):
         return self._df.loc[:, self.COL_TEXT]
 
-    def cloned(self, mask: 'pd.Series[bool]'):
+    def cloned(self, mask: 'pd.Series[bool]') -> 'SpacyCorpus':
         clone = super().cloned(mask)
-        return SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source)
+        scorpus = SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source)
+        scorpus._dtm_registry = clone._dtm_registry
+        scorpus._parent = self
+        return scorpus
 
     def summary(self, spacy: bool = False):
         df = super(SpacyCorpus, self).summary()
