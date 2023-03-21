@@ -12,27 +12,53 @@ import spacy
 from spacy.matcher import Matcher
 from pathlib import Path
 import re
+from time import perf_counter
 
 
 class TestCorpusSlicer(unittest.TestCase):
     def setUp(self) -> None:
-        print()
-        # larger corpus
-        # builder = CorpusBuilder(Path('~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv'))
-        # smaller corpus
         builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
-        builder.add_metas(['remote_level'], dtypes='float')
-        builder.add_metas(['year_month_day'], dtypes='datetime')
+        builder.add_metas(['remote_level'], dtypes='float', lazy=False)
+        builder.add_metas(['year_month_day'], dtypes='datetime', lazy=False)
         builder.set_text_column('processed_text')
         self.corpus = builder.build()
-        self.slicer = CorpusSlicer(self.corpus)
 
-    def tearDown(self) -> None:
+    def test_Given_non_existant_meta_When_filter_Then_error_is_raised(self):
+        pass
+
+    def test_Given_condition_When_filter_Then_clone_must_satisfy_condition(self):
+        # condition,
+        # check if condition is true for the meta selected.
+        pass
+
+    # filter_by_item
+    def test_Given_item_When_filter_Then_clone_must_only_consist_of_item(self):
+        pass
+
+    # filter_by_range
+    def test_Given_range_When_filter_Then_clone_must_be_within_range(self):
+        pass
+
+    # filter_by_regex
+    def test_Given_regex_When_filter_Then_clone_must_satisfy_regex(self):
+        pass
+
+    # filter_by_datetime
+    def test_Given_datetime_start_When_filter_Then_clone_datetimes_is_later_than_start(self):
+        pass
+
+    def test_Given_datetime_end_When_filter_Then_clone_datetimes_is_prior_to_end(self):
+        pass
+
+    def test_Given_datetime_When_filter_Then_clone_datetimes_is_within_start_and_end(self):
+        pass
+
+    # group_by
+    def test_Given_meta_When_groupby_Then_num_groups_equals_num_uniques(self):
         pass
 
     def test_groupby_datetime(self):
-        slicer = self.slicer
-        groups = list(slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
+        groups = list(self.corpus.slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
         print(len(groups))
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
 
@@ -56,19 +82,16 @@ class TestCorpusSlicer(unittest.TestCase):
         assert series.min() >= min_ and series.max() <= max_
 
 
-class TestSpacyCorpusSlicer(TestCorpusSlicer):
+class TestSpacyCorpusSlicer(unittest.TestCase):
     def setUp(self) -> None:
-        super(TestSpacyCorpusSlicer, self).setUp()
-        self.nlp = spacy.blank('en')
-        self.processor = SpacyProcessor(self.nlp)
-        self.corpus = self.processor.run(self.corpus)
-
-    def tearDown(self) -> None:
-        pass
+        df = pd.read_csv('tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
+                         usecols=['processed_text', 'tweet_lga'])
+        corpus = Corpus.from_dataframe(df, col_text='processed_text')
+        self.scorpus: SpacyCorpus = SpacyCorpus.from_corpus(corpus, nlp=spacy.blank('en'))
 
     def test_filter_by_matcher(self):
-        matcher = Matcher(self.nlp.vocab)
+        matcher = Matcher(self.scorpus.nlp.vocab)
         matcher.add("test", patterns=[[{"TEXT": "@fitzhunter"}]])
-        slicer = SpacyCorpusSlicer(self.corpus)
-        subcorpus = slicer.filter_by_matcher(matcher)
+
+        subcorpus = self.scorpus.slicer.filter_by_matcher(matcher)
         assert len(subcorpus) == 13, "There should only be 13 matched document from corpus."
