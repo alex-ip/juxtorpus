@@ -685,7 +685,7 @@ class App(object):
             self._corpus_slicer_dashboard.children[0].children[2].children[1].value = html
 
     def _filter_by_mask_triage(self, selected, config: dict):
-        meta = self._selected_corpus.slicer._get_meta_or_raise_err(selected)
+        meta = self._selected_corpus.meta.get_or_raise_err(selected)
         if 'start' in config.keys() and 'end' in config.keys():
             start, end = config.get('start'), config.get('end')
             mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end, strftime=STRFORMAT)
