@@ -11,8 +11,6 @@ from juxtorpus.corpus import Corpus, SpacyCorpus
 1. cloning behaviour
     1. dtms
     2. metas
-    
-
 """
 
 

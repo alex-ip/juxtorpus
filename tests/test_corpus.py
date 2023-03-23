@@ -6,9 +6,9 @@ import numpy as np
 from juxtorpus.corpus import Corpus
 
 
-def random_mask(corpus):
-    mask = [np.random.choice([True, False]) for _ in range(len(corpus))]
-    num_trues = np.sum(mask)
+def random_mask(corpus: Corpus):
+    mask = pd.Series([np.random.choice([True, False]) for _ in range(len(corpus))], index=corpus._df.index)
+    num_trues = mask.sum()
     return mask, num_trues
 
 
