@@ -29,6 +29,8 @@ sklearn CountVectorizer
 
 TVectorizer = TypeVar('TVectorizer', bound=CountVectorizer)
 
+DEFAULT_COUNTVEC_TOKENISER_PATTERN = r'(?u)\b\w+\b'  # includes single letter words like 'a'
+
 
 class DTM(object):
     """ DTM
@@ -105,14 +107,16 @@ class DTM(object):
         features = self.root._feature_names_out
         return features if self._col_indices is None else features[self._col_indices]
 
-    def vocab(self, nonzero: bool = False):
+    def vocab(self, nonzero: bool = False) -> set[str]:
         """ Returns a set of terms in the current dtm. """
         if nonzero:
             return set(self.term_names[self.total_terms_vector.nonzero()[0]])
         else:
             return set(self.term_names)
 
-    def initialise(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
+    def initialise(self, texts: Iterable[str],
+                   vectorizer: TVectorizer = CountVectorizer(token_pattern=DEFAULT_COUNTVEC_TOKENISER_PATTERN)) \
+            -> 'DTM':
         logger.debug("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
         try:
