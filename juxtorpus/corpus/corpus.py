@@ -277,7 +277,7 @@ class Corpus:
         """ Returns a (usually smaller) clone of itself with the boolean mask applied. """
         cloned_docs = self._cloned_docs(mask)
         cloned_metas = self._cloned_metas(mask)
-        cloned_dtms = self._cloned_dtms(cloned_docs.index)
+        cloned_dtms = self._cloned_dtms(mask)
 
         clone = Corpus(cloned_docs, cloned_metas)
         clone._dtm_registry = cloned_dtms
@@ -293,11 +293,11 @@ class Corpus:
             cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
         return cloned_meta_registry
 
-    def _cloned_dtms(self, indices) -> DTMRegistry:
+    def _cloned_dtms(self, mask) -> DTMRegistry:
         registry = Corpus.DTMRegistry()
-        registry.set_tokens_dtm(self._dtm_registry.get_tokens_dtm().cloned(indices))
+        registry.set_tokens_dtm(self._dtm_registry.get_tokens_dtm().cloned(mask))
         if self._dtm_registry.get_custom_dtm() is not None:
-            registry.set_custom_dtm(self._dtm_registry.get_custom_dtm().cloned(indices))
+            registry.set_custom_dtm(self._dtm_registry.get_custom_dtm().cloned(mask))
         return registry
 
     def detached(self) -> 'Corpus':

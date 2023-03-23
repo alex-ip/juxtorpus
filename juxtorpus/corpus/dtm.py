@@ -150,7 +150,8 @@ class DTM(object):
         if term not in self.root._term_idx_map.keys(): raise ValueError(f"'{term}' not found in document-term-matrix.")
         return self.root._term_idx_map.get(term)
 
-    def cloned(self, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
+    def cloned(self, mask: 'pd.Series[bool]'):
+        row_indices = mask[mask].index
         cloned = DTM()
         cloned.root = self.root
         cloned._row_indices = row_indices
