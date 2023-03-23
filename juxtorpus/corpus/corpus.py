@@ -6,6 +6,7 @@ from spacy import Language
 from sklearn.feature_extraction.text import CountVectorizer
 import re
 
+from juxtorpus.interfaces.clonable import Clonable
 from juxtorpus.corpus.slicer import CorpusSlicer, SpacyCorpusSlicer
 from juxtorpus.corpus.meta import Meta, SeriesMeta
 from juxtorpus.corpus.dtm import DTM
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 TDoc = Union[str, Doc]
 
 
-class Corpus:
+class Corpus(Clonable):
     """ Corpus
     This class abstractly represents a corpus which is a collection of documents.
     Each document is also described by their metadata and is used for functions such as slicing.

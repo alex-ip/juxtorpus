@@ -2,10 +2,10 @@ from abc import ABCMeta, abstractmethod
 import pandas as pd
 from typing import Generator
 
-MASK = 'pd.Series[bool]'
+from juxtorpus.interfaces.clonable import Clonable, MASK
 
 
-class Meta(metaclass=ABCMeta):
+class Meta(Clonable, metaclass=ABCMeta):
     def __init__(self, id_: str):
         self._id = id_
 
@@ -26,7 +26,7 @@ class Meta(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def cloned(self, texts: 'pd.Series[str]', mask: 'pd.Series[bool]'):
+    def cloned(self, texts: 'pd.Series[str]', mask: MASK):
         raise NotImplementedError()
 
     @abstractmethod

@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from juxtorpus.interfaces.clonable import Clonable
 from juxtorpus.corpus.freqtable import FreqTable
 
 """ Document Term Matrix DTM
@@ -32,7 +33,7 @@ TVectorizer = TypeVar('TVectorizer', bound=CountVectorizer)
 DEFAULT_COUNTVEC_TOKENISER_PATTERN = r'(?u)\b\w+\b'  # includes single letter words like 'a'
 
 
-class DTM(object):
+class DTM(Clonable):
     """ DTM
     This class is an abstract representation of the document-term matrix. It serves as a component
     of the Corpus class and exposes various functionalities that allows the slicing and dicing to be
