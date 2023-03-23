@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 import pandas as pd
-from typing import Generator, TypeAlias
+from typing import Generator
 
-MASK: TypeAlias = 'pd.Series[bool]'
+MASK = 'pd.Series[bool]'
 
 
 class Meta(metaclass=ABCMeta):
