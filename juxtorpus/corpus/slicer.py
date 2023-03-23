@@ -165,7 +165,7 @@ class CorpusSlicer(object):
         """ TODO: basically runs filter by condition multiple times and organise into FrozenCorpusSlices. """
         raise NotImplementedError()
 
-    def group_by(self, id_, grouper: pd.Grouper = None) -> Generator[tuple[str, 'Corpus']]:
+    def group_by(self, id_, grouper: pd.Grouper = None) -> Generator[tuple[str, 'Corpus'], None, None]:
         """ Return groups of the subcorpus based on their metadata.
 
         :arg grouper: pd.Grouper - as you would in pandas
