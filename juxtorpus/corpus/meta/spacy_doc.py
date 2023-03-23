@@ -28,6 +28,9 @@ class DocMeta(Meta):
             return self._docs.apply(_inner_func_on_attr)
         return pd.Series(map(_inner_func_on_attr, self._docs()))  # faster than loop. But can be improved.
 
+    def groupby(self, grouper):
+        raise NotImplementedError("Groupby functionality is not available for doc meta yet.")
+
     def cloned(self, texts, mask):
         # use the series mask to clone itself.
         if isinstance(self._docs, pd.Series):

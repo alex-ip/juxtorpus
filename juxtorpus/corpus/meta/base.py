@@ -1,5 +1,8 @@
 from abc import ABCMeta, abstractmethod
 import pandas as pd
+from typing import Generator, TypeAlias
+
+MASK: TypeAlias = 'pd.Series[bool]'
 
 
 class Meta(metaclass=ABCMeta):
@@ -12,6 +15,10 @@ class Meta(metaclass=ABCMeta):
 
     @abstractmethod
     def apply(self, func) -> pd.Series:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def groupby(self, grouper) -> Generator[tuple[str, MASK], None, None]:
         raise NotImplementedError()
 
     @abstractmethod

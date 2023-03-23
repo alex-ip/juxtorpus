@@ -94,7 +94,6 @@ class TestCorpusSlicer(unittest.TestCase):
 
     def test_groupby_datetime(self):
         groups = list(self.corpus.slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
-        print(len(groups))
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
 
     def test_cloning_custom_dtm_created_at_multi_depth_subcorpus(self):

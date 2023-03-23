@@ -3,10 +3,11 @@ from typing import Union
 import pandas as pd
 
 from juxtorpus.loader import LazySeries
+from juxtorpus.utils.utils_pandas import subindex_to_mask
+
 
 # from juxtorpus.corpus.app import App
 # inverted_dtypes_map = {v: k for k, v in App.DTYPES_MAP.items()}
-
 
 class SeriesMeta(Meta):
     dtypes = {'float', 'float16', 'float32', 'float64',
@@ -26,6 +27,21 @@ class SeriesMeta(Meta):
 
     def apply(self, func):
         return self.series.apply(func)
+
+    def groupby(self, grouper: pd.Grouper = None):
+        is_datetime = pd.api.types.is_datetime64_any_dtype(self.series)
+
+        if is_datetime and grouper:
+            tmp_multi_idx_df = pd.DataFrame(self.series).set_index([self.series.index, self.series])
+            grouper.level = self.series.name
+            for gid, group in tmp_multi_idx_df.groupby(by=grouper, axis=0, group_keys=True):
+                mask = subindex_to_mask(self.series, group.droplevel(grouper.level).index)
+                yield gid, mask
+        else:
+            by = self.series if not grouper else grouper
+            for gid, group in self.series.groupby(by=by, axis=0, group_keys=True):
+                mask = subindex_to_mask(self.series, group.index)
+                yield gid, mask
 
     def __iter__(self):
         for x in iter(self.series.__iter__()):

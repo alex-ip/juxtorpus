@@ -1,13 +1,10 @@
 from abc import ABC
 
-import pandas as pd
-
 from juxtorpus.corpus.meta import *
 
-from typing import Union, Callable, Optional, Any
+from typing import Union, Callable, Optional, Any, Generator
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
-import weakref
 import re
 
 import colorlog
@@ -168,7 +165,7 @@ class CorpusSlicer(object):
         """ TODO: basically runs filter by condition multiple times and organise into FrozenCorpusSlices. """
         raise NotImplementedError()
 
-    def group_by(self, id_, grouper: pd.Grouper = None):
+    def group_by(self, id_, grouper: pd.Grouper = None) -> Generator[tuple[str, 'Corpus']]:
         """ Return groups of the subcorpus based on their metadata.
 
         :arg grouper: pd.Grouper - as you would in pandas
@@ -178,21 +175,7 @@ class CorpusSlicer(object):
         if not isinstance(meta, SeriesMeta):
             raise NotImplementedError(f"Unable to groupby non SeriesMeta. "
                                       f"Please use {self.group_by_conditions.__name__}.")
-
-        RETURN_GROUP_KEYS = True  # NOTE: this is a dependency in downstream classes (e.g. ItemTimeline)
-        series = meta.series
-        # using pd.Grouper on datetime requires it to be an index.
-        if grouper is not None:
-            by = grouper
-            if pd.api.types.is_datetime64_any_dtype(series):
-                by.level = series.name
-                df = self.corpus._df.set_index([self.corpus._df.index, series])
-                return ((gid, self.corpus.cloned(g.index.droplevel(by.level)))
-                        for gid, g in df.groupby(by, axis=0, group_keys=RETURN_GROUP_KEYS))
-        else:
-            by = series
-        return ((gid, self.corpus.cloned(g.index)) for gid, g in
-                series.groupby(by=by, axis=0, group_keys=RETURN_GROUP_KEYS))
+        return ((gid, self.corpus.cloned(mask)) for gid, mask in meta.groupby(grouper))
 
 
 class SpacyCorpusSlicer(CorpusSlicer, ABC):
@@ -218,19 +201,3 @@ class SpacyCorpusSlicer(CorpusSlicer, ABC):
             return len(matcher(doc)) > 0
 
         return _cond_func
-
-
-if __name__ == '__main__':
-    from juxtorpus.corpus import Corpus, SpacyCorpus
-
-    metas: dict[str, Meta] = {
-        'col': SeriesMeta('col', pd.Series(['z', 'y', 'x'])),
-        'col_num': SeriesMeta('col_2', pd.Series([1, 2, 3]))
-    }
-    corp = Corpus(pd.Series(['a', 'b', 'c']), metas)
-
-    slicer = CorpusSlicer(corp)
-    subset = slicer.filter_by_condition('col', lambda x: x == 'z')
-    print(subset._df)
-    subset = slicer.filter_by_item('col', {'y', 'x'})
-    print(subset._df)
