@@ -151,7 +151,7 @@ class DTM(Clonable):
         if term not in self.root._term_idx_map.keys(): raise ValueError(f"'{term}' not found in document-term-matrix.")
         return self.root._term_idx_map.get(term)
 
-    def cloned(self, mask: 'pd.Series[bool]'):
+    def cloned(self, mask: 'pd.Series[bool]') -> 'DTM':
         row_indices = mask[mask].index
         cloned = DTM()
         cloned.root = self.root
@@ -183,11 +183,11 @@ class DTM(Clonable):
         tfidf._is_built = True
         return tfidf
 
-    def to_dataframe(self):
+    def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.term_names)
 
     @contextlib.contextmanager
-    def without_terms(self, terms: Union[list[str], set[str]]):
+    def without_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
         """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
         try:
             features = self.root._feature_names_out
