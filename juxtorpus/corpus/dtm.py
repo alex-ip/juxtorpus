@@ -196,6 +196,15 @@ class DTM(Clonable):
         finally:
             self._col_indices = None
 
+    @contextlib.contextmanager
+    def with_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
+        try:
+            features = self.root._feature_names_out
+            self._col_indices = np.isin(features, list(terms), invert=False).nonzero()[0]
+            yield self
+        finally:
+            self._col_indices = None
+
     @classmethod
     def from_matrix(cls, matrix: Union[np.ndarray, np.matrix], terms):
         num_terms: int

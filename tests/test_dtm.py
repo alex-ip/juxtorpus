@@ -129,13 +129,11 @@ class TestDTM(unittest.TestCase):
         clone: DTM = dtm.cloned(mask)
         assert dtm.num_terms == clone.num_terms
 
-
     def test_Given_clone_When_accessing_num_docs_Then_return_correct_number_of_documents(self):
         dtm = DTM().initialise(self.small_texts)
         mask = random_mask(dtm)
         clone: DTM = dtm.cloned(mask)
         assert clone.num_docs == mask.sum()
-
 
     def test_Given_clone_When_accessing_total_terms_Then_return_correct_total_number_of_terms(self):
         dtm = DTM().initialise(self.small_texts)
@@ -164,7 +162,6 @@ class TestDTM(unittest.TestCase):
         assert dtm.total == dtm.freq_table().total
         assert set(dtm.term_names) == set(dtm.term_names)
 
-
     def test_Given_initialised_When_to_dataframe_Then_return_dataframe_with_valid_data(self):
         # todo: check total of dataframe returned is the same as DTM total_terms
         dtm = DTM().initialise(self.small_texts)
@@ -183,6 +180,11 @@ class TestDTM(unittest.TestCase):
             assert tokens[0] not in subdtm.term_names
             assert tokens[1] not in subdtm.term_names
 
+    def test_Given_initialised_When_with_terms_context_Then_only_those_terms_exist_in_dtm(self):
+        dtm = DTM().initialise(self.small_texts)
+        tokens = self.small_texts[0].split()
+        with dtm.with_terms([tokens[0], tokens[1]]) as subdtm:
+            assert set([tokens[0], tokens[1]]) == set(subdtm.term_names)
 
     def test_Given_two_uninit_DTMs_When_merge_Then_raise_error(self):
         # todo: subclass exception?
