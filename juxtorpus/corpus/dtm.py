@@ -89,12 +89,12 @@ class DTM(Clonable):
         return self.matrix.sum()
 
     @property
-    def total_terms_vector(self):
+    def terms_freq_vector(self):
         """ Returns a vector of term counts for each term. """
         return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
 
     @property
-    def total_docs_vector(self):
+    def docs_size_vector(self):
         """ Returns a vector of term counts for each document. """
         return np.asarray(self.matrix.sum(axis=1)).squeeze(axis=1)
 
@@ -111,7 +111,7 @@ class DTM(Clonable):
     def vocab(self, nonzero: bool = False) -> set[str]:
         """ Returns a set of terms in the current dtm. """
         if nonzero:
-            return set(self.term_names[self.total_terms_vector.nonzero()[0]])
+            return set(self.term_names[self.terms_freq_vector.nonzero()[0]])
         else:
             return set(self.term_names)
 
@@ -305,10 +305,10 @@ class DTM(Clonable):
 
     def freq_table(self, nonzero=True) -> FreqTable:
         """ Create a frequency table of the dataframe."""
-        terms, freqs = self.term_names, self.total_terms_vector
+        terms, freqs = self.term_names, self.terms_freq_vector
         if nonzero:
-            indices = np.nonzero(self.total_terms_vector)[0]
-            terms, freqs = self.term_names[indices], self.total_terms_vector[indices]
+            indices = np.nonzero(self.terms_freq_vector)[0]
+            terms, freqs = self.term_names[indices], self.terms_freq_vector[indices]
         return FreqTable(terms, freqs)
 
     def __repr__(self):
