@@ -108,6 +108,12 @@ class TestCorpusSlicer(unittest.TestCase):
         assert len(subsubcorpus) == subsubcorpus.dtm.num_docs, \
             "Depth 2 DTM should have the same number of docs as subsubcorpus."
 
+    def test_Given_meta_When_filter_twice_Then_clone_is_valid(self):
+        subcorpus: Corpus = self.corpus.slicer.filter_by_item('remote_level', 2.0)
+        subsubcorpus = subcorpus.slicer.filter_by_item('tweet_lga', 'Eurobodalla (A)')
+
+        assert len(subsubcorpus) == 48, 'Depth 2 corpus should have only 48 documents.'
+
 
 class TestSpacyCorpusSlicer(unittest.TestCase):
     def setUp(self) -> None:
