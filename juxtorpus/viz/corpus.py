@@ -75,7 +75,8 @@ def _wordcloud(corpus, max_words: int, metric: str, word_type: str, stopwords=EN
 
 def timeline(corpus, datetime_meta: str, freq: str):
     meta = corpus.meta.get_or_raise_err(datetime_meta)
-    df = pd.DataFrame([False] * len(meta.series()), index=meta.series())
+    assert pd.api.types.is_datetime64_any_dtype(meta.series), f"{meta.id} is not a datetime meta."
+    df = pd.DataFrame([False] * len(meta.series), index=meta.series)
     df = df.groupby(pd.Grouper(level=0, freq=freq)).count()
     fig = go.Figure()
     fig.add_trace(
@@ -97,12 +98,12 @@ def timelines(corpora, names: list[str], datetime_meta: str, freq: str):
         corpus = corpora[name]
         assert corpus, f"{name} does not exist in corpora."
         # meta = corpus.meta.get_or_raise_err(datetime_meta)
-        # if not datetime_series: datetime_series = meta.series()
+        # if not datetime_series: datetime_series = meta.series
     fig = go.Figure()
     for name in names:
         corpus = corpora[name]
         meta = corpus.meta.get_or_raise_err(datetime_meta)
-        df = pd.DataFrame([False] * len(meta.series()), index=meta.series())
+        df = pd.DataFrame([False] * len(meta.series), index=meta.series)
         df = df.groupby(pd.Grouper(level=0, freq=freq)).count()
         fig.add_trace(
             go.Scatter(x=df.index.tolist(), y=df[0].tolist(), name=name, showlegend=True)
