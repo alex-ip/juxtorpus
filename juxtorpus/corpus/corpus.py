@@ -133,6 +133,15 @@ class Corpus(Clonable):
 
         # standard viz
         self._viz = CorpusViz(self)
+        self._name = ''
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
     @property
     def parent(self) -> 'Corpus':
