@@ -5,6 +5,7 @@ from spacy.tokens import Doc
 from spacy import Language
 from sklearn.feature_extraction.text import CountVectorizer
 import re
+import randomname
 
 from juxtorpus.interfaces.clonable import Clonable
 from juxtorpus.corpus.slicer import CorpusSlicer, SpacyCorpusSlicer
@@ -18,6 +19,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 TDoc = Union[str, Doc]
+
+_ALL_CORPUS_NAMES = set()
+_CORPUS_NAME_SEED = 42
+
+
+def generate_name(corpus: 'Corpus') -> str:
+    # todo: should generate a random name based on corpus words
+    # tmp solution - generate a random name.
+    while name := randomname.get_name():
+        if name in _ALL_CORPUS_NAMES:
+            continue
+        else:
+            return name
 
 
 class Corpus(Clonable):
@@ -95,7 +109,7 @@ class Corpus(Clonable):
     COL_TEXT: str = 'text'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = COL_TEXT) -> 'Corpus':
+    def from_dataframe(cls, df: pd.DataFrame, col_text: str = COL_TEXT, name: str = None) -> 'Corpus':
         if col_text not in df.columns:
             raise ValueError(f"Column {col_text} not found. You must set the col_text argument.\n"
                              f"Available columns: {df.columns}")
@@ -106,9 +120,10 @@ class Corpus(Clonable):
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
-        return Corpus(df[col_text], metas)
+        corpus = Corpus(df[col_text], metas)
+        return corpus
 
-    def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None):
+    def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None, name: str = None):
         text.name = self.COL_TEXT
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
         # ensure initiated object is well constructed.
@@ -133,7 +148,7 @@ class Corpus(Clonable):
 
         # standard viz
         self._viz = CorpusViz(self)
-        self._name = ''
+        self._name = name if name else generate_name(self)
 
     @property
     def name(self) -> str:
