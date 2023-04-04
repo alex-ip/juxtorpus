@@ -12,14 +12,6 @@ import colorlog
 logger = colorlog.getLogger(__name__)
 
 
-def slicer(corpus):
-    if isinstance(corpus, SpacyCorpus):
-        return SpacyCorpusSlicer(corpus)
-    if isinstance(corpus, Corpus):
-        return CorpusSlicer(corpus)
-    raise ValueError(f"corpus must be an instance of {Corpus.__name__}. Got {type(corpus)}.")
-
-
 class CorpusSlicer(object):
     """ CorpusSlicer
 
