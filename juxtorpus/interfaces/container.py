@@ -21,3 +21,8 @@ class Container(metaclass=ABCMeta):
     def clear(self):
         """ Clears all the objects in the container. """
         raise NotImplementedError()
+
+    @abstractmethod
+    def get(self, key):
+        """ Get the object in the container with key. """
+        raise NotImplementedError()
