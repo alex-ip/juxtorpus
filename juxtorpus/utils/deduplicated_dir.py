@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Optional
 import pathlib, os, shutil, tempfile
 import hashlib
 import filecmp
@@ -45,6 +45,12 @@ class DeduplicatedDirectory(Container):
     def list(self) -> list[str]:
         """ Lists all the name of the files in the directory. """
         return [f.name for f in self.files()]
+
+    def get(self, fname: str) -> Optional[pathlib.Path]:
+        for f in self.files():
+            if fname == f.name:
+                return f
+        return None
 
     def add(self, file: pathlib.Path):
         """ Adds a file to the directory. Raises error if file already exists. """
