@@ -41,7 +41,9 @@ class OperationsWidget(Widget):
     def _ops_table(self):
         """ Returns a table of toggleable operations. """
         self._populate_checkbox_to_op_map()
-        return VBox([checkbox for checkbox in self._checkbox_to_op.keys()],
+        checkboxes = [checkbox for checkbox in self._checkbox_to_op.keys()]
+        for cb in checkboxes: cb.value = True
+        return VBox(checkboxes,
                     layout=Layout(height='100%', **no_horizontal_scroll))
 
     def _ops_row(self, op: Operation):
