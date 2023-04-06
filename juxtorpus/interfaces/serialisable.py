@@ -5,8 +5,8 @@ from typing import Union
 
 class Serialisable(metaclass=ABCMeta):
 
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def deserialise(cls, path: Union[str, Path]) -> 'Serialisable':
         """ Deserialise configuration and return the deserialised object. """
         raise NotImplementedError()
