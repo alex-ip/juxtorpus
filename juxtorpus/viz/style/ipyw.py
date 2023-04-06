@@ -12,3 +12,8 @@ box_df_layout = {'width': '100%', 'height': '100%'}
 
 # corpus slicer
 meta_value_selector_layout = {'width': '98%', 'height': '60%'}
+
+
+
+no_horizontal_scroll = {'width': '98%', 'height': '100%'}
+center_text = {'display': 'flex', 'justify_content': 'center'}
