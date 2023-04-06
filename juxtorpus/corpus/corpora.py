@@ -41,7 +41,7 @@ class Corpora(Container, Widget, Viz, ABC):
         """ Clear all corpus from corpora. """
         self._map = dict()
 
-    def list(self) -> list[str]:
+    def items(self) -> list[str]:
         """ List all the corpus names in the corpora. """
         return [key for key in self._map.keys()]
 

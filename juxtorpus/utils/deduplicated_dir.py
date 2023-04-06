@@ -42,7 +42,7 @@ class DeduplicatedDirectory(Container):
             cond = lambda f: f.is_file() and f.stem[0] != '.'
         return list(f for f in pathlib.Path(self._dir_path).glob('**/*') if cond(f))
 
-    def list(self) -> list[str]:
+    def items(self) -> list[str]:
         """ Lists all the name of the files in the directory. """
         return [f.name for f in self.files()]
 

@@ -33,7 +33,7 @@ class CorporaWidget(Widget, ABC):
     def _corpus_selector(self, selected: Optional[str] = None) -> VBox:
         """ Creates the header and a row corresponding to each corpus in the corpora. """
         hbox_labels = HBox(self._corpus_selector_labels, layout=Layout(**hbox_style))
-        rows = [self._corpus_selector_row(name) for name in self.corpora.list()]
+        rows = [self._corpus_selector_row(name) for name in self.corpora.items()]
         if selected:
             for r in rows:
                 checkbox = r.children[0]

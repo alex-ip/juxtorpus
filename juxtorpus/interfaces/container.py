@@ -13,7 +13,7 @@ class Container(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
-    def list(self):
+    def items(self):
         """ List all the objects in the container. """
         raise NotImplementedError()
 
