@@ -25,6 +25,10 @@ class SeriesMeta(Meta):
             self._series = self._series.load()
         return self._series
 
+    @property
+    def dtype(self):
+        return self.series.dtype
+
     def apply(self, func):
         return self.series.apply(func)
 
