@@ -4,49 +4,11 @@ from ipywidgets import *
 from juxtorpus.interfaces import Container
 from juxtorpus.viz import Widget
 from juxtorpus.corpus.operation import Operation
+from juxtorpus.corpus.operations import Operations
 from juxtorpus.viz.style.ipyw import *
 
 
 # todo: decouple into Operations class and OperationsWidget class
-
-class Operations(Container):
-
-    def __init__(self, ops: Optional[list[Operation]] = None):
-        self._ops = list() if not ops else ops
-
-    def add(self, op):
-        self._ops.append(op)
-
-    def remove(self, op: Union[int, Operation]):
-        if isinstance(op, int):
-            self._ops.pop(op)
-        elif isinstance(op, Operation):
-            self._ops.remove(op)
-        else:
-            raise ValueError(f"op must be either int or Operation.")
-
-    def items(self) -> list['Operation']:
-        return [op for op in self._ops]
-
-    def clear(self):
-        self._ops = list()
-
-    def get(self, idx: int):
-        return self._ops[idx]
-
-    def apply(self, corpus):
-        pass  # ? maybe not a required function.
-
-    def preview(self, skip: Optional[list[Union[int, Operation]]] = None) -> int:
-        """ Returns the subcorpus size after masking. """
-        import numpy as np
-        return np.random.randint(100)
-
-    def __iter__(self):
-        return iter(self._ops)
-
-    def __len__(self):
-        return len(self._ops)
 
 
 class OperationsWidget(Widget):
@@ -61,6 +23,7 @@ class OperationsWidget(Widget):
 
         # callbacks
         self._on_slice_callback = lambda sliced: sliced
+        self._btn_slice = self._slice_button()
 
     @property
     def sliced(self):
@@ -68,12 +31,10 @@ class OperationsWidget(Widget):
 
     def widget(self):
         """ Returns a checkbox table with a Subcorpus Preview and Slice button next to it."""
-        btn_slice = self._slice_button()
         ops_table = self._ops_table()
-
-        vbox_slice = VBox([self._preview, btn_slice],
+        vbox_slice = VBox([self._preview, self._btn_slice],
                           layout=Layout(height='100%', **no_horizontal_scroll))
-        return HBox([ops_table, vbox_slice])
+        return HBox([ops_table, vbox_slice], layout=Layout(**no_horizontal_scroll))
 
     def _ops_table(self):
         """ Returns a table of toggleable operations. """
@@ -119,8 +80,9 @@ class OperationsWidget(Widget):
     def _update_sliced_preview(self):
         self._preview.value = self._preview_text("Calculating...")
         skip = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if cb.value]
-        subcorpus_size = self.ops.preview(skip=skip)
+        subcorpus_size = self.ops.mask(self.corpus, skip=skip)
         self._preview.value = self._preview_text(str(subcorpus_size))
+        self._btn_slice.disabled = not subcorpus_size > 0
 
     @staticmethod
     def _op_description(op: Operation) -> str:
