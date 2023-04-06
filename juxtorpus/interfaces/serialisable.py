@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Union
 
+
 class Serialisable(metaclass=ABCMeta):
 
     @abstractmethod
@@ -14,4 +15,3 @@ class Serialisable(metaclass=ABCMeta):
     def serialise(self, path: Union[str, Path]):
         """ Serialises configuration into a persistent format. """
         raise NotImplementedError()
-
