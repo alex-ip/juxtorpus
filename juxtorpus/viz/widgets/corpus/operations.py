@@ -8,9 +8,6 @@ from juxtorpus.corpus.operations import Operations
 from juxtorpus.viz.style.ipyw import *
 
 
-# todo: decouple into Operations class and OperationsWidget class
-
-
 class OperationsWidget(Widget):
     def __init__(self, corpus: 'Corpus', operations: Operations):
         self.corpus = corpus
