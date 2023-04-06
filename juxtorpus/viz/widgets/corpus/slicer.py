@@ -254,7 +254,7 @@ class SlicerWidget(Widget, ABC):
 
     def _text_panel(self, meta) -> VBox:
         """ Dtype: text; filter_by_item, filter_by_regex """
-        placeholder = meta.series().iloc[0]
+        placeholder = meta.series.iloc[0]
         w_text = Text(placeholder=placeholder)
         w_toggle = ToggleButtons(
             options=['Text', 'Regex'],
