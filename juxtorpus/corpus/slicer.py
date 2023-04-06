@@ -1,18 +1,19 @@
 from abc import ABC
 
-from juxtorpus.corpus.meta import *
-
 from typing import Union, Callable, Optional, Any, Generator
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
 import re
 
+from juxtorpus.corpus.meta import *
+from juxtorpus.viz import Widget
+from juxtorpus.viz.widgets.corpus.slicer import SlicerWidget
 import colorlog
 
 logger = colorlog.getLogger(__name__)
 
 
-class CorpusSlicer(object):
+class CorpusSlicer(Widget):
     """ CorpusSlicer
 
     The corpus slicer is used in conjunction with the Corpus class to serve its main design feature:
@@ -168,6 +169,9 @@ class CorpusSlicer(object):
             raise NotImplementedError(f"Unable to groupby non SeriesMeta. "
                                       f"Please use {self.group_by_conditions.__name__}.")
         return ((gid, self.corpus.cloned(mask)) for gid, mask in meta.groupby(grouper))
+
+    def widget(self):
+        return SlicerWidget(self.corpus).widget()
 
 
 class SpacyCorpusSlicer(CorpusSlicer, ABC):
