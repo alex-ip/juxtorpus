@@ -79,7 +79,7 @@ class OperationsWidget(Widget):
 
     def _update_sliced_preview(self):
         self._preview.value = self._preview_text("Calculating...")
-        skip = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if cb.value]
+        skip = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if not cb.value]
         subcorpus_size = self.ops.mask(self.corpus, skip=skip)
         self._preview.value = self._preview_text(str(subcorpus_size))
         self._btn_slice.disabled = not subcorpus_size > 0
