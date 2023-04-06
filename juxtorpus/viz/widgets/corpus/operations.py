@@ -33,11 +33,14 @@ class OperationsWidget(Widget):
                           layout=Layout(height='100%', **no_horizontal_scroll))
         return HBox([ops_table, vbox_slice], layout=Layout(**no_horizontal_scroll))
 
+    def _populate_checkbox_to_op_map(self):
+        for op in self.ops:
+            if op not in self._checkbox_to_op.values():
+                self._checkbox_to_op[self._ops_row(op)] = op
+
     def _ops_table(self):
         """ Returns a table of toggleable operations. """
-        for op in self.ops:
-            self._checkbox_to_op[self._ops_row(op)] = op
-
+        self._populate_checkbox_to_op_map()
         return VBox([checkbox for checkbox in self._checkbox_to_op.keys()],
                     layout=Layout(height='100%', **no_horizontal_scroll))
 
