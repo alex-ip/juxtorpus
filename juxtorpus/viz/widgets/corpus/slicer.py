@@ -69,7 +69,7 @@ class SlicerWidget(Widget, ABC):
 
         def observe(_):
             self._state.selected_meta = select.value
-            self._update_panel_box(select.value)
+            self._update_panel_box_with(select.value)
 
         select.observe(observe, names='value')
         return select
@@ -79,7 +79,7 @@ class SlicerWidget(Widget, ABC):
         return VBox([self._panels_.get(selected_meta)],
                     layout=Layout(**no_horizontal_scroll))
 
-    def _update_panel_box(self, selected_meta):
+    def _update_panel_box_with(self, selected_meta):
         self._panel_box_.children = (self._panels_.get(selected_meta),)
 
     def _add_operation_button(self) -> Button:
