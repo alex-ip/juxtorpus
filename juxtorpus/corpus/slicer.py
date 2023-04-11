@@ -41,15 +41,15 @@ class CorpusSlicer(Widget):
         :arg items - the list of items to include OR just a single item.
         """
         meta = self.corpus.meta.get_or_raise_err(id_)
-        op = ItemOp(items)
-        return self.corpus.cloned(op.mask(meta))
+        op = ItemOp(meta, items)
+        return self.corpus.cloned(op.mask())
 
     def filter_by_range(self, id_, min_: Optional[Union[int, float]] = None, max_: Optional[Union[int, float]] = None):
         """ Filter by a range [min, max). Max is non inclusive. """
         meta = self.corpus.meta.get_or_raise_err(id_)
         if min_ is None and max_ is None: return self.corpus
-        op = RangeOp(min_, max_)
-        return self.corpus.cloned(op.mask(meta))
+        op = RangeOp(meta, min_, max_)
+        return self.corpus.cloned(op.mask())
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool = False):
         """ Filter by regex.
@@ -58,8 +58,8 @@ class CorpusSlicer(Widget):
         :arg ignore_case - whether to ignore case
         """
         meta = self.corpus.meta.get_or_raise_err(id_)
-        op = RegexOp(regex, ignore_case)
-        return self.corpus.cloned(op.mask(meta))
+        op = RegexOp(meta, regex, ignore_case)
+        return self.corpus.cloned(op.mask())
 
     def filter_by_datetime(self, id_, start: Optional[str] = None, end: Optional[str] = None,
                            strftime: Optional[str] = None):
@@ -72,8 +72,8 @@ class CorpusSlicer(Widget):
         """
         meta = self.corpus.meta.get_or_raise_err(id_)
         if start is None and end is None: return self.corpus
-        op = DatetimeOp(start, end, strftime)
-        return self.corpus.cloned(op.mask(meta))
+        op = DatetimeOp(meta, start, end, strftime)
+        return self.corpus.cloned(op.mask())
 
     def _mask_by_condition(self, meta, cond_func):
         mask = meta.apply(cond_func)
@@ -113,5 +113,5 @@ class SpacyCorpusSlicer(CorpusSlicer, ABC):
         """ Filter by matcher
         If the matcher matches anything, that document is kept in the sliced corpus.
         """
-        op = MatcherOp(matcher)
+        op = MatcherOp(self.corpus.docs(), matcher)
         return self.corpus.cloned(op.mask(self.corpus.docs()))
