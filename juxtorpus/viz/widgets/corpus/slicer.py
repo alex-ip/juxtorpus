@@ -11,7 +11,8 @@ from ipywidgets import Widget as ipyWidget
 from copy import deepcopy
 from datetime import timedelta, datetime
 
-from juxtorpus.corpus.operations import Operations, Operation
+from juxtorpus.corpus.operations import Operations
+from juxtorpus.corpus.operation import *
 from juxtorpus.viz import Widget
 from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.viz.style.ipyw import *
@@ -29,7 +30,66 @@ class SlicerWidget(Widget, ABC):
         def __init__(self, metas):
             super().__init__()
             for meta_id in metas.keys(): self[meta_id] = dict()
-            self.selected_meta = list(metas.keys())[0]
+            self._selected_meta = list(metas.keys())[0]
+
+        @property
+        def selected_meta(self):
+            return self._selected_meta
+
+        @selected_meta.setter
+        def selected_meta(self, selected_meta: str):
+            print("SELECTED: " + selected_meta)
+            self._selected_meta = selected_meta
+
+        def selected_config(self):
+            return self.get(self._selected_meta)
+
+        def is_item(self):
+            return 'items' in self.get(self._selected_meta).keys()
+
+        def set_items(self, meta_id, items):
+            self[meta_id]['items'] = items
+
+        def get_items(self):
+            return self.selected_config().get('items')
+
+        def is_datetime(self):
+            return 'start' in self.get(self._selected_meta).keys() or 'end' in self.get(self._selected_meta).keys()
+
+        def set_datetime(self, meta_id, start, end):
+            self[meta_id]['start'] = start
+            self[meta_id]['end'] = end
+
+        def get_datetimes(self):
+            return self.selected_config().get('start'), self.selected_config().get('end')
+
+        def is_regex(self):
+            return 'regex' in self.get(self._selected_meta).keys()
+
+        def set_regex(self, meta_id, regex):
+            self[meta_id]['regex'] = regex
+
+        def get_regex(self):
+            return self.selected_config().get('regex')
+
+        def is_range(self):
+            return 'min' in self.get(self._selected_meta).keys() or 'max' in self.get(self._selected_meta).keys()
+
+        def set_range(self, meta_id, min_, max_):
+            self[meta_id]['min'] = min_
+            self[meta_id]['max'] = max_
+
+        def get_range(self):
+            return self.selected_config().get('min'), self.selected_config().get('max')
+
+        def is_number(self):
+            return 'number' in self.selected_config()
+
+        def set_number(self, meta_id, number):
+            self[meta_id]['number'] = number
+
+        def get_number(self):
+            return self.selected_config().get('number')
 
     def __init__(self, corpus: 'Corpus'):
         self.corpus = corpus
@@ -68,8 +128,9 @@ class SlicerWidget(Widget, ABC):
         )
 
         def observe(_):
-            self._state.selected_meta = select.value
+            self._state._selected_meta = select.value
             self._update_panel_box_with(select.value)
+            # todo: update for the selected meta
 
         select.observe(observe, names='value')
         return select
@@ -94,11 +155,20 @@ class SlicerWidget(Widget, ABC):
         return button
 
     def _create_operation_for_selected(self) -> Operation:
-        selected_meta = self._state.selected_meta
+        selected_meta = self._state._selected_meta
         meta = self.corpus.meta.get(selected_meta)
-        config = self._state.get(selected_meta)
-        # todo: create operation from meta and config.
-        return Operation()
+        if self._state.is_item():
+            op = ItemOp(meta, self._state.get_items())
+        elif self._state.is_regex():
+            op = RegexOp(meta, self._state.get_regex())
+        elif self._state.is_range():
+            min_, max_ = self._state.get_range()
+            op = RangeOp(meta, min_, max_)
+        elif self._state.is_datetime():
+            op = DatetimeOp(meta, *self._state.get_datetimes())
+        else:
+            raise NotImplementedError("This Operation is not yet implemented.")
+        return op
 
     def _refresh_ops_widget(self):
         """ Replaces the bottom of the dashboard with new ops widget. """
@@ -133,13 +203,12 @@ class SlicerWidget(Widget, ABC):
             layout=Layout(**no_horizontal_scroll)
         )
 
-        config = self._state.get(meta.id)
-
         def observe(_):
             # when the option is selected, update the configuration associated with meta
-            config['item'] = panel.value
+            self._state.set_items(meta.id, panel.value)
 
         panel.observe(observe, names='value')
+        observe(None)
         return panel
 
     def _datetime_panel(self, meta: SeriesMeta) -> VBox:
@@ -160,17 +229,13 @@ class SlicerWidget(Widget, ABC):
         index = (int(len(dates) / 4), int(3 * len(dates) / 4))
         slider = SelectionRangeSlider(options=options, index=index, layout={'width': '98%'})
 
-        config = self._state.get(meta.id)
-
         def update_datetime_datepicker(event):
             sv, ev = widget_s.value, widget_e.value
-            config['start'] = date_to_slider_option(sv) if sv is not None else options[0]
-            config['end'] = date_to_slider_option(ev) if ev is not None else options[-1]
+            start = date_to_slider_option(sv) if sv is not None else options[0]
+            end = date_to_slider_option(ev) if ev is not None else options[-1]
+            self._state.set_datetime(meta.id, start, end)
             try:
-                # slider.index = (options.index(date_to_slider_option(widget_s.value)),
-                #                 options.index(date_to_slider_option(widget_e.value)))
-                slider.index = (options.index(config['start']),
-                                options.index(config['end']))
+                slider.index = (options.index(start), options.index(end))
             except ValueError as ve:
                 # datepicker selected a date that's out of range from the slider.
                 pass
@@ -179,10 +244,11 @@ class SlicerWidget(Widget, ABC):
                 pass
 
         def update_datetime_slider(event):
-            config['start'] = slider.value[0]
-            config['end'] = slider.value[1]
-            widget_s.value = slider_option_to_date(config['start'])
-            widget_e.value = slider_option_to_date(config['end'])
+            start = slider.value[0]
+            end = slider.value[1]
+            self._state.set_datetime(meta.id, start, end)
+            widget_s.value = slider_option_to_date(start)
+            widget_e.value = slider_option_to_date(end)
 
         update_datetime_slider(None)
         widget_s.observe(update_datetime_datepicker, names='value')
@@ -200,7 +266,6 @@ class SlicerWidget(Widget, ABC):
     def _numeric_panel(self, meta, type_) -> VBox:
         assert type_ in (int, float), "Type must be either int or float."
         WIDGET_NUM = IntText if type_ == int else FloatText
-        config = self._state.get(meta.id)
 
         ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'), value=meta.series.min())
         ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'), value=meta.series.max())
@@ -220,36 +285,31 @@ class SlicerWidget(Widget, ABC):
 
         vbox = VBox([vboxes[starter_idx][1], toggle], layout=Layout(height='100%', **no_horizontal_scroll))
 
-        # CALLBACKs
-        config['mode'] = toggle.value
-        config['number'] = ft_num.value
-        config['range'] = dict()
-        config['range']['min'] = ft_min.value
-        config['range']['max'] = ft_max.value
-
         def observe_toggle(event):
-            config['mode'] = event.get('new')
             alt_vbox = None
             for vb in vboxes:
-                if vb[0] == config.get('mode'):
+                if vb[0] == event.get('new'):
                     alt_vbox = vb[1]
                     break
             if alt_vbox is None: raise RuntimeError("This should not happen. Internal Error.")
             vbox.children = (alt_vbox, toggle)
 
         def observe_num(event):
-            config['number'] = event.get('new')
+            self._state.set_number(meta.id, ft_num.value)
 
         def observe_minmax(event):
-            r = config.get('range')
-            r['min'] = ft_min.value
-            r['max'] = ft_max.value
-            config['range'] = r
+            min_, max_ = ft_min.value, ft_max.value
+            self._state.set_range(meta.id, min_, max_)
 
         toggle.observe(observe_toggle, names='value')
         ft_num.observe(observe_num, names='value')
         ft_min.observe(observe_minmax, names='value')
         ft_max.observe(observe_minmax, names='value')
+
+        if vboxes[starter_idx][0] == 'Min/Max':
+            observe_minmax(None)
+        else:
+            observe_num(None)
         return vbox
 
     def _text_panel(self, meta) -> VBox:
@@ -264,15 +324,11 @@ class SlicerWidget(Widget, ABC):
             button_style='',
             tooltips=['Exact match', 'Enter a regex pattern'],
         )
-        config = self._state.get(meta.id)
-        config['mode'] = w_toggle.value
-
-        def observe_toggle(event):
-            config['mode'] = event.get('new')
 
         def observe_text(event):
-            config['text'] = event.get('new')
+            self._state.set_regex(meta.id, w_text.value)
 
-        w_toggle.observe(observe_toggle, names='value')
+        # w_toggle.observe(observe_toggle, names='value')
         w_text.observe(observe_text, names='value')
+        observe_text(None)
         return VBox([w_text, w_toggle], layout=Layout(width='98%'))

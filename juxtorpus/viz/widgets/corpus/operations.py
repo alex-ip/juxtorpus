@@ -1,5 +1,5 @@
 from typing import Callable, Optional, Union
-
+import pandas as pd
 from ipywidgets import *
 from juxtorpus.interfaces import Container
 from juxtorpus.viz import Widget
@@ -81,10 +81,20 @@ class OperationsWidget(Widget):
 
     def _update_sliced_preview(self):
         self._preview.value = self._preview_text("Calculating...")
-        skip = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if not cb.value]
-        subcorpus_size = self.ops.mask(self.corpus, skip=skip)
+        mask = self.mask()
+        subcorpus_size = mask.sum()
         self._preview.value = self._preview_text(str(subcorpus_size))
         self._btn_slice.disabled = not subcorpus_size > 0
+
+    def mask(self):
+        toggled_indices = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if cb.value]
+        ops = [self.ops.get(idx) for idx in toggled_indices]
+        if len(ops) <= 0:
+            return pd.Series([True] * len(self.corpus))
+        else:
+            mask = ops[0].mask()
+            for op in ops[1:]: mask = mask & op.mask()
+            return mask
 
     @staticmethod
     def _op_description(op: Operation) -> str:
