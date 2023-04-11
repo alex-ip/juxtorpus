@@ -124,6 +124,8 @@ class Corpus(Clonable):
         return corpus
 
     def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None, name: str = None):
+        self._name = name if name else generate_name(self)
+
         text.name = self.COL_TEXT
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
         # ensure initiated object is well constructed.
@@ -148,7 +150,6 @@ class Corpus(Clonable):
 
         # standard viz
         self._viz = CorpusViz(self)
-        self._name = name if name else generate_name(self)
 
     @property
     def name(self) -> str:
