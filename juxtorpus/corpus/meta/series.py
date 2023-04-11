@@ -99,6 +99,9 @@ class SeriesMeta(Meta):
         prev = super().__repr__()
         return prev[:-2] + f" dtype: {self.series.dtype}]>"
 
+    def __len__(self):
+        return len(self.series)
+
 
 """Example Child Class (Archived): 
 
