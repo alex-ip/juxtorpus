@@ -27,14 +27,17 @@ class Operation(Serialisable):
     def serialise(self, path: Union[str, Path]):
         super().serialise(path)
 
+    def __init__(self, meta: Meta):
+        self.meta = meta
+
     @abstractmethod
     def condition_func(self, any_) -> bool:
         """ This method is used in df.apply() and should return a boolean to create a mask. """
         raise NotImplementedError()
 
-    def mask(self, meta: Meta):
+    def mask(self):
         """ Returns the mask of the corpus after slicing. """
-        mask = meta.apply(self.condition_func)
+        mask = self.meta.apply(self.condition_func)
         try:
             mask = mask.astype('boolean')
         except TypeError:
@@ -43,12 +46,12 @@ class Operation(Serialisable):
 
 
 class ItemOp(Operation):
-    def __init__(self, items):
+    def __init__(self, meta, items):
+        super().__init__(meta)
         items = [items] if isinstance(items, str) else items
         items = [items] if not type(items) in (list, tuple, set) else items
         items = set(items)
         self.items = items
-        super().__init__()
 
     def condition_func(self, any_):
         items = self.items
@@ -66,11 +69,12 @@ class ItemOp(Operation):
 
 class RangeOp(Operation):
 
-    def __init__(self, min_: Union[int, float], max_: Union[int, float]):
+    def __init__(self, meta: Meta, min_: Union[int, float], max_: Union[int, float]):
         """ Range Operation
         :param min_: Inclusive minimum
         :param max_: Exclusive maximum
         """
+        super().__init__(meta)
         self.min_ = min_
         self.max_ = max_
 
@@ -86,7 +90,8 @@ class RangeOp(Operation):
 
 
 class RegexOp(Operation):
-    def __init__(self, regex: str, ignore_case: bool = True):
+    def __init__(self, meta: Meta, regex: str, ignore_case: bool = True):
+        super().__init__(meta)
         self.regex = regex
         self.ignore_case = ignore_case
         self._flags = 0 if not ignore_case else re.IGNORECASE
@@ -97,7 +102,8 @@ class RegexOp(Operation):
 
 
 class DatetimeOp(Operation):
-    def __init__(self, start: str, end: str, strftime: str = None):
+    def __init__(self, meta: Meta, start: str, end: str, strftime: str = None):
+        super().__init__(meta)
         self.start = pd.to_datetime(start)
         self.end = pd.to_datetime(end)
         self.strftime = strftime
@@ -118,6 +124,7 @@ class DatetimeOp(Operation):
         else:
             return True
 
+
 # todo: think about how to serialise groupby operations
 #  which index will each subcorpus be?
 #  or should we store a number of operations then apply then one by one?
@@ -131,7 +138,8 @@ class GroupByOp(Operation):
 
 
 class MatcherOp(Operation):
-    def __init__(self, matcher: Matcher):
+    def __init__(self, corpus: 'Corpus', matcher: Matcher):
+        super().__init__(corpus.docs())
         self.matcher = matcher
 
     def condition_func(self, any_) -> bool:
