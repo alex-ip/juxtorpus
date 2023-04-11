@@ -4,13 +4,18 @@ from juxtorpus.corpus.operation import Operation
 from juxtorpus.interfaces import Container
 
 
-class Operations(Operation, Container):
+class Operations(Container):
 
     def __init__(self, ops: Optional[list[Operation]] = None):
         super(Operation).__init__()
         self._ops = list() if not ops else ops
 
-    def add(self, op):
+        self._meta_size = None
+
+    def add(self, op: Operation):
+        if len(self) <= 0: self._meta_size = len(op.meta)
+        if len(op.meta) != self._meta_size:
+            raise ValueError(f"Mismatched length of meta in operation. Expected {self._meta_size}. Got {len(op.meta)}")
         self._ops.append(op)
 
     def remove(self, op: Union[int, Operation]):
@@ -35,14 +40,3 @@ class Operations(Operation, Container):
 
     def __len__(self):
         return len(self._ops)
-
-    def apply(self, corpus):
-        subcorpus = corpus
-        for op in self._ops:
-            subcorpus = op.apply(corpus)
-        return subcorpus
-
-    def mask(self, corpus: 'Corpus', skip: Optional[list[Union[int, Operation]]] = None) -> int:
-        """ Returns the subcorpus size after masking. """
-        import numpy as np
-        return np.random.randint(2)
