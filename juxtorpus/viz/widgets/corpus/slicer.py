@@ -204,8 +204,17 @@ class SlicerWidget(Widget, ABC):
         )
 
         def observe(_):
-            # when the option is selected, update the configuration associated with meta
-            self._state.set_items(meta.id, panel.value)
+            # note: numeric dtypes can also be used as category, but widget will always express their
+            #  values as string. This needs to be converted.
+            #  panel.value is a tuple for multi select
+            items = list()
+            for value in panel.value:
+                if pd.api.types.is_integer_dtype(meta.dtype.categories):
+                    value = int(value)
+                elif pd.api.types.is_float_dtype(meta.dtype.categories):
+                    value = float(value)
+                items.append(value)
+            self._state.set_items(meta.id, items)
 
         panel.observe(observe, names='value')
         observe(None)
