@@ -17,6 +17,7 @@ class OperationsWidget(Widget):
         # internal mutating states
         self._checkbox_to_op = dict()  # note: this must be an ordered dict.
         self._preview = self._sliced_preview(' ')
+        self._current_subcorpus_mask = None
 
         # callbacks
         self._on_slice_callback = lambda sliced: sliced
@@ -53,7 +54,11 @@ class OperationsWidget(Widget):
         checkbox.style = {'description_width': '0px'}
 
         def _observe(event):
+            self._btn_slice.description = "Slice"
+            self._update_current_mask()
             self._update_sliced_preview()
+            at_least_one_checked = sum(cb.value for cb in self._checkbox_to_op.keys()) > 0
+            self._btn_slice.disabled = not self._current_subcorpus_mask.sum() > 0 or not at_least_one_checked
 
         checkbox.observe(_observe, names='value')
         return checkbox
@@ -64,11 +69,11 @@ class OperationsWidget(Widget):
                         layout=Layout(height='30px', **no_horizontal_scroll))
 
         def _on_click(event):
-            subcorpus = self.corpus
-            for cb, op in self._checkbox_to_op.items():
-                if cb.value: subcorpus = op.apply(subcorpus)
+            # NOTE: this depends on observer on operations checkboxes, else mask won't be updated.
+            subcorpus = self.corpus.cloned(self._current_subcorpus_mask)
             self._sliced = subcorpus
             self._on_slice_callback(subcorpus)
+            button.description = "Done."
 
         button.on_click(_on_click)
         return button
@@ -79,13 +84,14 @@ class OperationsWidget(Widget):
                     placeholder='Corpus Size: ',
                     layout=Layout(height='100%', **no_horizontal_scroll))
 
+    def _update_current_mask(self):
+        self._current_subcorpus_mask = self.mask()
+
     def _update_sliced_preview(self):
         self._preview.value = self._preview_text("Calculating...")
-        mask = self.mask()
-        subcorpus_size = mask.sum()
+        if self._current_subcorpus_mask is None: self._update_current_mask()
+        subcorpus_size = self._current_subcorpus_mask.sum()
         self._preview.value = self._preview_text(str(subcorpus_size))
-        at_least_one_checked = sum(cb.value for cb in self._checkbox_to_op.keys()) > 0
-        self._btn_slice.disabled = not subcorpus_size > 0 or not at_least_one_checked
 
     def mask(self):
         toggled_indices = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if cb.value]
