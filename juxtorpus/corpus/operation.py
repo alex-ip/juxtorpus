@@ -44,6 +44,9 @@ class Operation(Serialisable):
             raise TypeError("Does your condition function return booleans?")
         return mask
 
+    def __str__(self):
+        return f"<{self.__class__.__name__}>"
+
 
 class ItemOp(Operation):
     def __init__(self, meta, items):
@@ -65,6 +68,10 @@ class ItemOp(Operation):
             return not set(any_).isdisjoint(items)
         else:
             raise TypeError(f"Unable to filter {type(any_)}. Only string or iterables.")
+
+    def __str__(self):
+        s = super().__str__()
+        return s[:-1] + f" items: {', '.join(str(item) for item in self.items)}>"
 
 
 class RangeOp(Operation):
@@ -88,6 +95,10 @@ class RangeOp(Operation):
         else:
             return any_ < max_
 
+    def __str__(self):
+        s = super().__str__()
+        return s[:-1] + f" min {self.min_} max {self.max_}>"
+
 
 class RegexOp(Operation):
     def __init__(self, meta: Meta, regex: str, ignore_case: bool = True):
@@ -99,6 +110,10 @@ class RegexOp(Operation):
 
     def condition_func(self, any_) -> bool:
         return self.pattern.search(any_) is not None
+
+    def __str__(self):
+        s = super().__str__()
+        return s[:-1] + f" {self.regex}\tcased: {not self.ignore_case}>"
 
 
 class DatetimeOp(Operation):
@@ -123,6 +138,10 @@ class DatetimeOp(Operation):
             return any_ < end
         else:
             return True
+
+    def __str__(self):
+        s = super().__str__()
+        return s[:-1] + f" start {self.start} end {self.end}>"
 
 
 # todo: think about how to serialise groupby operations
