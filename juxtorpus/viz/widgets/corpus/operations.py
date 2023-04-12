@@ -99,8 +99,8 @@ class OperationsWidget(Widget):
     @staticmethod
     def _op_description(op: Operation) -> str:
         """ Format Operation into a checkbox description """
-        return f"{op.__class__.__name__}"  # todo: this is a placeholder.
-        # NOTE: a quick note - i think it checkbox descriptions can't have angular brackets.
+        return f"{str(op).replace('<', '').replace('>', '')}"
+        # NOTE: a quick note - checkbox descriptions can't have angular brackets.
 
     @staticmethod
     def _preview_text(text: str):
