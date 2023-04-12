@@ -84,7 +84,8 @@ class OperationsWidget(Widget):
         mask = self.mask()
         subcorpus_size = mask.sum()
         self._preview.value = self._preview_text(str(subcorpus_size))
-        self._btn_slice.disabled = not subcorpus_size > 0
+        at_least_one_checked = sum(cb.value for cb in self._checkbox_to_op.keys()) > 0
+        self._btn_slice.disabled = not subcorpus_size > 0 or not at_least_one_checked
 
     def mask(self):
         toggled_indices = [i for i, cb in enumerate(self._checkbox_to_op.keys()) if cb.value]
