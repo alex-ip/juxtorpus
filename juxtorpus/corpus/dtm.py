@@ -9,6 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+from juxtorpus.interfaces.clonable import Clonable
 from juxtorpus.corpus.freqtable import FreqTable
 
 """ Document Term Matrix DTM
@@ -29,8 +30,10 @@ sklearn CountVectorizer
 
 TVectorizer = TypeVar('TVectorizer', bound=CountVectorizer)
 
+DEFAULT_COUNTVEC_TOKENISER_PATTERN = r'(?u)\b\w+\b'  # includes single letter words like 'a'
 
-class DTM(object):
+
+class DTM(Clonable):
     """ DTM
     This class is an abstract representation of the document-term matrix. It serves as a component
     of the Corpus class and exposes various functionalities that allows the slicing and dicing to be
@@ -86,12 +89,12 @@ class DTM(object):
         return self.matrix.sum()
 
     @property
-    def total_terms_vector(self):
+    def terms_freq_vector(self):
         """ Returns a vector of term counts for each term. """
         return np.asarray(self.matrix.sum(axis=0)).squeeze(axis=0)
 
     @property
-    def total_docs_vector(self):
+    def docs_size_vector(self):
         """ Returns a vector of term counts for each document. """
         return np.asarray(self.matrix.sum(axis=1)).squeeze(axis=1)
 
@@ -105,14 +108,16 @@ class DTM(object):
         features = self.root._feature_names_out
         return features if self._col_indices is None else features[self._col_indices]
 
-    def vocab(self, nonzero: bool = False):
+    def vocab(self, nonzero: bool = False) -> set[str]:
         """ Returns a set of terms in the current dtm. """
         if nonzero:
-            return set(self.term_names[self.total_terms_vector.nonzero()[0]])
+            return set(self.term_names[self.terms_freq_vector.nonzero()[0]])
         else:
             return set(self.term_names)
 
-    def initialise(self, texts: Iterable[str], vectorizer: TVectorizer = CountVectorizer(token_pattern=r'(?u)\b\w+\b')):
+    def initialise(self, texts: Iterable[str],
+                   vectorizer: TVectorizer = CountVectorizer(token_pattern=DEFAULT_COUNTVEC_TOKENISER_PATTERN)) \
+            -> 'DTM':
         logger.debug("Building document-term matrix. Please wait...")
         self.root._vectorizer = vectorizer
         try:
@@ -146,7 +151,8 @@ class DTM(object):
         if term not in self.root._term_idx_map.keys(): raise ValueError(f"'{term}' not found in document-term-matrix.")
         return self.root._term_idx_map.get(term)
 
-    def cloned(self, row_indices: Union[pd.core.indexes.numeric.Int64Index, list[int]]):
+    def cloned(self, mask: 'pd.Series[bool]') -> 'DTM':
+        row_indices = mask[mask].index
         cloned = DTM()
         cloned.root = self.root
         cloned._row_indices = row_indices
@@ -177,15 +183,24 @@ class DTM(object):
         tfidf._is_built = True
         return tfidf
 
-    def to_dataframe(self):
+    def to_dataframe(self) -> pd.DataFrame:
         return pd.DataFrame.sparse.from_spmatrix(self.matrix, columns=self.term_names)
 
     @contextlib.contextmanager
-    def without_terms(self, terms: Union[list[str], set[str]]):
+    def without_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
         """ Expose a temporary dtm object without a list of terms. Terms not found are ignored. """
         try:
             features = self.root._feature_names_out
             self._col_indices = np.isin(features, list(terms), invert=True).nonzero()[0]
+            yield self
+        finally:
+            self._col_indices = None
+
+    @contextlib.contextmanager
+    def with_terms(self, terms: Union[list[str], set[str]]) -> 'DTM':
+        try:
+            features = self.root._feature_names_out
+            self._col_indices = np.isin(features, list(terms), invert=False).nonzero()[0]
             yield self
         finally:
             self._col_indices = None
@@ -290,10 +305,10 @@ class DTM(object):
 
     def freq_table(self, nonzero=True) -> FreqTable:
         """ Create a frequency table of the dataframe."""
-        terms, freqs = self.term_names, self.total_terms_vector
+        terms, freqs = self.term_names, self.terms_freq_vector
         if nonzero:
-            indices = np.nonzero(self.total_terms_vector)[0]
-            terms, freqs = self.term_names[indices], self.total_terms_vector[indices]
+            indices = np.nonzero(self.terms_freq_vector)[0]
+            terms, freqs = self.term_names[indices], self.terms_freq_vector[indices]
         return FreqTable(terms, freqs)
 
     def __repr__(self):

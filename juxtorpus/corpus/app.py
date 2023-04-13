@@ -432,7 +432,7 @@ class App(object):
         """ Creates a selector based on the meta selected. """
         meta = self._selected_corpus.meta.get(meta_id)
         if not isinstance(meta, SeriesMeta): raise NotImplementedError("Only supports SeriesMeta for now.")
-        dtype = meta.series().dtype
+        dtype = meta.series.dtype
         config[meta.id] = config.get(meta.id, dict())
         config = config.get(meta.id)
         if dtype == 'category':
@@ -460,7 +460,7 @@ class App(object):
         return meta_value_selector
 
     def _create_category_ops_selector(self, meta: SeriesMeta, config):
-        options = sorted((str(item) for item in meta.series().unique().tolist()))
+        options = sorted((str(item) for item in meta.series.unique().tolist()))
         widget = SelectMultiple(
             options=options,
             layout=_create_layout(**{'width': '98%'})
@@ -474,7 +474,7 @@ class App(object):
         return widget
 
     def _create_datetime_ops_selector(self, meta: SeriesMeta, config):
-        series = meta.series()
+        series = meta.series
         margin = timedelta(days=1)
         start, end = series.min().to_pydatetime() - margin, series.max().to_pydatetime() + margin
         widget_s = DatePicker(description='start', value=start, layout=Layout(**{'width': '98%'}))
@@ -523,8 +523,8 @@ class App(object):
         """ DType: whole number; filter_by_item, filter_by_range """
         WIDGET_NUM = widgets.IntText
 
-        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'), value=meta.series().min())
-        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'), value=meta.series().max())
+        ft_min = WIDGET_NUM(description='Min:', layout=Layout(width='98%'), value=meta.series.min())
+        ft_max = WIDGET_NUM(description='Max:', layout=Layout(width='98%'), value=meta.series.max())
         vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
         ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
         box_num = Box([ft_num], layout=Layout(width='98%'))
@@ -577,8 +577,8 @@ class App(object):
         """ Dtype: decimal; filter_by_item, filter_by_range """
         WIDGET_NUM = widgets.FloatText
 
-        ft_min = WIDGET_NUM(description='Min:', value=meta.series().min())
-        ft_max = WIDGET_NUM(description='Max:', value=meta.series().max())
+        ft_min = WIDGET_NUM(description='Min:', value=meta.series.min())
+        ft_max = WIDGET_NUM(description='Max:', value=meta.series.max())
         vbox_range = VBox([ft_min, ft_max], layout=Layout(width='98%'))
         ft_num = WIDGET_NUM(description='Number:', layout=Layout(width='98%'))
         box_num = Box([ft_num], layout=Layout(width='98%'))
@@ -685,7 +685,7 @@ class App(object):
             self._corpus_slicer_dashboard.children[0].children[2].children[1].value = html
 
     def _filter_by_mask_triage(self, selected, config: dict):
-        meta = self._selected_corpus.slicer._get_meta_or_raise_err(selected)
+        meta = self._selected_corpus.meta.get_or_raise_err(selected)
         if 'start' in config.keys() and 'end' in config.keys():
             start, end = config.get('start'), config.get('end')
             mask = self._selected_corpus.slicer._filter_by_datetime_mask(meta, start, end, strftime=STRFORMAT)

@@ -15,7 +15,6 @@ class Widget(metaclass=ABCMeta):
         """ Display the interactive widget. """
         raise NotImplementedError()
 
-    @abstractmethod
     def set_callback(self, callback: Callable):
         """ Sets a callback for the widget upon interaction. """
         raise NotImplementedError()

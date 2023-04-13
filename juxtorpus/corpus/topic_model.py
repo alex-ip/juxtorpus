@@ -73,8 +73,8 @@ class LDA(Widget):
 
     def _get_pyLDAvis_prepare_args(self, dtm) -> dict:
         vocab = dtm.term_names
-        doc_lengths = dtm.total_docs_vector
-        term_freqs = dtm.total_terms_vector
+        doc_lengths = dtm.docs_size_vector
+        term_freqs = dtm.terms_freq_vector
         topic_term_dists = _row_norm(self._model.components_)
         doc_topic_dists = _row_norm(self._topics)
         return {

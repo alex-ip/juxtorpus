@@ -3,10 +3,11 @@ from typing import Union
 import pandas as pd
 
 from juxtorpus.loader import LazySeries
+from juxtorpus.utils.utils_pandas import subindex_to_mask
+
 
 # from juxtorpus.corpus.app import App
 # inverted_dtypes_map = {v: k for k, v in App.DTYPES_MAP.items()}
-
 
 class SeriesMeta(Meta):
     dtypes = {'float', 'float16', 'float32', 'float64',
@@ -18,27 +19,47 @@ class SeriesMeta(Meta):
         self._series = series
         # print(self._series)
 
+    @property
     def series(self):
         if isinstance(self._series, LazySeries):
             self._series = self._series.load()
         return self._series
 
+    @property
+    def dtype(self):
+        return self.series.dtype
+
     def apply(self, func):
-        return self.series().apply(func)
+        return self.series.apply(func)
+
+    def groupby(self, grouper: pd.Grouper = None):
+        is_datetime = pd.api.types.is_datetime64_any_dtype(self.series)
+
+        if is_datetime and grouper:
+            tmp_multi_idx_df = pd.DataFrame(self.series).set_index([self.series.index, self.series])
+            grouper.level = self.series.name
+            for gid, group in tmp_multi_idx_df.groupby(by=grouper, axis=0, group_keys=True):
+                mask = subindex_to_mask(self.series, group.droplevel(grouper.level).index)
+                yield gid, mask
+        else:
+            by = self.series if not grouper else grouper
+            for gid, group in self.series.groupby(by=by, axis=0, group_keys=True):
+                mask = subindex_to_mask(self.series, group.index)
+                yield gid, mask
 
     def __iter__(self):
-        for x in iter(self.series().__iter__()):
+        for x in iter(self.series.__iter__()):
             yield x
 
     def cloned(self, texts, mask):
-        return SeriesMeta(self._id, self.series().loc[mask])
+        return SeriesMeta(self._id, self.series.loc[mask])
 
     def head(self, n):
-        return self.series().head(n)
+        return self.series.head(n)
 
     def summary(self) -> pd.DataFrame:
         """ Return a summary of the series in a dataframe. """
-        series = self.series()
+        series = self.series
 
         # dtype
         info = {'dtype': series.dtype,
@@ -76,7 +97,10 @@ class SeriesMeta(Meta):
 
     def __repr__(self) -> str:
         prev = super().__repr__()
-        return prev[:-2] + f" dtype: {self.series().dtype}]>"
+        return prev[:-2] + f" dtype: {self.series.dtype}]>"
+
+    def __len__(self):
+        return len(self.series)
 
 
 """Example Child Class (Archived): 
@@ -87,9 +111,9 @@ class DelimitedStrSeriesMeta(SeriesMeta):
         self.delimiter = delimiter
 
     def apply(self, func):
-        return self.series().apply(lambda x: x.split(self.delimiter)).apply(func)
+        return self.series.apply(lambda x: x.split(self.delimiter)).apply(func)
 
     def cloned(self, texts, mask):
-        return DelimitedStrSeriesMeta(self._id, self.series()[mask], self.delimiter)
+        return DelimitedStrSeriesMeta(self._id, self.series[mask], self.delimiter)
 
 """

@@ -1,8 +1,11 @@
 from abc import ABCMeta, abstractmethod
 import pandas as pd
+from typing import Generator
+
+from juxtorpus.interfaces.clonable import Clonable, MASK
 
 
-class Meta(metaclass=ABCMeta):
+class Meta(Clonable, metaclass=ABCMeta):
     def __init__(self, id_: str):
         self._id = id_
 
@@ -15,11 +18,15 @@ class Meta(metaclass=ABCMeta):
         raise NotImplementedError()
 
     @abstractmethod
+    def groupby(self, grouper) -> Generator[tuple[str, MASK], None, None]:
+        raise NotImplementedError()
+
+    @abstractmethod
     def __iter__(self):
         raise NotImplementedError()
 
     @abstractmethod
-    def cloned(self, texts: 'pd.Series[str]', mask: 'pd.Series[bool]'):
+    def cloned(self, texts: 'pd.Series[str]', mask: MASK):
         raise NotImplementedError()
 
     @abstractmethod
