@@ -5,9 +5,12 @@ from ipywidgets import Label, Layout, HBox, GridBox, VBox
 from ipywidgets import Checkbox
 from juxtorpus.viz.style.ipyw import center_style, corpus_id_layout, size_layout, parent_layout, hbox_style
 from juxtorpus.viz import Widget
+from juxtorpus.viz.widgets.corpus.slicer import SlicerWidget
 
 import logging
+
 logger = logging.getLogger()
+
 
 class CorporaWidget(Widget, ABC):
     """ CorporaWidget
@@ -26,9 +29,10 @@ class CorporaWidget(Widget, ABC):
         self.corpora = corpora
 
         self._selector: VBox = self._corpus_selector()
+        self._widget = VBox([self._selector], layout=Layout(grid_template_columns='repeat(2, 1fr)'))
 
     def widget(self) -> GridBox:
-        return GridBox([self._selector], layout=Layout(grid_template_columns='repeat(2, 1fr)'))
+        return self._widget
 
     def _corpus_selector(self, selected: Optional[str] = None) -> VBox:
         """ Creates the header and a row corresponding to each corpus in the corpora. """
@@ -59,23 +63,37 @@ class CorporaWidget(Widget, ABC):
 
     def _observe_row_checkbox(self, event):
         value, owner = event.get('new'), event.get('owner')
-        print(value, owner)
-        logger.info(value, owner)
         if value:
             selected = self.corpora.get(owner.description.strip())
             if not selected:
                 raise RuntimeError(f"Corpus: {owner.description} does not exist. This should not happen.")
             self._toggle_checkboxes(owner)
 
-        # todo: refresh corpus slicer
+            # todo: corpus slicer pop down.
+            slicer_widget = SlicerWidget(selected)
+            slicer_widget._ops_widget.set_callback(self._on_slice_add_to_self)
+            if len(self._widget.children) == 1:
+                self._widget.children = (*self._widget.children, slicer_widget.widget())
+            else:
+                self._widget.children = (self._widget.children[0], slicer_widget.widget())
+        else:
+            if len(self._widget.children) > 1:
+                self._widget.children = (self._widget.children[0],)
 
     def _toggle_checkboxes(self, checked: Checkbox):
         for hboxes in self._selector.children:
-                for cb in hboxes.children:
-                    print(cb, isinstance(cb, Checkbox), type(cb))
-                    if isinstance(cb, Checkbox):
-                        cb.value = cb == checked
+            for cb in hboxes.children:
+                if isinstance(cb, Checkbox):
+                    cb.value = cb == checked
 
     @staticmethod
     def _parent_label_of(corpus) -> str:
         return corpus.parent.name if corpus.parent else ''
+
+    def _on_slice_add_to_self(self, subcorpus):
+        """ Add subcorpus to self on slice. """
+        self.corpora.add(subcorpus)
+        self._refresh_corpus_selector()
+
+    def _refresh_corpus_selector(self):
+        self._widget.children = (self._corpus_selector(),)

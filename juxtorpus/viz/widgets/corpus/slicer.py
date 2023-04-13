@@ -30,7 +30,7 @@ class SlicerWidget(Widget, ABC):
         def __init__(self, metas):
             super().__init__()
             for meta_id in metas.keys(): self[meta_id] = dict()
-            self._selected_meta = list(metas.keys())[0]
+            self._selected_meta = None if len(metas.keys()) <= 0 else list(metas.keys())[0]
 
         @property
         def selected_meta(self):
@@ -93,7 +93,7 @@ class SlicerWidget(Widget, ABC):
 
     def __init__(self, corpus: 'Corpus'):
         self.corpus = corpus
-        # self._dashboard = None
+
         self._sliced_mask: TMASK = None
         self._ops = Operations()  # start with empty operations.
         self._ops_widget = OperationsWidget(self.corpus, self._ops)
@@ -102,11 +102,14 @@ class SlicerWidget(Widget, ABC):
         self._header_filter = Label('Filter By', layout=Layout(**no_horizontal_scroll, **center_text))
         self._header_preview = Label("Corpus Size", layout=Layout(**no_horizontal_scroll, **center_text))
 
-        # internal mutable states
-        self._state: SlicerWidget._ConfigState = self._ConfigState(corpus.meta)
-        self._panels_: dict[str, ipyWidget] = self._panels()
-        self._panel_box_ = self._panel_box(selected_meta=list(self._panels_.keys())[0])
-        self._dashboard_ = self._dashboard()
+        if len(self.corpus.meta) <= 0:
+            self._dashboard_ = Label('No Meta Data', layout=Layout(**no_horizontal_scroll))
+        else:
+            # internal mutable states
+            self._state: SlicerWidget._ConfigState = self._ConfigState(corpus.meta)
+            self._panels_: dict[str, ipyWidget] = self._panels()
+            self._panel_box_ = self._panel_box(selected_meta=list(self._panels_.keys())[0])
+            self._dashboard_ = self._dashboard()
 
     def widget(self):
         return self._dashboard_
