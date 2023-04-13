@@ -1,14 +1,13 @@
 import pandas as pd
 import pathlib
+from pathlib import Path
 from functools import partial
 from typing import Union, Callable, Optional
 from IPython.display import display
-import ipywidgets as widgets
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
 from juxtorpus.loader import LazySeries
-from juxtorpus.viz import Widget
 from juxtorpus.utils.utils_pandas import row_concat
 
 import logging
@@ -95,11 +94,11 @@ class CorpusBuilder(object):
 
     allowed_dtypes = SeriesMeta.dtypes.union({'datetime'})
 
-    def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
-        if isinstance(paths, str):
-            paths = pathlib.Path(paths)
-        if isinstance(paths, pathlib.Path):
-            paths = [paths]
+    def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]] = None):
+        if not paths: paths = list()
+        paths = list(paths)
+        for i in range(len(paths)):
+            paths[i] = Path(paths[i])
         self._paths = paths
         self._nrows = None
         self._meta_configs = dict()
