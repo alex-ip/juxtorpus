@@ -83,8 +83,8 @@ class Polarity(object):
         else:
             return (corpus.dtm for corpus in self._jux().corpora)
 
-    def wordcloud(self, mode: str, top: int = 50, colours=('blue', 'red'), tokeniser_func: Optional[Callable] = None,
-                  names=('Corpus 1', 'Corpus 2')):
+    def wordcloud(self, mode: str, top: int = 50, colours=('blue', 'red'), tokeniser_func: Optional[Callable] = None):
+        """ Generate a wordcloud using one of the 3 modes tf, tfidf, log_likelihood. """
         polarity_wordcloud_func = self.modes.get(mode, None)
         if polarity_wordcloud_func is None:
             raise LookupError(f"Mode {mode} does not exist. Choose either {', '.join(self.modes.keys())}")
@@ -95,6 +95,7 @@ class Polarity(object):
         pwc._build(resolution_scale=int(height * width * 0.005))
         fig, ax = plt.subplots(figsize=(height, width))
 
+        names = self._jux().corpus_0.name, self._jux().corpus_1.name
         legend_elements = [Patch(facecolor=colours[0], label=names[0]), Patch(facecolor=colours[1], label=names[1])]
         legend_elements.extend(add_legend)
 
