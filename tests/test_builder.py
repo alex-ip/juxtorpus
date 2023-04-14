@@ -7,9 +7,8 @@ from juxtorpus.corpus import CorpusBuilder
 
 class TestBuilder(unittest.TestCase):
     def setUp(self) -> None:
-        print()
         self.builder = CorpusBuilder([Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'),
-                                      Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')])
+                                      Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.xlsx')])
 
     def tearDown(self) -> None:
         self.builder = None
@@ -33,7 +32,7 @@ class TestBuilder(unittest.TestCase):
 
     def test_add_datetime(self):
         builder = self.builder
-        builder.add_metas('year_month_day', dtypes='datetime')
+        builder.add_metas('year_month_day', dtypes='datetime', lazy=False)
         builder.set_text_column('processed_text')
         corpus = builder.build()
         year_month_day = corpus.meta.get('year_month_day', None)
