@@ -333,10 +333,10 @@ class CorpusBuilder(object):
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
 
-    def read(self, path: Path, nrows=None, usecols=None, dtype=None) -> pd.DataFrame:
+    def read(self, path: Path, nrows=None, usecols=None, dtype=None, **kwargs) -> pd.DataFrame:
         if path.suffix == '.csv':
-            return pd.read_csv(path, nrows=nrows, usecols=usecols, dtype=dtype)
+            return pd.read_csv(path, nrows=nrows, usecols=usecols, dtype=dtype, **kwargs)
         elif path.suffix in ('.xlsx', '.xls'):
-            return pd.read_excel(path, nrows=nrows, usecols=usecols, dtype=dtype)
+            return pd.read_excel(path, nrows=nrows, usecols=usecols, dtype=dtype, **kwargs)
         else:
             raise NotImplementedError("Only .csv and .xlsx are supported.")
