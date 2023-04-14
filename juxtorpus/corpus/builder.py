@@ -285,23 +285,23 @@ class CorpusBuilder(object):
         lazies = (mc for mc in self._meta_configs.values() if mc.lazy)
         lazy: MetaConfig
         for lazy in lazies:
-            if type(lazy) == DateTimeMetaConfig:
+            if isinstance(lazy, DateTimeMetaConfig):
                 lazy: DateTimeMetaConfig
-                read_func = partial(pd.read_csv, usecols=[lazy.column],
-                                    parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
+                read_func = partial(self.read, usecols=[lazy.column])
+                is_datetime = True
             else:
                 dtype = {lazy.column: lazy.dtype} if lazy.dtype is not None else None
-                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype=dtype, sep=self._sep)
-            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func))
-
+                read_func = partial(self.read, usecols=[lazy.column], dtype=dtype)
+                is_datetime = False
+            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func, is_datetime))
         return metas
 
     def _build_series_meta_and_text(self, metas: dict):
+        datetime_cols = [mc.column for mc in self._meta_configs.values()
+                         if not mc.lazy and isinstance(mc, DateTimeMetaConfig)]
         col_to_dtype_map = {mc.column: mc.dtype for mc in self._meta_configs.values()
                             if not mc.lazy and not isinstance(mc, DateTimeMetaConfig)}
         col_to_dtype_map[self._col_text] = self._dtype_text
-        datetime_cols = [mc.column for mc in self._meta_configs.values()
-                         if not mc.lazy and isinstance(mc, DateTimeMetaConfig)]
         all_cols = set(col_to_dtype_map.keys()).union(set(datetime_cols))
 
         current = 0
@@ -327,9 +327,9 @@ class CorpusBuilder(object):
         del col_to_dtype_map[self._col_text]
         all_cols = all_cols.difference({self._col_text})
         for col in all_cols:
-            series = df[col]
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please use a different column name.")
+            series = df[col]
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
 
