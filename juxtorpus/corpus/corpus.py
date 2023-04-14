@@ -146,7 +146,7 @@ class Corpus(Clonable):
         # regex patterns
         self._pattern_words = re.compile(r'\w+')
         self._pattern_hashtags = re.compile(r'#[A-Za-z0-9_-]+')
-        self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]')
+        self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]+')
 
         # standard viz
         self._viz = CorpusViz(self)
