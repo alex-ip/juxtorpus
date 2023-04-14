@@ -97,10 +97,10 @@ class CorporaWidget(Widget, ABC):
         def _on_click_toggle(_):
             if self._builder_appeared():
                 self._widget.children = (self._widget.children[0], self._create_empty(), *self._widget.children[2:])
-                button.description = "Hide Builder"
+                button.description = "Show Builder"
             else:
                 self._widget.children = (self._widget.children[0], self._builder.widget(), *self._widget.children[2:])
-                button.description = "Show Builder"
+                button.description = "Hide Builder"
 
         button.on_click(_on_click_toggle)
         return button
