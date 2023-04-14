@@ -82,8 +82,7 @@ class CorporaWidget(Widget, ABC):
             else:
                 self._widget.children = (*self._widget.children, slicer_widget.widget())
         else:
-            if len(self._widget.children) > 1:
-                self._widget.children = (*self._widget.children[:3],)
+            self._widget.children = (*self._widget.children[:3],)
 
     def _toggle_checkboxes(self, checked: Checkbox):
         for hboxes in self._selector.children:
@@ -115,16 +114,16 @@ class CorporaWidget(Widget, ABC):
         self._refresh_corpus_selector()
 
     def _refresh_corpus_selector(self):
-        if self._builder_appeared():
-            self._widget.children = (*self._widget.children[:2], self._corpus_selector())
+        if self._slicer_appeared():
+            self._widget.children = (*self._widget.children[:2], self._corpus_selector(), *self._widget.children[3:])
         else:
-            self._widget.children = (*self._widget.children[:1], self._corpus_selector(),)
+            self._widget.children = (*self._widget.children[:2], self._corpus_selector(),)
 
     def _builder_appeared(self):
         return not self._is_empty(self._widget.children[1])
 
     def _slicer_appeared(self):
-        return len(self._widget.children) > 4
+        return len(self._widget.children) > 3
 
     def _create_empty(self) -> Label:
         return Label(layout=Layout(height='0px', width='0px'))
