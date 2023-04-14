@@ -63,6 +63,9 @@ class PolarityWordCloud(Viz):
         self._df_top_tmp = df  # df to generate wordcloud from
         assert sum(map(lambda i: not isinstance(i, str), self._df.index)) == 0, "df index must be strings."
 
+        # checks
+        if self._df[col_polarity].sum() == 0:
+            raise ValueError("The two corpus are perfectly balanced. Polarity Wordcloud will not work.")
 
         # Polarity score: colouring
         self._col_polarity = col_polarity
