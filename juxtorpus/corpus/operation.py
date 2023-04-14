@@ -109,7 +109,7 @@ class RegexOp(Operation):
         self.pattern = re.compile(regex, flags=self._flags)
 
     def condition_func(self, any_) -> bool:
-        return self.pattern.search(any_) is not None
+        return self.pattern.search(str(any_)) is not None
 
     def __str__(self):
         s = super().__str__()
