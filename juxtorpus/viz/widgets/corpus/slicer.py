@@ -147,7 +147,7 @@ class SlicerWidget(Widget, ABC):
         self._panel_box_.children = (self._panels_.get(selected_meta),)
 
     def _add_operation_button(self) -> Button:
-        button = Button(description='Add Operation')
+        button = Button(description='Add Operation', layout=Layout(**no_horizontal_scroll))
 
         # onclick - Add to ops, refresh bottom panel
         def on_click(event):
