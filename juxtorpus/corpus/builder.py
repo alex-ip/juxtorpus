@@ -1,14 +1,16 @@
 import pandas as pd
 import pathlib
+from pathlib import Path
 from functools import partial
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, Generator
 from IPython.display import display
-import ipywidgets as widgets
+from ipywidgets import HBox, HTML, Layout, Text, Button, Output, VBox, Label, Checkbox, Dropdown
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
-from juxtorpus.loader import LazySeries
 from juxtorpus.viz import Widget
+from juxtorpus.viz.widgets.corpus.builder import CorpusBuilderWidget
+from juxtorpus.loader import LazySeries
 from juxtorpus.utils.utils_pandas import row_concat
 
 import logging
@@ -75,7 +77,7 @@ class DateTimeMetaConfig(MetaConfig):
             return [self.column]
 
 
-class CorpusBuilder(object):
+class CorpusBuilder(Widget):
     """ CorpusBuilder
 
     The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
@@ -96,10 +98,10 @@ class CorpusBuilder(object):
     allowed_dtypes = SeriesMeta.dtypes.union({'datetime'})
 
     def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
-        if isinstance(paths, str):
-            paths = pathlib.Path(paths)
-        if isinstance(paths, pathlib.Path):
-            paths = [paths]
+        if type(paths) not in (list, set): paths = [paths]
+        if type(paths) == Generator: paths = list(paths)
+        for i in range(len(paths)):
+            paths[i] = Path(paths[i])
         self._paths = paths
         self._nrows = None
         self._meta_configs = dict()
@@ -113,13 +115,14 @@ class CorpusBuilder(object):
 
         self._preprocessors = list()
 
-    @staticmethod
-    def _prompt_validated_columns(paths: list[pathlib.Path]) -> Optional[list[str]]:
+        self._widget = CorpusBuilderWidget(self)
+
+    def _prompt_validated_columns(self, paths: list[pathlib.Path]) -> Optional[list[str]]:
         columns = list()
         for path in paths:
             name = path.stem
             if len(name) > 10: name = path.stem[:4] + '..' + path.stem[-4:]
-            columns.append(pd.Series('✅', index=pd.read_csv(path, nrows=0).columns, name=name))
+            columns.append(pd.Series('✅', index=self.read(path, nrows=0).columns, name=name))
         df_cols = pd.concat(columns, axis=1)
         if df_cols.isnull().values.any():
             display(df_cols.fillna(''))
@@ -287,90 +290,64 @@ class CorpusBuilder(object):
         lazies = (mc for mc in self._meta_configs.values() if mc.lazy)
         lazy: MetaConfig
         for lazy in lazies:
-            if type(lazy) == DateTimeMetaConfig:
+            if isinstance(lazy, DateTimeMetaConfig):
                 lazy: DateTimeMetaConfig
-                read_func = partial(pd.read_csv, usecols=[lazy.column],
-                                    parse_dates=lazy.get_parsed_dates(), infer_datetime_format=True)
+                read_func = partial(self.read, usecols=[lazy.column])
+                is_datetime = True
             else:
                 dtype = {lazy.column: lazy.dtype} if lazy.dtype is not None else None
-                read_func = partial(pd.read_csv, usecols=[lazy.column], dtype=dtype, sep=self._sep)
-            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func))
-
+                read_func = partial(self.read, usecols=[lazy.column], dtype=dtype)
+                is_datetime = False
+            metas[lazy.column] = SeriesMeta(lazy.column, LazySeries(self._paths, self._nrows, read_func, is_datetime))
         return metas
 
     def _build_series_meta_and_text(self, metas: dict):
-        series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
-                             if not mc.lazy and type(mc) != DateTimeMetaConfig}
-        # series_and_dtypes = {mc.column: mc.dtype for mc in self._meta_configs.values()
-        #                      if not mc.lazy}
-        series_and_dtypes[self._col_text] = self._dtype_text
+        datetime_cols = [mc.column for mc in self._meta_configs.values()
+                         if not mc.lazy and isinstance(mc, DateTimeMetaConfig)]
+        col_to_dtype_map = {mc.column: mc.dtype for mc in self._meta_configs.values()
+                            if not mc.lazy and not isinstance(mc, DateTimeMetaConfig)}
+        col_to_dtype_map[self._col_text] = self._dtype_text
+        all_cols = set(col_to_dtype_map.keys()).union(set(datetime_cols))
 
-        all_cols = set(series_and_dtypes.keys())
-        meta_config_datetimes = [meta for meta in self._meta_configs.values()
-                                 if type(meta) == DateTimeMetaConfig and not meta.lazy]
-        parse_dates = list()
-        for meta_dt_config in meta_config_datetimes:
-            if not meta_dt_config.is_multi_columned():
-                all_cols = all_cols.union({meta_dt_config.column})
-            else:
-                raise NotImplementedError("Multicolumned datetimes not implemented yet.")
-                # all_cols = all_cols.union(set(meta_dt_config.columns))
-            parse_dates.extend(meta_dt_config.get_parsed_dates())
-
-        # parse_dates: DateTimeMetaConfig = self._meta_configs.get(DateTimeMetaConfig.COL_DATETIME)
-        # if parse_dates:
-        #     all_cols = all_cols.union(set(parse_dates.columns))
-        #     parse_dates: dict = parse_dates.get_parsed_dates()
         current = 0
         dfs = list()
         for path in self._paths:
             if self._nrows is None:
-                df = pd.read_csv(path, nrows=self._nrows, usecols=all_cols, sep=self._sep,
-                                 parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
+                df = self.read(path, nrows=self._nrows, usecols=all_cols, dtype=col_to_dtype_map)
             else:
                 if current >= self._nrows:
                     break
-                df = pd.read_csv(path, nrows=self._nrows - current, usecols=all_cols, sep=self._sep,
-                                 parse_dates=parse_dates, infer_datetime_format=True, dtype=series_and_dtypes)
+                df = self.read(path, nrows=self._nrows - current, usecols=all_cols, dtype=col_to_dtype_map)
                 current += len(df)
             dfs.append(df)
         df = row_concat(dfs, ignore_index=True)
-        # df = pd.concat(dfs, axis=0, ignore_index=True)
 
+        for col in datetime_cols: df[col] = pd.to_datetime(df[col])
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
                            f"Did you call {self.set_text_column.__name__}?")
 
         # set up corpus dependencies here
         series_text = df.loc[:, self._col_text]
-        del series_and_dtypes[self._col_text]
+        del col_to_dtype_map[self._col_text]
         all_cols = all_cols.difference({self._col_text})
         for col in all_cols:
-            series = df[col]
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please use a different column name.")
+            series = df[col]
             metas[col] = SeriesMeta(col, series)
         return metas, series_text
 
+    def read(self, path: Path, nrows=None, usecols=None, dtype=None, **kwargs) -> pd.DataFrame:
+        if path.suffix == '.csv':
+            return pd.read_csv(path, nrows=nrows, usecols=usecols, dtype=dtype, **kwargs)
+        elif path.suffix in ('.xlsx', '.xls'):
+            return pd.read_excel(path, nrows=nrows, usecols=usecols, dtype=dtype, **kwargs)
+        else:
+            raise NotImplementedError("Only .csv and .xlsx are supported.")
 
-if __name__ == '__main__':
-    from pathlib import Path
+    def set_callback(self, callback):
+        self._widget.set_callback(callback)
 
-    builder = CorpusBuilder([Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'),
-                             Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')])
-    builder.set_nrows(100)
-    builder.set_sep(',')
-    # cb.set_text_column('processed_text')
-    # for col in ['year', 'day', 'tweet_lga', 'lga_code_2020']:
-    #     cb.add_meta(col, lazy=True)
-    # cb.add_meta('month', dtype='string', lazy=False)
-
-    builder.set_text_column('processed_text')
-    # builder.add_metas('created_at', dtypes='datetime', lazy=True)
-    builder.add_metas(['geometry', 'state_name_2016'], dtypes=['object', 'str'])
-
-    print(builder.summary())
-    corpus = builder.build()
-    print(corpus.meta)
-    # print(corpus.get_meta('tweet_lga').preview(5))
-    # print(corpus.get_meta('created_at').head(5))
+    def widget(self):
+        return self._widget.widget()

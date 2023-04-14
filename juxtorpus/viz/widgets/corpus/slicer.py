@@ -118,9 +118,10 @@ class SlicerWidget(Widget, ABC):
         """ Creates the full dashboard. """
         selector_box = self._selector_box(self._panels_)
         add_operation_btn = self._add_operation_button()
-        top = HBox([selector_box, self._panel_box_, add_operation_btn], layout=Layout(**no_horizontal_scroll))
+        top = HBox([selector_box, self._panel_box_, add_operation_btn],
+                   layout=Layout(height='100%', **no_horizontal_scroll))
         bottom = Label()  # placeholder, before Add Operation button is clicked.
-        return VBox([top, bottom], layout=Layout(**no_horizontal_scroll))
+        return VBox([top, bottom], layout=Layout(height='100%', **no_horizontal_scroll))
 
     def _selector_box(self, panels: dict[str, ipyWidget]) -> Select:
         meta_ids = [meta_id for meta_id in panels.keys()]
@@ -133,7 +134,6 @@ class SlicerWidget(Widget, ABC):
         def observe(_):
             self._state._selected_meta = select.value
             self._update_panel_box_with(select.value)
-            # todo: update for the selected meta
 
         select.observe(observe, names='value')
         return select
@@ -141,13 +141,13 @@ class SlicerWidget(Widget, ABC):
     def _panel_box(self, selected_meta) -> VBox:
         """ Returns the panel box. """
         return VBox([self._panels_.get(selected_meta)],
-                    layout=Layout(**no_horizontal_scroll))
+                    layout=Layout(height='100%', **no_horizontal_scroll))
 
     def _update_panel_box_with(self, selected_meta):
         self._panel_box_.children = (self._panels_.get(selected_meta),)
 
     def _add_operation_button(self) -> Button:
-        button = Button(description='Add Operation')
+        button = Button(description='Add Operation', layout=Layout(**no_horizontal_scroll))
 
         # onclick - Add to ops, refresh bottom panel
         def on_click(event):
@@ -203,7 +203,7 @@ class SlicerWidget(Widget, ABC):
     def _category_panel(self, meta: SeriesMeta) -> SelectMultiple:
         panel = SelectMultiple(
             options=sorted((str(item) for item in meta.series.unique().tolist())),
-            layout=Layout(**no_horizontal_scroll)
+            layout=Layout(height='100%', **no_horizontal_scroll)
         )
 
         def observe(_):

@@ -1,5 +1,6 @@
 import unittest
 
+import pandas as pd
 import re
 from pathlib import Path
 from juxtorpus.corpus import CorpusBuilder
@@ -7,9 +8,8 @@ from juxtorpus.corpus import CorpusBuilder
 
 class TestBuilder(unittest.TestCase):
     def setUp(self) -> None:
-        print()
         self.builder = CorpusBuilder([Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'),
-                                      Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')])
+                                      Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.xlsx')])
 
     def tearDown(self) -> None:
         self.builder = None
@@ -33,11 +33,21 @@ class TestBuilder(unittest.TestCase):
 
     def test_add_datetime(self):
         builder = self.builder
-        builder.add_metas('year_month_day', dtypes='datetime')
+        builder.add_metas('year_month_day', dtypes='datetime', lazy=False)
         builder.set_text_column('processed_text')
         corpus = builder.build()
         year_month_day = corpus.meta.get('year_month_day', None)
         assert year_month_day is not None
+        assert pd.api.types.is_datetime64_any_dtype(year_month_day.series)
+
+    def test_add_datetime_lazy(self):
+        builder = self.builder
+        builder.add_metas('year_month_day', dtypes='datetime', lazy=True)
+        builder.set_text_column('processed_text')
+        corpus = builder.build()
+        year_month_day = corpus.meta.get('year_month_day', None)
+        assert year_month_day is not None
+        assert pd.api.types.is_datetime64_any_dtype(year_month_day.series)
 
     def test_concat_category_lazy(self):
         """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
@@ -81,7 +91,7 @@ class TestBuilder(unittest.TestCase):
 
     def test_update_metas(self):
         builder = self.builder
-        builder.add_metas(['tweet_lga', 'geometry'], dtypes='categorical')
+        builder.add_metas(['tweet_lga', 'geometry'], dtypes='category')
         builder.update_metas(['geometry'], dtypes=None, lazy=False)
 
         geometry = builder._meta_configs.get('geometry')
