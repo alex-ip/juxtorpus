@@ -312,7 +312,10 @@ class DTM(Clonable):
         return FreqTable(terms, freqs)
 
     def __repr__(self):
-        return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
+        if self.is_built:
+            return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
+        else:
+            return f"<DTM Uninitialised>"
 
 
 if __name__ == '__main__':
