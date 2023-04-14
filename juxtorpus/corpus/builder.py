@@ -2,11 +2,14 @@ import pandas as pd
 import pathlib
 from pathlib import Path
 from functools import partial
-from typing import Union, Callable, Optional
+from typing import Union, Callable, Optional, Generator
 from IPython.display import display
+from ipywidgets import HBox, HTML, Layout, Text, Button, Output, VBox, Label, Checkbox, Dropdown
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.corpus.meta import SeriesMeta
+from juxtorpus.viz import Widget
+from juxtorpus.viz.widgets.corpus.builder import CorpusBuilderWidget
 from juxtorpus.loader import LazySeries
 from juxtorpus.utils.utils_pandas import row_concat
 
@@ -74,7 +77,7 @@ class DateTimeMetaConfig(MetaConfig):
             return [self.column]
 
 
-class CorpusBuilder(object):
+class CorpusBuilder(Widget):
     """ CorpusBuilder
 
     The CorpusBuilder is used to construct a Corpus object. It turns tabular data from disk (currently only csv) to
@@ -94,9 +97,9 @@ class CorpusBuilder(object):
 
     allowed_dtypes = SeriesMeta.dtypes.union({'datetime'})
 
-    def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]] = None):
-        if not paths: paths = list()
-        paths = list(paths)
+    def __init__(self, paths: Union[str, pathlib.Path, list[pathlib.Path]]):
+        if type(paths) not in (list, set): paths = [paths]
+        if type(paths) == Generator: paths = list(paths)
         for i in range(len(paths)):
             paths[i] = Path(paths[i])
         self._paths = paths
@@ -111,6 +114,8 @@ class CorpusBuilder(object):
         if self._columns is None: return
 
         self._preprocessors = list()
+
+        self._widget = CorpusBuilderWidget(self)
 
     def _prompt_validated_columns(self, paths: list[pathlib.Path]) -> Optional[list[str]]:
         columns = list()
@@ -340,3 +345,9 @@ class CorpusBuilder(object):
             return pd.read_excel(path, nrows=nrows, usecols=usecols, dtype=dtype, **kwargs)
         else:
             raise NotImplementedError("Only .csv and .xlsx are supported.")
+
+    def set_callback(self, callback):
+        self._widget.set_callback(callback)
+
+    def widget(self):
+        return self._widget.widget()
