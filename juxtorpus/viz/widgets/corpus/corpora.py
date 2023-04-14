@@ -1,7 +1,7 @@
 from typing import Optional
 from abc import ABC
 
-from ipywidgets import Label, Layout, HBox, GridBox, VBox
+from ipywidgets import Label, Layout, HBox, GridBox, VBox, Button
 from ipywidgets import Checkbox
 from juxtorpus.viz.style.ipyw import center_style, corpus_id_layout, size_layout, parent_layout, hbox_style
 from juxtorpus.viz import Widget
@@ -30,15 +30,12 @@ class CorporaWidget(Widget, ABC):
         self.corpora = corpora
 
         self._builder: CorpusBuilderFileUploadWidget = CorpusBuilderFileUploadWidget()
-        self._builder.set_callback(self._on_build_callback)
+        self._builder.set_callback(self._on_build_add_to_self)
 
         self._selector: VBox = self._corpus_selector()
 
-        self._widget = VBox([self._builder.widget(), self._selector],
+        self._widget = VBox([self._toggle_builder_button(), self._create_empty(), self._selector],
                             layout=Layout(grid_template_columns='repeat(2, 1fr)'))
-
-    def _on_build_callback(self, corpus):
-        self.corpora.add(corpus)
 
     def widget(self) -> GridBox:
         return self._widget
@@ -80,13 +77,13 @@ class CorporaWidget(Widget, ABC):
 
             slicer_widget = SlicerWidget(selected)
             slicer_widget._ops_widget.set_callback(self._on_slice_add_to_self)
-            if len(self._widget.children) == 1:
-                self._widget.children = (*self._widget.children, slicer_widget.widget())
+            if self._slicer_appeared():
+                self._widget.children = (*self._widget.children[:3], slicer_widget.widget())
             else:
-                self._widget.children = (self._widget.children[0], slicer_widget.widget())
+                self._widget.children = (*self._widget.children, slicer_widget.widget())
         else:
             if len(self._widget.children) > 1:
-                self._widget.children = (self._widget.children[0],)
+                self._widget.children = (*self._widget.children[:3],)
 
     def _toggle_checkboxes(self, checked: Checkbox):
         for hboxes in self._selector.children:
@@ -94,13 +91,46 @@ class CorporaWidget(Widget, ABC):
                 if isinstance(cb, Checkbox):
                     cb.value = cb == checked
 
+    def _toggle_builder_button(self):
+        button = Button(description='Show Builder')
+
+        def _on_click_toggle(_):
+            if self._builder_appeared():
+                self._widget.children = (self._widget.children[0], self._create_empty(), *self._widget.children[2:])
+                button.description = "Hide Builder"
+            else:
+                self._widget.children = (self._widget.children[0], self._builder.widget(), *self._widget.children[2:])
+                button.description = "Show Builder"
+
+        button.on_click(_on_click_toggle)
+        return button
+
     def _on_slice_add_to_self(self, subcorpus):
         """ Add subcorpus to self on slice. """
         self.corpora.add(subcorpus)
         self._refresh_corpus_selector()
 
+    def _on_build_add_to_self(self, corpus):
+        self.corpora.add(corpus)
+        self._refresh_corpus_selector()
+
     def _refresh_corpus_selector(self):
-        self._widget.children = (self._corpus_selector(),)
+        if self._builder_appeared():
+            self._widget.children = (*self._widget.children[:2], self._corpus_selector())
+        else:
+            self._widget.children = (*self._widget.children[:1], self._corpus_selector(),)
+
+    def _builder_appeared(self):
+        return not self._is_empty(self._widget.children[1])
+
+    def _slicer_appeared(self):
+        return len(self._widget.children) > 4
+
+    def _create_empty(self) -> Label:
+        return Label(layout=Layout(height='0px', width='0px'))
+
+    def _is_empty(self, widget) -> bool:
+        return type(widget) == Label and widget.layout.height == '0px' and widget.layout.width == '0px'
 
     @staticmethod
     def _parent_label_of(corpus) -> str:
