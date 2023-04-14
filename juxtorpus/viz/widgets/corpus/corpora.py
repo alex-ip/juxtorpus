@@ -6,6 +6,7 @@ from ipywidgets import Checkbox
 from juxtorpus.viz.style.ipyw import center_style, corpus_id_layout, size_layout, parent_layout, hbox_style
 from juxtorpus.viz import Widget
 from juxtorpus.viz.widgets.corpus.slicer import SlicerWidget
+from juxtorpus.viz.widgets.corpus.builder import CorpusBuilderFileUploadWidget
 
 import logging
 
@@ -28,8 +29,16 @@ class CorporaWidget(Widget, ABC):
     def __init__(self, corpora: 'Corpora'):
         self.corpora = corpora
 
+        self._builder: CorpusBuilderFileUploadWidget = CorpusBuilderFileUploadWidget()
+        self._builder.set_callback(self._on_build_callback)
+
         self._selector: VBox = self._corpus_selector()
-        self._widget = VBox([self._selector], layout=Layout(grid_template_columns='repeat(2, 1fr)'))
+
+        self._widget = VBox([self._builder.widget(), self._selector],
+                            layout=Layout(grid_template_columns='repeat(2, 1fr)'))
+
+    def _on_build_callback(self, corpus):
+        self.corpora.add(corpus)
 
     def widget(self) -> GridBox:
         return self._widget
@@ -69,7 +78,6 @@ class CorporaWidget(Widget, ABC):
                 raise RuntimeError(f"Corpus: {owner.description} does not exist. This should not happen.")
             self._toggle_checkboxes(owner)
 
-            # todo: corpus slicer pop down.
             slicer_widget = SlicerWidget(selected)
             slicer_widget._ops_widget.set_callback(self._on_slice_add_to_self)
             if len(self._widget.children) == 1:
@@ -86,10 +94,6 @@ class CorporaWidget(Widget, ABC):
                 if isinstance(cb, Checkbox):
                     cb.value = cb == checked
 
-    @staticmethod
-    def _parent_label_of(corpus) -> str:
-        return corpus.parent.name if corpus.parent else ''
-
     def _on_slice_add_to_self(self, subcorpus):
         """ Add subcorpus to self on slice. """
         self.corpora.add(subcorpus)
@@ -97,3 +101,7 @@ class CorporaWidget(Widget, ABC):
 
     def _refresh_corpus_selector(self):
         self._widget.children = (self._corpus_selector(),)
+
+    @staticmethod
+    def _parent_label_of(corpus) -> str:
+        return corpus.parent.name if corpus.parent else ''
