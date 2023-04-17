@@ -237,7 +237,7 @@ class CorpusBuilder(Widget):
         self.remove_metas(columns)
         self.add_metas(columns, dtypes, lazy)
 
-    def set_text_column(self, column: str):
+    def set_document_column(self, column: str):
         if column not in self._columns:
             raise KeyError(
                 f"Column: '{column}' not found. Use {self.summary.__name__} to preview the columns in the dataframe")
@@ -279,7 +279,7 @@ class CorpusBuilder(Widget):
 
     def build(self) -> Corpus:
         if not self.text_column_is_set():
-            raise ValueError(f"You must set the text column. Try calling {self.set_text_column.__name__} first.")
+            raise ValueError(f"You must set the text column. Try calling {self.set_document_column.__name__} first.")
         metas = dict()
         metas = self._build_lazy_metas(metas)
         metas, texts = self._build_series_meta_and_text(metas)
@@ -326,7 +326,7 @@ class CorpusBuilder(Widget):
         for col in datetime_cols: df[col] = pd.to_datetime(df[col])
         if self._col_text not in df.columns:
             raise KeyError(f"{self._col_text} column is missing. This column is compulsory. "
-                           f"Did you call {self.set_text_column.__name__}?")
+                           f"Did you call {self.set_document_column.__name__}?")
 
         # set up corpus dependencies here
         series_text = df.loc[:, self._col_text]

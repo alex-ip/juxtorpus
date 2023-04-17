@@ -187,7 +187,7 @@ if __name__ == '__main__':
     tweet_wrapper = re.compile(r'([ ]?<[/]?TWEET>[ ]?)')
 
     builder = CorpusBuilder('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
-    builder.set_text_column('text')
+    builder.set_document_column('text')
     builder.set_nrows(10)
     builder.set_text_preprocessors([lambda text: tweet_wrapper.sub('', text)])
     corpus = builder.build()

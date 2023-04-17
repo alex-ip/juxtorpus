@@ -121,7 +121,7 @@ if __name__ == '__main__':
                     usecols=['processed_text', 'tweet_lga']),
         # pd.read_csv('~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv',
         #             usecols=['processed_text', 'tweet_lga']),
-        col_text='processed_text'
+        col_doc='processed_text'
     )
 
     slicer = CorpusSlicer(corpus)

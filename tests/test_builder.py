@@ -20,21 +20,21 @@ class TestBuilder(unittest.TestCase):
         # ensure texts are preprocessed.
         builder = self.builder
         builder.set_nrows(10_000 + 1000)  # 1000 from the second csv
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         assert len(corpus) == 10_000 + 1000, "Number of documents in corpus is not correct."
 
     def test_add_datetime_multi(self):
         builder = self.builder
         builder.add_metas(['year', 'month', 'day'], dtypes='datetime')
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         assert corpus.meta.get('datetime', None) is not None
 
     def test_add_datetime(self):
         builder = self.builder
         builder.add_metas('year_month_day', dtypes='datetime', lazy=False)
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         year_month_day = corpus.meta.get('year_month_day', None)
         assert year_month_day is not None
@@ -43,7 +43,7 @@ class TestBuilder(unittest.TestCase):
     def test_add_datetime_lazy(self):
         builder = self.builder
         builder.add_metas('year_month_day', dtypes='datetime', lazy=True)
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         year_month_day = corpus.meta.get('year_month_day', None)
         assert year_month_day is not None
@@ -53,7 +53,7 @@ class TestBuilder(unittest.TestCase):
         """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
         builder = self.builder
         builder.add_metas('tweet_lga', dtypes='category', lazy=True)
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         assert corpus.meta.get('tweet_lga').series.dtype == 'category'
 
@@ -61,7 +61,7 @@ class TestBuilder(unittest.TestCase):
         """ pd.concat drops categorical dtype into object. Make sure it's categorical again."""
         builder = self.builder
         builder.add_metas('tweet_lga', dtypes='category', lazy=False)
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         assert corpus.meta.get('tweet_lga').series.dtype == 'category'
 
@@ -69,13 +69,13 @@ class TestBuilder(unittest.TestCase):
         builder = self.builder
         builder.add_metas(['tweet_lga', 'geometry'])
         builder.remove_metas('geometry')
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         corpus = builder.build()
         assert 'geometry' not in corpus.meta.keys()
 
     def test_preprocessors(self):
         builder = self.builder
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         pattern = re.compile("[ ]?<TWEET[/]>[ ]?")
         builder.set_text_preprocessors([lambda text: pattern.sub(text, '')])
         corpus = builder.build()
@@ -101,14 +101,14 @@ class TestBuilder(unittest.TestCase):
         """ Added meta should be deselected when selected as text. """
         builder = self.builder
         builder.add_metas('processed_text')
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         assert 'processed_text' not in builder._meta_configs.keys()
         # NOTE: generally not a good idea to use private vars in tests
 
     def test_select_meta_deselect_text_column(self):
         """ Selected text should be deselected when added as meta. """
         builder = self.builder
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         builder.add_metas('processed_text')
         assert not builder.text_column_is_set()
         # NOTE: generally not a good idea to use private vars in tests

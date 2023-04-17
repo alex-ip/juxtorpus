@@ -18,7 +18,7 @@ class TestSpacyCorpus(TestCase):
     def setUp(self) -> None:
         df = pd.read_csv('tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
                          usecols=['processed_text', 'tweet_lga'], nrows=100)
-        corpus = Corpus.from_dataframe(df, col_text='processed_text')
+        corpus = Corpus.from_dataframe(df, col_doc='processed_text')
         self.scorpus: SpacyCorpus = SpacyCorpus.from_corpus(corpus, nlp=spacy.blank('en'))
 
     def test_Given_scorpus_When_initialised_Then_docs_are_spacy_docs(self):

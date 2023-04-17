@@ -85,7 +85,7 @@ if __name__ == '__main__':
     builder = CorpusBuilder(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
     builder.add_metas(['year', 'month', 'day'], dtypes='datetime', lazy=True)
     builder.add_metas('tweet_lga', dtypes='category', lazy=True)
-    builder.set_text_column('processed_text')
+    builder.set_document_column('processed_text')
     corpus = builder.build()
 
     # now i want to be able to slice the corpus into different years.

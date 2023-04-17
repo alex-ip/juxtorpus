@@ -86,7 +86,7 @@ if __name__ == '__main__':
     from juxtorpus.corpus import CorpusBuilder
 
     builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
-    builder.set_text_column('processed_text')
+    builder.set_document_column('processed_text')
     builder.set_nrows(100)
     corpus = builder.build()
 

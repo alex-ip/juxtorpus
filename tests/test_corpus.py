@@ -21,7 +21,7 @@ class TestCorpus(unittest.TestCase):
     def setUp(self) -> None:
         df = pd.read_csv('tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
                          usecols=['processed_text', 'tweet_lga'])
-        self.corpus = Corpus.from_dataframe(df, col_text='processed_text')
+        self.corpus = Corpus.from_dataframe(df, col_doc='processed_text')
 
     def test_Given_corpus_When_cloned_Then_cloned_parent_is_corpus(self):
         mask, num_trues = random_mask(self.corpus)

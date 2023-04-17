@@ -44,8 +44,8 @@ class TestDTM(unittest.TestCase):
     def setUp(self) -> None:
         self.df = pd.read_csv('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv')
         self.df2 = pd.read_csv('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')
-        self.c = Corpus.from_dataframe(self.df, col_text='processed_text')
-        self.c2 = Corpus.from_dataframe(self.df2, col_text='processed_text')
+        self.c = Corpus.from_dataframe(self.df, col_doc='processed_text')
+        self.c2 = Corpus.from_dataframe(self.df2, col_doc='processed_text')
 
         self.empty_texts = []
         self.small_texts = ['this is a sample document', 'this is another sample document']

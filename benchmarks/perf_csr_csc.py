@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     corpus = Corpus.from_dataframe(
         pd.read_csv("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"),
-        col_text='processed_text'
+        col_doc='processed_text'
     )
     csr = corpus.dtm.matrix
     csc = convert(csr)

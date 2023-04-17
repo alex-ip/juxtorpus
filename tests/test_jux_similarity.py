@@ -11,7 +11,7 @@ class TestSimilarity(TestCase):
         print()
         builder = CorpusBuilder(Path('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv'))
         builder.add_metas('tweet_lga', dtypes='category')
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         self.corpus: Corpus = builder.build()
         slicer = CorpusSlicer(self.corpus)
         self.groups = list(slicer.group_by('tweet_lga'))

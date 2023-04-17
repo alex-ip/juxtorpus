@@ -106,31 +106,31 @@ class Corpus(Clonable):
             if meta is None: raise KeyError(f"{id_} does not exist.")
             return meta
 
-    COL_TEXT: str = 'text'
+    COL_DOC: str = 'document'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = COL_TEXT, name: str = None) -> 'Corpus':
-        if col_text not in df.columns:
-            raise ValueError(f"Column {col_text} not found. You must set the col_text argument.\n"
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = COL_DOC, name: str = None) -> 'Corpus':
+        if col_doc not in df.columns:
+            raise ValueError(f"Column {col_doc} not found. You must set the col_text argument.\n"
                              f"Available columns: {df.columns}")
-        meta_df: pd.DataFrame = df.drop(col_text, axis=1)
+        meta_df: pd.DataFrame = df.drop(col_doc, axis=1)
         metas: Corpus.MetaRegistry = Corpus.MetaRegistry()
         for col in meta_df.columns:
             # create series meta
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
-        corpus = Corpus(df[col_text], metas)
+        corpus = Corpus(df[col_doc], metas)
         return corpus
 
     def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None, name: str = None):
         self._name = name if name else generate_name(self)
 
-        text.name = self.COL_TEXT
-        self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
+        text.name = self.COL_DOC
+        self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_DOC])
         # ensure initiated object is well constructed.
-        assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
-            f"More than 1 {self.COL_TEXT} column in dataframe."
+        assert len(list(filter(lambda x: x == self.COL_DOC, self._df.columns))) <= 1, \
+            f"More than 1 {self.COL_DOC} column in dataframe."
 
         self._parent: Optional[Corpus] = None
 
@@ -229,7 +229,7 @@ class Corpus(Clonable):
         return set(self.dtm.vocab(nonzero=True))
 
     def docs(self) -> 'pd.Series':
-        return self._df.loc[:, self.COL_TEXT]
+        return self._df.loc[:, self.COL_DOC]
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
@@ -316,7 +316,7 @@ class Corpus(Clonable):
     def _cloned_metas(self, mask) -> MetaRegistry:
         cloned_meta_registry = Corpus.MetaRegistry()
         for id_, meta in self._meta_registry.items():
-            cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
+            cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_DOC], mask=mask)
         return cloned_meta_registry
 
     def _cloned_dtms(self, mask) -> DTMRegistry:
@@ -395,9 +395,9 @@ class SpacyCorpus(Corpus):
         return process(corpus, nlp=nlp, source=source)
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = Corpus.COL_TEXT,
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = Corpus.COL_DOC,
                        nlp: Language = spacy.blank('en')) -> 'SpacyCorpus':
-        corpus = super().from_dataframe(df, col_text)
+        corpus = super().from_dataframe(df, col_doc)
         return cls.from_corpus(corpus, nlp)
 
     def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):

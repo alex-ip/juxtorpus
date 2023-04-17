@@ -18,7 +18,7 @@ class TestCorpusSlicer(unittest.TestCase):
         builder.add_metas(['remote_level'], dtypes='float', lazy=False)
         builder.add_metas(['tweet_lga'], dtypes='category')
         builder.add_metas(['year_month_day'], dtypes='datetime', lazy=False)
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         self.corpus: Corpus = builder.build()
 
     def test_Given_non_existant_meta_When_filter_Then_error_is_raised(self):
@@ -119,7 +119,7 @@ class TestSpacyCorpusSlicer(unittest.TestCase):
     def setUp(self) -> None:
         df = pd.read_csv('tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv',
                          usecols=['processed_text', 'tweet_lga'])
-        corpus = Corpus.from_dataframe(df, col_text='processed_text')
+        corpus = Corpus.from_dataframe(df, col_doc='processed_text')
         self.scorpus: SpacyCorpus = SpacyCorpus.from_corpus(corpus, nlp=spacy.blank('en'))
 
     def test_filter_by_matcher(self):

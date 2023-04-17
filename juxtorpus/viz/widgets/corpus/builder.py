@@ -53,7 +53,7 @@ class CorpusBuilderWidget(Widget):
                 return
             for key, config in checkbox_configs.items():
                 if config.get('text'):
-                    self.builder.set_text_column(key)
+                    self.builder.set_document_column(key)
                 else:
                     if config.get('meta'):
                         dtype = config.get('dtype')
