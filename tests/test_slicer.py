@@ -92,6 +92,13 @@ class TestCorpusSlicer(unittest.TestCase):
         groups = self.corpus.slicer.group_by(meta_id)
         assert len(list(groups)) == num_uniqs, "There should be the same number of unique items and groups."
 
+    def test_Given_subcorpus_When_groupby_Then_num_groups_equals_num_uniques(self):
+        meta_id = 'tweet_lga'
+        lga = self.corpus.meta[meta_id].series.value_counts().index[0]
+        subcorpus = self.corpus.slicer.filter_by_item(meta_id, lga)
+        groups = list(subcorpus.slicer.group_by('year_month_day', pd.Grouper(freq='1w')))
+        assert len(groups) == 127, "There should've been 127 weeks in the subcorpus."
+
     def test_groupby_datetime(self):
         groups = list(self.corpus.slicer.group_by('year_month_day', pd.Grouper(freq='1W')))
         assert len(groups) == 127, "There should've been 127 weeks in the sample dataset."
