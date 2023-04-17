@@ -108,6 +108,7 @@ class CorpusBuilder(Widget):
         self._sep = ','
         self._col_text = None
         self._dtype_text = pd.StringDtype('pyarrow')
+        self._name = None
 
         # validate column alignments
         self._columns = self._prompt_validated_columns(self._paths)
@@ -262,6 +263,9 @@ class CorpusBuilder(Widget):
             raise ValueError("nrows must be a positive integer. Set as None to remove.")
         self._nrows = nrows
 
+    def set_name(self, name: str):
+        self._name = name
+
     def set_text_preprocessors(self, preprocess_callables: list[Callable]):
         """ Set a list of preprocessors for your text data.
 
@@ -284,7 +288,7 @@ class CorpusBuilder(Widget):
         metas = self._build_lazy_metas(metas)
         metas, texts = self._build_series_meta_and_text(metas)
         texts = texts.apply(self._preprocess)
-        return Corpus(texts, metas=metas)
+        return Corpus(texts, metas=metas, name=self._name)
 
     def _build_lazy_metas(self, metas: dict):
         # build lazies
