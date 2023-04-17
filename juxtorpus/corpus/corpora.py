@@ -1,5 +1,8 @@
 from abc import ABC
 from typing import Callable, Optional, Union, Iterable, Collection
+import pandas as pd
+from ipywidgets import HTML, Label
+from IPython.display import display
 
 from juxtorpus.corpus import Corpus
 from juxtorpus.interfaces import Container
@@ -51,6 +54,22 @@ class Corpora(Container, Widget, Viz, ABC):
 
     def render(self):
         """ Visualise all the corpus currently contained within the Corpora. """
-        # TODO: render a nice visualisation to show corpus and its summary statistics.
-        #  this should not return a pandas dataframe.
-        raise NotImplementedError()
+        if len(self) <= 0:
+            display(Label('There is currently no Corpus contained in this Corpora.'))
+        else:
+            table_data = []
+            for corpus in self._map.values():
+                table_data.append([
+                    corpus.name,
+                    corpus.parent.name if corpus.parent else '',
+                    corpus.__class__.__name__,
+                    len(corpus),
+                    len(corpus.dtm.vocab(nonzero=True)),
+                    ', '.join(corpus.meta.keys())
+                ])
+            table_df = pd.DataFrame(table_data, columns=['Corpus', 'Parent', 'Type', 'Docs', 'Vocab', 'Metas'])
+            table_widget = HTML(table_df.to_html(index=False))
+            display(table_widget)
+
+    def __len__(self):
+        return len(self._map)
