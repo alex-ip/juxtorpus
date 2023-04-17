@@ -169,7 +169,7 @@ class CorpusBuilder(Widget):
             df.loc[row.Index, 'Dtype'] = dtype
 
         df.sort_index(axis=0, inplace=True)
-        return df.sort_index(axis=0, ascending=True)
+        return df.sort_index(axis=0, ascending=True).T
 
     def add_metas(self, columns: Union[str, list[str]],
                   dtypes: Union[None, str, list[str]] = None,
