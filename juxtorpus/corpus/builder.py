@@ -138,7 +138,8 @@ class CorpusBuilder(Widget):
         return self._columns
 
     def head(self, n: int = 3, cols: Optional[Union[str, list[str]]] = None):
-        return pd.read_csv(self._paths[0], nrows=n, sep=self._sep, usecols=cols)
+        if cols is None: cols = self.columns
+        return self.read(self._paths[0], nrows=n, usecols=cols)
 
     def summary(self):
         all_cols = pd.Series(sorted(list(self._columns)), name='All Columns')
