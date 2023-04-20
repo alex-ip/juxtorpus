@@ -406,7 +406,7 @@ class SpacyCorpus(Corpus):
         corpus = super().from_dataframe(df, col_doc)
         return cls.from_corpus(corpus, nlp)
 
-    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str, name: str):
+    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str, name: str = None):
         super(SpacyCorpus, self).__init__(docs, metas, name)
         self._nlp = nlp
         self._source = source
@@ -446,7 +446,7 @@ class SpacyCorpus(Corpus):
 
     def cloned(self, mask: 'pd.Series[bool]') -> 'SpacyCorpus':
         clone = super().cloned(mask)
-        scorpus = SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source, self.name)
+        scorpus = SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source)
         scorpus._dtm_registry = clone._dtm_registry
         scorpus._parent = self
         return scorpus
