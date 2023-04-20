@@ -125,7 +125,6 @@ class Corpus(Clonable):
 
     def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None, name: str = None):
         self._name = name if name else generate_name(self)
-        print(name)
 
         text.name = self.COL_DOC
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_DOC])
