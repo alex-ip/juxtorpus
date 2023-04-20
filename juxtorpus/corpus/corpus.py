@@ -5,7 +5,7 @@ from spacy.tokens import Doc
 from spacy import Language
 from sklearn.feature_extraction.text import CountVectorizer
 import re
-import randomname
+import coolname
 
 from juxtorpus.interfaces.clonable import Clonable
 from juxtorpus.corpus.slicer import CorpusSlicer, SpacyCorpusSlicer
@@ -27,7 +27,7 @@ _CORPUS_NAME_SEED = 42
 def generate_name(corpus: 'Corpus') -> str:
     # todo: should generate a random name based on corpus words
     # tmp solution - generate a random name.
-    while name := randomname.get_name():
+    while name := coolname.generate_slug(2):
         if name in _ALL_CORPUS_NAMES:
             continue
         else:
@@ -111,7 +111,7 @@ class Corpus(Clonable):
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, col_doc: str = COL_DOC, name: str = None) -> 'Corpus':
         if col_doc not in df.columns:
-            raise ValueError(f"Column {col_doc} not found. You must set the col_text argument.\n"
+            raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
         meta_df: pd.DataFrame = df.drop(col_doc, axis=1)
         metas: Corpus.MetaRegistry = Corpus.MetaRegistry()
