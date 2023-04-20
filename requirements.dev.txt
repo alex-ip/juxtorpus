@@ -5,3 +5,12 @@ rake
 wordcloud
 froznedict
 ipywidgets==7.7.1
+spacy
+scikit-learn
+colorlog
+plotly
+pyldavis==3.3.1
+transformers
+pyarrow
+
+
