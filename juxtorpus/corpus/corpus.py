@@ -120,11 +120,12 @@ class Corpus(Clonable):
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
-        corpus = Corpus(df[col_doc], metas)
+        corpus = Corpus(df[col_doc], metas, name)
         return corpus
 
     def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None, name: str = None):
         self._name = name if name else generate_name(self)
+        print(name)
 
         text.name = self.COL_DOC
         self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_DOC])
@@ -398,7 +399,7 @@ class SpacyCorpus(Corpus):
     @classmethod
     def from_corpus(cls, corpus: Corpus, nlp: Language, source=None) -> 'SpacyCorpus':
         from juxtorpus.corpus.processors import process
-        return process(corpus, nlp=nlp, source=source)
+        return process(corpus, nlp=nlp, source=source, name=corpus.name)
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame, col_doc: str = Corpus.COL_DOC,
@@ -406,8 +407,8 @@ class SpacyCorpus(Corpus):
         corpus = super().from_dataframe(df, col_doc)
         return cls.from_corpus(corpus, nlp)
 
-    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):
-        super(SpacyCorpus, self).__init__(docs, metas)
+    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str, name: str):
+        super(SpacyCorpus, self).__init__(docs, metas, name)
         self._nlp = nlp
         self._source = source
         self.source_to_word_matcher = {
@@ -446,7 +447,7 @@ class SpacyCorpus(Corpus):
 
     def cloned(self, mask: 'pd.Series[bool]') -> 'SpacyCorpus':
         clone = super().cloned(mask)
-        scorpus = SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source)
+        scorpus = SpacyCorpus(clone.docs(), clone.meta, self.nlp, self._source, self.name)
         scorpus._dtm_registry = clone._dtm_registry
         scorpus._parent = self
         return scorpus
