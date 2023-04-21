@@ -119,8 +119,8 @@ class RegexOp(Operation):
 class DatetimeOp(Operation):
     def __init__(self, meta: Meta, start: str, end: str, strftime: str = None):
         super().__init__(meta)
-        self.start = pd.to_datetime(start)
-        self.end = pd.to_datetime(end)
+        self.start = pd.to_datetime(start, dayfirst=True)
+        self.end = pd.to_datetime(end, dayfirst=True)
         self.strftime = strftime
 
         if self.start is not None:
