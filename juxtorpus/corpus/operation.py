@@ -119,9 +119,10 @@ class RegexOp(Operation):
 class DatetimeOp(Operation):
     def __init__(self, meta: Meta, start: str, end: str, strftime: str = None):
         super().__init__(meta)
-        self.start = pd.to_datetime(start, dayfirst=True)
-        self.end = pd.to_datetime(end, dayfirst=True)
         self.strftime = strftime
+        self.start = pd.to_datetime(start, dayfirst=True, format = self.strftime)
+        self.end = pd.to_datetime(end, dayfirst=True, format = self.strftime)
+        
 
         if self.start is not None:
             logger.debug(f"{'Converted start datetime'.ljust(25)}: {self.start.strftime('%Yy %mm %dd %H:%M:%S')}")
