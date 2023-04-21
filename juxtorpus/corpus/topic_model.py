@@ -13,7 +13,7 @@ from typing import Callable
 
 import pyLDAvis
 from pyLDAvis import prepare
-from pyLDAvis.sklearn import _row_norm
+from pyLDAvis.lda_model import _row_norm
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.feature_extraction._stop_words import ENGLISH_STOP_WORDS
 import pandas as pd
