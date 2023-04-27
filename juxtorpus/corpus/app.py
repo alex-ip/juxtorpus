@@ -213,7 +213,7 @@ class App(object):
         def _on_click_build_corpus(_):
             for key, config in configs.items():
                 if config.get('text'):
-                    self._builder.set_text_column(key)
+                    self._builder.set_document_column(key)
                 else:
                     if config.get('meta'):
                         dtype = config.get('dtype')

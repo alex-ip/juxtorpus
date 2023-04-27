@@ -57,7 +57,7 @@ class Jux:
         return [self._0, self._1]
 
     def summary(self):
-        return pd.concat([c.summary().rename(f'corpus_{i}') for i, c in enumerate(self.corpora)], axis=1)
+        return pd.concat([c.summary()[''].rename(c.name) for i, c in enumerate(self.corpora)], axis=1)
 
     @property
     def shares_parent(self) -> bool:

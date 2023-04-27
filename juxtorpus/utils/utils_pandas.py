@@ -29,7 +29,7 @@ def row_concat(dfs, **concat_args):
 def subindex_to_mask(series: pd.Series, subindex: pd.Index) -> 'pd.Series[bool]':
     """ Create a mask of the series where the index are a part of the provided subindex. """
     assert subindex.isin(series.index).all(), "Provided subindex is not a part of the series index. Unable to create mask."
-    return pd.Series(series.index).apply(lambda idx: idx in subindex)
+    return pd.Series(series.index, index=series.index).apply(lambda idx: idx in subindex)
 
 
 if __name__ == '__main__':

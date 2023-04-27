@@ -39,7 +39,7 @@ class TestDeduplicatedDirectory(TestCase):
         print()
         file = pathlib.Path('./assets/content.txt')
         self.dd.add(file)
-        assert file.name in self.dd.list(), "File not added to directory."
+        assert file.name in self.dd.items(), "File not added to directory."
 
     def test_exists(self):
         print()
@@ -59,7 +59,7 @@ class TestDeduplicatedDirectory(TestCase):
     def test_add_content(self):
         print()
         self.dd.add_content(self.content, self.fname)
-        assert self.fname in self.dd.list(), "File not added to directory."
+        assert self.fname in self.dd.items(), "File not added to directory."
 
     def test_content_exists(self):
         print()
@@ -93,14 +93,14 @@ class TestDeduplicatedDirectory(TestCase):
         fname = 'filename'
         self.dd.add_content(content, fname)
         self.dd.remove(fname)
-        assert fname not in self.dd.list(), "File was not removed from directory."
+        assert fname not in self.dd.items(), "File was not removed from directory."
 
     def test_add_directory(self):
         print()
         self.dd.add_directory(self.dir_)
         files = [f.name for f in self.dir_.glob("**/*") if f.is_file()]
         for f in files:
-            assert f in self.dd.list(), f"{f} should exist in the directory."
+            assert f in self.dd.items(), f"{f} should exist in the directory."
 
     def test_add_zip(self):
         print()
@@ -108,5 +108,5 @@ class TestDeduplicatedDirectory(TestCase):
         with zipfile.ZipFile(self.zip_) as z:
             for zipinfo in z.infolist():
                 if zipinfo.filename.endswith('/'): continue
-                assert pathlib.Path(zipinfo.filename).name in self.dd.list(), \
+                assert pathlib.Path(zipinfo.filename).name in self.dd.items(), \
                     f"{zipinfo.filename} should exist in directory."

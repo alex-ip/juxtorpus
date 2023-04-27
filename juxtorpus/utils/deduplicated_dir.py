@@ -1,15 +1,18 @@
-from typing import Union
+from typing import Union, Optional
 import pathlib, os, shutil, tempfile
 import hashlib
 import filecmp
 import zipfile
+import os
+
+from juxtorpus.interfaces import Container
 
 import logging.config
 
 logger = logging.getLogger(__name__)
 
 
-class DeduplicatedDirectory(object):
+class DeduplicatedDirectory(Container):
     """
     The DeduplicatedDirectory is a proxy to a temporary directory that does not hold any duplicated files.
 
@@ -39,9 +42,15 @@ class DeduplicatedDirectory(object):
             cond = lambda f: f.is_file() and f.stem[0] != '.'
         return list(f for f in pathlib.Path(self._dir_path).glob('**/*') if cond(f))
 
-    def list(self) -> list[str]:
+    def items(self) -> list[str]:
         """ Lists all the name of the files in the directory. """
         return [f.name for f in self.files()]
+
+    def get(self, fname: str) -> Optional[pathlib.Path]:
+        for f in self.files():
+            if fname == f.name:
+                return f
+        return None
 
     def add(self, file: pathlib.Path):
         """ Adds a file to the directory. Raises error if file already exists. """
@@ -119,6 +128,11 @@ class DeduplicatedDirectory(object):
                         del self._index[digest]
                         return
         raise ValueError(f"{fname} does not exist.")
+
+    def clear(self):
+        existing: pathlib.Path
+        for existing in self.files():
+            os.remove(existing)
 
     def exists(self, file: pathlib.Path, shallow: bool = True) -> bool:
         """ Check if file already exists in the directory.

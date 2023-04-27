@@ -25,6 +25,10 @@ class SeriesMeta(Meta):
             self._series = self._series.load()
         return self._series
 
+    @property
+    def dtype(self):
+        return self.series.dtype
+
     def apply(self, func):
         return self.series.apply(func)
 
@@ -94,6 +98,9 @@ class SeriesMeta(Meta):
     def __repr__(self) -> str:
         prev = super().__repr__()
         return prev[:-2] + f" dtype: {self.series.dtype}]>"
+
+    def __len__(self):
+        return len(self.series)
 
 
 """Example Child Class (Archived): 

@@ -146,4 +146,5 @@ meeting_notes/
 mtcc.pdf
 
 notebooks/Untitled.ipynb
-**/*.ipynb
+#**/*.ipynb
+#**/*.csv

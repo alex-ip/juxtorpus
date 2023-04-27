@@ -12,7 +12,7 @@ class TestJux(TestCase):
     def setUp(self) -> None:
         builder = CorpusBuilder("tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv")
         builder.add_metas(['tweet_lga'], dtypes=['category'])
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         builder.set_nrows(100)
         self.corpus = builder.build()
 

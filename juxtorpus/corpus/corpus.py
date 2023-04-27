@@ -5,6 +5,7 @@ from spacy.tokens import Doc
 from spacy import Language
 from sklearn.feature_extraction.text import CountVectorizer
 import re
+import coolname
 
 from juxtorpus.interfaces.clonable import Clonable
 from juxtorpus.corpus.slicer import CorpusSlicer, SpacyCorpusSlicer
@@ -18,6 +19,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 TDoc = Union[str, Doc]
+
+_ALL_CORPUS_NAMES = set()
+_CORPUS_NAME_SEED = 42
+
+
+def generate_name(corpus: 'Corpus') -> str:
+    # todo: should generate a random name based on corpus words
+    # tmp solution - generate a random name.
+    while name := coolname.generate_slug(2):
+        if name in _ALL_CORPUS_NAMES:
+            continue
+        else:
+            return name
 
 
 class Corpus(Clonable):
@@ -92,28 +106,31 @@ class Corpus(Clonable):
             if meta is None: raise KeyError(f"{id_} does not exist.")
             return meta
 
-    COL_TEXT: str = 'text'
+    COL_DOC: str = 'document'
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = COL_TEXT) -> 'Corpus':
-        if col_text not in df.columns:
-            raise ValueError(f"Column {col_text} not found. You must set the col_text argument.\n"
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = COL_DOC, name: str = None) -> 'Corpus':
+        if col_doc not in df.columns:
+            raise ValueError(f"Column {col_doc} not found. You must set the col_doc argument.\n"
                              f"Available columns: {df.columns}")
-        meta_df: pd.DataFrame = df.drop(col_text, axis=1)
+        meta_df: pd.DataFrame = df.drop(col_doc, axis=1)
         metas: Corpus.MetaRegistry = Corpus.MetaRegistry()
         for col in meta_df.columns:
             # create series meta
             if metas.get(col, None) is not None:
                 raise KeyError(f"{col} already exists. Please rename the column.")
             metas[col] = SeriesMeta(col, meta_df.loc[:, col])
-        return Corpus(df[col_text], metas)
+        corpus = Corpus(df[col_doc], metas, name)
+        return corpus
 
-    def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None):
-        text.name = self.COL_TEXT
-        self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_TEXT])
+    def __init__(self, text: pd.Series, metas: Union[dict[str, Meta], MetaRegistry] = None, name: str = None):
+        self._name = name if name else generate_name(self)
+
+        text.name = self.COL_DOC
+        self._df: pd.DataFrame = pd.DataFrame(text, columns=[self.COL_DOC])
         # ensure initiated object is well constructed.
-        assert len(list(filter(lambda x: x == self.COL_TEXT, self._df.columns))) <= 1, \
-            f"More than 1 {self.COL_TEXT} column in dataframe."
+        assert len(list(filter(lambda x: x == self.COL_DOC, self._df.columns))) <= 1, \
+            f"More than 1 {self.COL_DOC} column in dataframe."
 
         self._parent: Optional[Corpus] = None
 
@@ -129,10 +146,24 @@ class Corpus(Clonable):
         # regex patterns
         self._pattern_words = re.compile(r'\w+')
         self._pattern_hashtags = re.compile(r'#[A-Za-z0-9_-]+')
-        self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]')
+        self._pattern_mentions = re.compile(r'@[A-Za-z0-9_-]+')
 
         # standard viz
         self._viz = CorpusViz(self)
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        global _ALL_CORPUS_NAMES
+        if name in _ALL_CORPUS_NAMES:
+            new_name = name + '_'
+            logger.info(f"{name} already exists. It renamed to {new_name}")
+            name = new_name
+            _ALL_CORPUS_NAMES = _ALL_CORPUS_NAMES.union(name)
+        self._name = name
 
     @property
     def parent(self) -> 'Corpus':
@@ -204,7 +235,7 @@ class Corpus(Clonable):
         return set(self.dtm.vocab(nonzero=True))
 
     def docs(self) -> 'pd.Series':
-        return self._df.loc[:, self.COL_TEXT]
+        return self._df.loc[:, self.COL_DOC]
 
     def summary(self):
         """ Basic summary statistics of the corpus. """
@@ -226,7 +257,7 @@ class Corpus(Clonable):
         meta_info = pd.Series({
             "metas": ', '.join(self._meta_registry.keys())
         })
-        return pd.concat([other_info, docs_info, meta_info])
+        return pd.concat([other_info, docs_info, meta_info]).to_frame(name='')
 
     def sample(self, n: int, rand_stat=None) -> 'Corpus':
         """ Uniformly sample from the corpus. """
@@ -291,7 +322,7 @@ class Corpus(Clonable):
     def _cloned_metas(self, mask) -> MetaRegistry:
         cloned_meta_registry = Corpus.MetaRegistry()
         for id_, meta in self._meta_registry.items():
-            cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_TEXT], mask=mask)
+            cloned_meta_registry[id_] = meta.cloned(texts=self._df.loc[:, self.COL_DOC], mask=mask)
         return cloned_meta_registry
 
     def _cloned_dtms(self, mask) -> DTMRegistry:
@@ -367,16 +398,16 @@ class SpacyCorpus(Corpus):
     @classmethod
     def from_corpus(cls, corpus: Corpus, nlp: Language, source=None) -> 'SpacyCorpus':
         from juxtorpus.corpus.processors import process
-        return process(corpus, nlp=nlp, source=source)
+        return process(corpus, nlp=nlp, source=source, name=corpus.name)
 
     @classmethod
-    def from_dataframe(cls, df: pd.DataFrame, col_text: str = Corpus.COL_TEXT,
+    def from_dataframe(cls, df: pd.DataFrame, col_doc: str = Corpus.COL_DOC,
                        nlp: Language = spacy.blank('en')) -> 'SpacyCorpus':
-        corpus = super().from_dataframe(df, col_text)
+        corpus = super().from_dataframe(df, col_doc)
         return cls.from_corpus(corpus, nlp)
 
-    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str):
-        super(SpacyCorpus, self).__init__(docs, metas)
+    def __init__(self, docs, metas: dict, nlp: spacy.Language, source: str, name: str = None):
+        super(SpacyCorpus, self).__init__(docs, metas, name)
         self._nlp = nlp
         self._source = source
         self.source_to_word_matcher = {

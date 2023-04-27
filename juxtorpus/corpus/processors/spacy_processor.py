@@ -106,7 +106,7 @@ class SpacyProcessor(Processor):
         logger.debug("Done.")
         logger.debug(f"Elapsed time: {datetime.now() - start}s.")
 
-        scorpus = SpacyCorpus(docs, corpus.meta, self.nlp, self._source)
+        scorpus = SpacyCorpus(docs, corpus.meta, self.nlp, self._source, corpus.name)
         scorpus._dtm_registry = corpus._dtm_registry
         scorpus._parent = corpus.parent
         return scorpus
@@ -119,7 +119,7 @@ class SpacyProcessor(Processor):
         for name, comp in self.nlp.pipeline:
             _attr = comp.attr if isinstance(comp, Component) else self.built_in_component_attrs.get(name, None)
             if _attr is None: continue
-            generator = corpus._df.loc[:, corpus.COL_TEXT]
+            generator = corpus._df.loc[:, corpus.COL_DOC]
             meta = DocMeta(id_=name, attr=_attr, nlp=self.nlp, docs=generator)
             corpus._meta_registry[meta.id] = meta
 
@@ -137,7 +137,7 @@ if __name__ == '__main__':
         pathlib.Path('/Users/hcha9747/Downloads/Geolocated_places_climate_with_LGA_and_remoteness_with_text.csv')
     )
     builder.set_nrows(10000)
-    builder.set_text_column('text')
+    builder.set_document_column('text')
     corpus = builder.build()
 
     # Now to process the corpus...

@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import pathlib
-from typing import Iterable, Union
+from typing import Iterable, Union, Callable
 import pandas as pd
 from .utils.utils_pandas import row_concat
 
@@ -13,7 +13,7 @@ class LazyLoader(metaclass=ABCMeta):
 
 
 class LazySeries(LazyLoader):
-    def __init__(self, paths: list[pathlib.Path], nrows: int, pd_read_func):
+    def __init__(self, paths: list[pathlib.Path], nrows: int, pd_read_func: Callable, is_datetime: bool):
         """
         :param paths: paths of the csv
         :param nrows: max number of rows
@@ -22,6 +22,7 @@ class LazySeries(LazyLoader):
         self._paths = paths if isinstance(paths, list) else list(paths)
         self._nrows = nrows
         self._read_func = pd_read_func
+        self._is_datetime = is_datetime
 
     @property
     def nrows(self):
@@ -32,8 +33,10 @@ class LazySeries(LazyLoader):
         return self._paths
 
     def load(self):
-        return row_concat(self._yield_series(), ignore_index=True)
-        # return pd.concat(self._yield_series(), axis=0, ignore_index=True)
+        if not self._is_datetime:
+            return row_concat(self._yield_series(), ignore_index=True)
+        else:
+            return pd.to_datetime(row_concat(self._yield_series(), ignore_index=True))
 
     def _yield_series(self) -> pd.Series:
         # load all

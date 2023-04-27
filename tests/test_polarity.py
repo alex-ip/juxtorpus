@@ -11,7 +11,7 @@ class TestPolarity(TestCase):
         builder = CorpusBuilder(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
         # builder = CorpusBuilder(Path("~/Downloads/Geolocated_places_climate_with_LGA_and_remoteness.csv"))
         builder.add_metas(['tweet_lga'])
-        builder.set_text_column('processed_text')
+        builder.set_document_column('processed_text')
         self.corpus = builder.build()
 
         groups = list(self.corpus.slicer.group_by('tweet_lga'))

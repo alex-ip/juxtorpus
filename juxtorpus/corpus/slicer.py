@@ -1,26 +1,20 @@
 from abc import ABC
 
-from juxtorpus.corpus.meta import *
-
 from typing import Union, Callable, Optional, Any, Generator
 from spacy.matcher import Matcher
 from spacy.tokens import Doc
 import re
 
+from juxtorpus.corpus.meta import *
+from juxtorpus.viz import Widget
+from juxtorpus.viz.widgets.corpus.slicer import SlicerWidget
+from juxtorpus.corpus.operation import *
 import colorlog
 
 logger = colorlog.getLogger(__name__)
 
 
-def slicer(corpus):
-    if isinstance(corpus, SpacyCorpus):
-        return SpacyCorpusSlicer(corpus)
-    if isinstance(corpus, Corpus):
-        return CorpusSlicer(corpus)
-    raise ValueError(f"corpus must be an instance of {Corpus.__name__}. Got {type(corpus)}.")
-
-
-class CorpusSlicer(object):
+class CorpusSlicer(Widget):
     """ CorpusSlicer
 
     The corpus slicer is used in conjunction with the Corpus class to serve its main design feature:
@@ -47,52 +41,15 @@ class CorpusSlicer(object):
         :arg items - the list of items to include OR just a single item.
         """
         meta = self.corpus.meta.get_or_raise_err(id_)
-        mask = self._filter_by_item_mask(meta, items)
-        return self.corpus.cloned(mask)
-
-    def _filter_by_item_mask(self, meta, items):
-        cond_func = self._item_cond_func(items)
-        mask = self._mask_by_condition(meta, cond_func)
-        return mask
-
-    def _item_cond_func(self, items):
-        items = [items] if isinstance(items, str) else items
-        items = [items] if not type(items) in (list, tuple, set) else items
-        items = set(items)
-
-        def cond_func(any_):
-            if isinstance(any_, str):
-                return any_ in items
-            elif isinstance(any_, int) or isinstance(any_, float):
-                return any_ in items
-            elif isinstance(any_, dict):
-                return not set(any_.keys()).isdisjoint(items)
-            elif type(any_) in (list, tuple, set):
-                return not set(any_).isdisjoint(items)
-            else:
-                raise TypeError(f"Unable to filter {type(any_)}. Only string or iterables.")
-
-        return cond_func
+        op = ItemOp(meta, items)
+        return self.corpus.cloned(op.mask())
 
     def filter_by_range(self, id_, min_: Optional[Union[int, float]] = None, max_: Optional[Union[int, float]] = None):
         """ Filter by a range [min, max). Max is non inclusive. """
         meta = self.corpus.meta.get_or_raise_err(id_)
-        mask = self._filter_by_range_mask(meta, min_, max_)
-        return self.corpus.cloned(mask)
-
-    def _filter_by_range_mask(self, meta, min_, max_):
-        cond_func = self._range_cond_func(min_, max_)
-        return self._mask_by_condition(meta, cond_func)
-
-    def _range_cond_func(self, min_, max_):
         if min_ is None and max_ is None: return self.corpus
-        if None not in (min_, max_):
-            cond_func = lambda num: min_ <= num < max_
-        elif min_ is not None:
-            cond_func = lambda num: min_ <= num
-        else:
-            cond_func = lambda num: num < max_
-        return cond_func
+        op = RangeOp(meta, min_, max_)
+        return self.corpus.cloned(op.mask())
 
     def filter_by_regex(self, id_, regex: str, ignore_case: bool = False):
         """ Filter by regex.
@@ -101,17 +58,8 @@ class CorpusSlicer(object):
         :arg ignore_case - whether to ignore case
         """
         meta = self.corpus.meta.get_or_raise_err(id_)
-        mask = self._filter_by_regex_mask(meta, regex, ignore_case)
-        return self.corpus.cloned(mask)
-
-    def _filter_by_regex_mask(self, meta, regex, ignore_case: bool):
-        cond_func = self._regex_cond_func(regex, ignore_case)
-        return self._mask_by_condition(meta, cond_func)
-
-    def _regex_cond_func(self, regex: str, ignore_case: bool):
-        flags = 0 if not ignore_case else re.IGNORECASE
-        pattern = re.compile(regex, flags=flags)
-        return lambda any_: pattern.search(any_) is not None
+        op = RegexOp(meta, regex, ignore_case)
+        return self.corpus.cloned(op.mask())
 
     def filter_by_datetime(self, id_, start: Optional[str] = None, end: Optional[str] = None,
                            strftime: Optional[str] = None):
@@ -124,34 +72,8 @@ class CorpusSlicer(object):
         """
         meta = self.corpus.meta.get_or_raise_err(id_)
         if start is None and end is None: return self.corpus
-        mask = self._filter_by_datetime_mask(meta, start, end, strftime)
-        return self.corpus.cloned(mask)
-
-    def _filter_by_datetime_mask(self, meta, start, end, strftime=None):
-        if isinstance(meta, SeriesMeta) and not pd.api.types.is_datetime64_any_dtype(meta.series):
-            raise ValueError("The meta specified is not a datetime.")
-        # return corpus if no start or end time specified.
-        cond_func = self._datetime_cond_func(start, end, strftime)
-        mask = self._mask_by_condition(meta, cond_func)
-        return mask
-
-    def _datetime_cond_func(self, start, end, strftime):
-        start = pd.to_datetime(start, infer_datetime_format=True, format=strftime)  # returns None if start=None
-        end = pd.to_datetime(end, infer_datetime_format=True, format=strftime)
-        if start is not None:
-            logger.debug(f"{'Converted start datetime'.ljust(25)}: {start.strftime('%Yy %mm %dd %H:%M:%S')}")
-        if end is not None:
-            logger.debug(f"{'Converted end datetime'.ljust(25)}: {end.strftime('%Yy %mm %dd %H:%M:%S')}")
-
-        if None not in (start, end):
-            cond_func = lambda dt: start <= dt < end
-        elif start is not None:
-            cond_func = lambda dt: start <= dt
-        elif end is not None:
-            cond_func = lambda dt: dt < end
-        else:
-            cond_func = lambda dt: True
-        return cond_func
+        op = DatetimeOp(meta, start, end, strftime)
+        return self.corpus.cloned(op.mask())
 
     def _mask_by_condition(self, meta, cond_func):
         mask = meta.apply(cond_func)
@@ -177,6 +99,9 @@ class CorpusSlicer(object):
                                       f"Please use {self.group_by_conditions.__name__}.")
         return ((gid, self.corpus.cloned(mask)) for gid, mask in meta.groupby(grouper))
 
+    def widget(self):
+        return SlicerWidget(self.corpus).widget()
+
 
 class SpacyCorpusSlicer(CorpusSlicer, ABC):
     def __init__(self, corpus: 'SpacyCorpus'):
@@ -188,16 +113,5 @@ class SpacyCorpusSlicer(CorpusSlicer, ABC):
         """ Filter by matcher
         If the matcher matches anything, that document is kept in the sliced corpus.
         """
-        cond_func = self._matcher_cond_func(matcher)
-        docs = self.corpus.docs()
-        if isinstance(docs, pd.Series):
-            mask = docs.apply(cond_func).astype('boolean')
-        else:
-            mask = map(cond_func, docs)  # inf corpus. Corpus class itself does not support this yet. placeholder.
-        return self.corpus.cloned(mask)
-
-    def _matcher_cond_func(self, matcher):
-        def _cond_func(doc: Doc):
-            return len(matcher(doc)) > 0
-
-        return _cond_func
+        op = MatcherOp(self.corpus.docs(), matcher)
+        return self.corpus.cloned(op.mask(self.corpus.docs()))

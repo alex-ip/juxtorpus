@@ -44,8 +44,8 @@ class TestDTM(unittest.TestCase):
     def setUp(self) -> None:
         self.df = pd.read_csv('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv')
         self.df2 = pd.read_csv('./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_1.csv')
-        self.c = Corpus.from_dataframe(self.df, col_text='processed_text')
-        self.c2 = Corpus.from_dataframe(self.df2, col_text='processed_text')
+        self.c = Corpus.from_dataframe(self.df, col_doc='processed_text')
+        self.c2 = Corpus.from_dataframe(self.df2, col_doc='processed_text')
 
         self.empty_texts = []
         self.small_texts = ['this is a sample document', 'this is another sample document']
@@ -145,25 +145,18 @@ class TestDTM(unittest.TestCase):
         assert clone.total == true_total_terms
 
     def test_Given_initialised_When_tfidf_Then_return_valid_tfidf_dtm(self):
-        # todo: ensure a DTM object is returned.
-        # todo: ensure the tfidf DTM are the same shape.
-        # todo: ensure vectorizer is tfidf transformer
         dtm = DTM().initialise(self.small_texts)
         tfidf = dtm.tfidf()
         assert isinstance(tfidf, DTM)
         assert tfidf.shape == dtm.shape
-        assert isinstance(tfidf, TfidfTransformer)
+        assert isinstance(tfidf.vectorizer, TfidfTransformer)
 
     def test_Given_initialised_When_freq_table_Then_return_valid_freq_table(self):
-        # todo: ensure a FreqTable object is returned.
-        # todo: ensure the total = total_terms in dtm
-        # todo: ensure terms == terms_names in dtm.
         dtm = DTM().initialise(self.small_texts)
         assert dtm.total == dtm.freq_table().total
         assert set(dtm.term_names) == set(dtm.term_names)
 
     def test_Given_initialised_When_to_dataframe_Then_return_dataframe_with_valid_data(self):
-        # todo: check total of dataframe returned is the same as DTM total_terms
         dtm = DTM().initialise(self.small_texts)
         df = dtm.to_dataframe()
         assert dtm.total == df.sum(axis=1).sum(axis=0)

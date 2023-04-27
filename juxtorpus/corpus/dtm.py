@@ -312,14 +312,17 @@ class DTM(Clonable):
         return FreqTable(terms, freqs)
 
     def __repr__(self):
-        return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
+        if self.is_built:
+            return f"<DTM {self.num_docs} docs X {self.num_terms} terms>"
+        else:
+            return f"<DTM Uninitialised>"
 
 
 if __name__ == '__main__':
     from juxtorpus.corpus.corpus import Corpus
 
     df = pd.read_csv(Path("./tests/assets/Geolocated_places_climate_with_LGA_and_remoteness_0.csv"))
-    corpus = Corpus.from_dataframe(df, col_text='processed_text')
+    corpus = Corpus.from_dataframe(df, col_doc='processed_text')
     corpus.summary()
 
     dtm = DTM().initialise(corpus.docs())
